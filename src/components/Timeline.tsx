@@ -56,6 +56,7 @@ function TimelineItem({ movie, align }: { movie: Movie; align: "left" | "right" 
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-10% 0px" }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      style={{ willChange: "transform, opacity" }}
       className={cn(
         "flex flex-col md:flex-row items-center gap-8 md:gap-16",
         align === 'right' ? 'md:flex-row-reverse' : ''

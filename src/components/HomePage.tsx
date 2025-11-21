@@ -5,6 +5,7 @@ import { MovieCard } from "@/components/MovieCard";
 import { motion } from "framer-motion";
 import { Play, Plus } from "lucide-react";
 import { Movie } from "@/types";
+import Image from "next/image";
 
 interface HomePageProps {
   trendingMovies: Movie[];
@@ -25,17 +26,20 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
   return (
     <div className="space-y-12 pb-20">
       {/* Hero Section - Card Style */}
-      <section className="relative w-full rounded-[32px] md:rounded-[48px] overflow-hidden aspect-[4/5] md:h-[75vh] shadow-2xl shadow-black/20 group">
+      <section className="relative w-full rounded-[32px] md:rounded-[48px] overflow-hidden aspect-4/5 md:h-[75vh] shadow-2xl shadow-black/20 group">
         {/* Background Image */}
         <div className="absolute inset-0">
-          <img
+          <Image
             src={heroMovie.backdropUrl || heroMovie.posterUrl}
             alt={heroMovie.title}
-            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+            fill
+            priority
+            className="object-cover transition-transform duration-1000 group-hover:scale-105"
+            style={{ willChange: "transform" }}
           />
           {/* Gradient Overlay - Minimal, just for text legibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-r from-black/60 via-transparent to-transparent" />
         </div>
 
         {/* Content */}
@@ -44,6 +48,7 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+            style={{ willChange: "transform, opacity" }}
             className="max-w-3xl space-y-6"
           >
              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/90 text-xs font-medium uppercase tracking-wider">

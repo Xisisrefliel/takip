@@ -122,6 +122,7 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.2 }}
+                style={{ willChange: "transform, opacity" }}
                 key={movie.id}
               >
                 <MovieCard movie={movie} aspectRatio="portrait" />
@@ -163,6 +164,7 @@ function TabButton({
           layoutId="activeTab"
           className="absolute inset-0 bg-foreground rounded-full shadow-sm"
           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+          style={{ willChange: "transform, opacity" }}
         />
       )}
       <span className="relative z-10">{label}</span>

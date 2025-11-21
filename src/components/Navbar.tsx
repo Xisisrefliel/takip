@@ -27,7 +27,7 @@ export function Navbar() {
                 <Search size={18} />
             </button>
             <Link href="/profile" className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
+                <div className="w-8 h-8 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
                     <User size={14} />
                 </div>
             </Link>
@@ -43,14 +43,15 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
       href={href}
       className={cn(
         "relative px-5 py-2 text-sm font-medium transition-colors rounded-full",
-        active ? "text-foreground" : "text-foreground/60 hover:text-foreground"
+        active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
     >
       {active && (
         <motion.div
           layoutId="nav-pill"
-          className="absolute inset-0 bg-surface shadow-sm rounded-full"
+          className="absolute inset-0 bg-foreground shadow-sm rounded-full"
           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+          style={{ willChange: "transform, opacity" }}
         />
       )}
       <span className="relative z-10">{children}</span>

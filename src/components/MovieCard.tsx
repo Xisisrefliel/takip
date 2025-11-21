@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { Eye, Plus, Heart, Check } from "lucide-react";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
@@ -34,10 +35,13 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
         {/* Image */}
-        <img
+        <Image
           src={movie.posterUrl}
           alt={movie.title}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+          loading="lazy"
         />
 
         {/* Overlay Actions - Minimal */}
@@ -122,6 +126,7 @@ function ActionButton({
       animate={{ scale: 1, opacity: 1 }}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
+      style={{ willChange: "transform, opacity" }}
       onClick={(e) => {
         e.stopPropagation();
         onClick(e);

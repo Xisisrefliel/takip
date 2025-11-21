@@ -25,8 +25,8 @@
   }
   
   @keyframes slide-up {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from { transform: translate3d(0, 20px, 0); opacity: 0; }
+    to { transform: translate3d(0, 0, 0); opacity: 1; }
   }
 
   @keyframes scale-in {
@@ -76,6 +76,10 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
 }
 
 /* Utility classes for the new aesthetic */
