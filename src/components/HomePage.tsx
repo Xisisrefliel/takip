@@ -16,62 +16,65 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
 
   if (!heroMovie) {
     return (
-      <div className="h-screen flex items-center justify-center text-white/50">
-        Loading or no content available...
+      <div className="min-h-[50vh] flex items-center justify-center text-foreground/50">
+        Loading...
       </div>
     );
   }
 
   return (
-    <div className="pb-12 w-2/3 mx-auto">
-      {/* Hero Section */}
-      <section className="relative h-[60vh] w-full overflow-hidden">
+    <div className="space-y-12 pb-20">
+      {/* Hero Section - Card Style */}
+      <section className="relative w-full rounded-[32px] md:rounded-[48px] overflow-hidden aspect-[4/5] md:h-[75vh] shadow-2xl shadow-black/20 group">
         {/* Background Image */}
         <div className="absolute inset-0">
           <img
             src={heroMovie.backdropUrl || heroMovie.posterUrl}
             alt={heroMovie.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
           />
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent" />
-          <div className="absolute inset-0 bg-linear-to-r from-background via-background/60 to-transparent" />
+          {/* Gradient Overlay - Minimal, just for text legibility */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
         </div>
 
         {/* Content */}
-        <div className="relative h-full container mx-auto px-4 flex flex-col justify-end pb-16 md:pb-12">
+        <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-16">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="max-w-2xl space-y-4"
+            transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+            className="max-w-3xl space-y-6"
           >
-             <div className="flex items-center gap-3 text-accent font-medium tracking-widest uppercase text-xs">
-                <span className="w-6 h-px bg-accent" />
-                Trending Now
+             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/90 text-xs font-medium uppercase tracking-wider">
+                <span>Trending Now</span>
              </div>
-            <h1 className="text-4xl md:text-5xl font-serif font-bold leading-tight text-white drop-shadow-lg">
+            
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white drop-shadow-sm">
               {heroMovie.title}
             </h1>
-            <div className="flex items-center gap-3 text-white/80 text-sm">
+            
+            <div className="flex flex-wrap items-center gap-4 text-white/90 text-sm md:text-base font-medium">
                <span>{heroMovie.year}</span>
-               <span className="w-1 h-1 bg-white/40 rounded-full" />
+               <span className="w-1.5 h-1.5 bg-white/40 rounded-full" />
                <span>{heroMovie.genre.join(", ")}</span>
-               <span className="w-1 h-1 bg-white/40 rounded-full" />
-               <span className="text-yellow-400 font-bold">★ {heroMovie.rating}</span>
+               <span className="w-1.5 h-1.5 bg-white/40 rounded-full" />
+               <span className="flex items-center gap-1 text-yellow-400">
+                 ★ {heroMovie.rating}
+               </span>
             </div>
-            <p className="text-base text-white/70 line-clamp-2 md:line-clamp-none max-w-lg">
-              Experience the cinematic masterpiece that has everyone talking. Dive into a world of adventure and intrigue.
+            
+            <p className="text-lg text-white/80 line-clamp-2 max-w-2xl font-light leading-relaxed">
+              Dive into the cinematic experience that has captivated audiences worldwide. A journey of emotion and spectacle awaits.
             </p>
 
-            <div className="flex items-center gap-3 pt-2">
-               <button className="px-6 py-2 bg-accent text-white font-bold rounded-full flex items-center gap-2 hover:bg-accent/90 transition-all transform hover:scale-105 text-sm">
-                  <Play size={16} fill="currentColor" />
+            <div className="flex items-center gap-4 pt-4">
+               <button className="h-14 px-8 rounded-full bg-white text-black font-semibold flex items-center gap-2 hover:bg-white/90 transition-all transform hover:scale-105 shadow-lg shadow-white/10">
+                  <Play size={20} fill="currentColor" />
                   Watch Trailer
                </button>
-               <button className="px-6 py-2 bg-white/10 backdrop-blur-md text-white font-bold rounded-full flex items-center gap-2 hover:bg-white/20 transition-all border border-white/10 text-sm">
-                  <Plus size={16} />
-                  Add to Watchlist
+               <button className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-all hover:scale-105">
+                  <Plus size={24} />
                </button>
             </div>
           </motion.div>
@@ -79,7 +82,7 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
       </section>
 
       {/* Trending Movies Carousel */}
-      <section className="mt-[-40px] relative z-10 pl-4">
+      <section>
          <Carousel title="Trending Movies">
             {trendingMovies.map((movie) => (
                <div key={movie.id} className="min-w-[140px] w-[140px] md:min-w-[180px] md:w-[180px] snap-start">
@@ -90,11 +93,11 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
       </section>
 
       {/* Popular Series Carousel */}
-      <section className="mt-4 pl-4">
+      <section>
          <Carousel title="Popular Series">
             {popularSeries.map((movie) => (
-               <div key={movie.id} className="min-w-[200px] w-[200px] md:min-w-[260px] md:w-[260px] snap-start">
-                   {/* Using landscape for series just for variety */}
+               <div key={movie.id} className="min-w-[200px] w-[200px] md:min-w-[280px] md:w-[280px] snap-start">
+                   {/* Using landscape for series */}
                   <MovieCard movie={movie} aspectRatio="landscape" />
                </div>
             ))}
@@ -103,4 +106,3 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
     </div>
   );
 }
-

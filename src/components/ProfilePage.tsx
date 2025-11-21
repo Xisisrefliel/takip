@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { MovieCard } from "@/components/MovieCard";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
 import { LayoutGrid, List, Heart, Clock, Bookmark } from "lucide-react";
+import { motion } from "framer-motion";
 
 type Tab = "watched" | "watchlist" | "favorites";
 
@@ -24,7 +24,6 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
   ];
 
   // Simulate user data since we don't have a real backend yet
-  // We'll arbitrarily assign some movies to categories if they aren't already
   const watched = allContent.filter(m => m.watched).length > 0 
     ? allContent.filter(m => m.watched) 
     : allContent.slice(0, 8).map(m => ({ ...m, watched: true, watchedDate: new Date().toISOString() }));
@@ -49,55 +48,64 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
   const content = getTabContent();
 
   return (
-    <div className="min-h-screen pb-12 pt-20">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen pb-20 pt-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-8">
         
-        {/* Profile Header - Minimalist */}
-        <div className="flex flex-col items-center mb-8">
+        {/* Profile Header */}
+        <div className="flex flex-col items-center mb-12">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="relative mb-4 group"
+            className="relative mb-6"
           >
-            <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-surface bg-surface">
-                {/* Placeholder Avatar */}
-                <div className="w-full h-full bg-linear-to-tr from-neutral-800 to-neutral-600 flex items-center justify-center text-2xl font-display text-white/50">
+            <div className="w-24 h-24 rounded-[32px] overflow-hidden ring-4 ring-surface shadow-2xl">
+                <div className="w-full h-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white">
                     O
                 </div>
             </div>
-            <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-background" />
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-background shadow-sm" />
           </motion.div>
           
-          <h1 className="text-2xl md:text-3xl font-display font-medium mb-1 tracking-tight">Omer's Library</h1>
-          <div className="flex gap-4 text-xs font-medium text-foreground/60 font-sans tracking-wide uppercase">
-            <span>{watched.length} Watched</span>
-            <span>•</span>
-            <span>{watchlist.length} Queue</span>
-            <span>•</span>
-            <span>{favorites.length} Loved</span>
-          </div>
+          <motion.h1 
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2"
+          >
+            Omer's Library
+          </motion.h1>
+          
+          <motion.div 
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center gap-3 text-sm font-medium text-foreground/50"
+          >
+            <span className="flex items-center gap-1"><Clock size={14} /> {watched.length} Watched</span>
+            <span className="w-1 h-1 rounded-full bg-foreground/20" />
+            <span className="flex items-center gap-1"><Bookmark size={14} /> {watchlist.length} Queue</span>
+            <span className="w-1 h-1 rounded-full bg-foreground/20" />
+            <span className="flex items-center gap-1"><Heart size={14} /> {favorites.length} Loved</span>
+          </motion.div>
         </div>
 
         {/* Tabs */}
-        <div className="flex justify-center mb-8">
-          <div className="flex p-0.5 bg-surface/50 backdrop-blur-sm rounded-full border border-white/5">
+        <div className="flex justify-center mb-12">
+          <div className="flex p-1.5 bg-surface shadow-sm rounded-full border border-border/50">
             <TabButton 
               active={activeTab === "watched"} 
               onClick={() => setActiveTab("watched")}
               label="Watched"
-              icon={Clock}
             />
             <TabButton 
               active={activeTab === "watchlist"} 
               onClick={() => setActiveTab("watchlist")}
               label="Watchlist"
-              icon={Bookmark}
             />
             <TabButton 
               active={activeTab === "favorites"} 
               onClick={() => setActiveTab("favorites")}
               label="Favorites"
-              icon={Heart}
             />
           </div>
         </div>
@@ -105,31 +113,26 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
         {/* Content Grid */}
         <motion.div
           layout
-          className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-3 gap-y-6"
+          className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 md:gap-6"
         >
-          <AnimatePresence mode="popLayout">
-            {content.map((movie, index) => (
+            {content.map((movie) => (
               <motion.div
-                key={movie.id}
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.2, delay: index * 0.03 }}
+                transition={{ duration: 0.2 }}
+                key={movie.id}
               >
                 <MovieCard movie={movie} aspectRatio="portrait" />
-                <div className="mt-2 text-center md:text-left px-0.5">
-                   <h3 className="font-display text-sm leading-tight truncate" title={movie.title}>{movie.title}</h3>
-                   <p className="text-[10px] text-foreground/40 font-sans mt-0.5">{movie.year}</p>
-                </div>
               </motion.div>
             ))}
-          </AnimatePresence>
         </motion.div>
 
         {content.length === 0 && (
-            <div className="text-center py-12 text-foreground/40">
-                <p className="font-display text-lg">No movies found in this section</p>
+            <div className="flex flex-col items-center justify-center py-24 text-foreground/30">
+                <LayoutGrid size={48} strokeWidth={1} className="mb-4 opacity-50" />
+                <p className="font-medium text-lg">No items found</p>
             </div>
         )}
 
@@ -142,33 +145,27 @@ function TabButton({
   active, 
   onClick, 
   label,
-  icon: Icon
 }: { 
   active: boolean; 
   onClick: () => void; 
   label: string;
-  icon: any;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "relative px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 flex items-center gap-1.5",
+        "relative px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
     >
       {active && (
         <motion.div
           layoutId="activeTab"
-          className="absolute inset-0 bg-foreground rounded-full"
+          className="absolute inset-0 bg-foreground rounded-full shadow-sm"
           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
         />
       )}
-      <span className="relative z-10 flex items-center gap-1.5">
-        <Icon size={12} className={active ? "stroke-2" : "stroke-1.5"} />
-        {label}
-      </span>
+      <span className="relative z-10">{label}</span>
     </button>
   );
 }
-

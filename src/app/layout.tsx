@@ -1,30 +1,24 @@
 import type { Metadata } from "next";
-import { Manrope, Fraunces, Funnel_Display } from "next/font/google";
+import { Inter, Poppins } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
 import "./globals.css";
 
-const manrope = Manrope({
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
 });
 
-const fraunces = Fraunces({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  display: "swap",
-  axes: ["SOFT", "WONK", "opsz"], // Adding some character
-});
-
-const funnelDisplay = Funnel_Display({
+const poppins = Poppins({
   variable: "--font-display",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Takip - Track your watch history",
-  description: "A beautiful way to track movies and series you've watched.",
+  title: "Takip",
+  description: "Minimalist watch history tracker.",
 };
 
 export default function RootLayout({
@@ -33,12 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${manrope.variable} ${fraunces.variable} ${funnelDisplay.variable} antialiased bg-background text-foreground font-sans`}
+        className={`${inter.variable} ${poppins.variable} antialiased bg-background text-foreground font-sans transition-colors duration-300`}
       >
         <Navbar />
-        <main className="pt-16 min-h-screen">
+        <main className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-[1200px] mx-auto">
           {children}
         </main>
       </body>

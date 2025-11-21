@@ -3,6 +3,7 @@
 import { Movie } from "@/types";
 import { motion } from "framer-motion";
 import { MovieCard } from "./MovieCard";
+import { cn } from "@/lib/utils";
 
 interface TimelineProps {
   movies: Movie[];
@@ -20,20 +21,20 @@ export function Timeline({ movies }: TimelineProps) {
   }, {} as Record<string, Movie[]>);
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 relative">
-      {/* Vertical Line */}
-      <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-linear-to-b from-transparent via-white/10 to-transparent transform -translate-x-1/2" />
+    <div className="max-w-5xl mx-auto py-12 px-4 relative">
+      {/* Vertical Line - Minimal */}
+      <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-border/50 transform md:-translate-x-1/2" />
 
       {Object.entries(groupedMovies).map(([dateGroup, groupMovies], groupIndex) => (
-        <div key={dateGroup} className="mb-10 relative">
+        <div key={dateGroup} className="mb-16 relative">
           {/* Date Marker */}
-          <div className="flex justify-center mb-6 sticky top-20 z-10">
-            <div className="bg-surface/80 backdrop-blur-md border border-white/10 px-3 py-0.5 rounded-full text-xs font-serif text-accent shadow-sm">
+          <div className="flex md:justify-center mb-8 pl-16 md:pl-0 sticky top-24 z-10 pointer-events-none">
+            <div className="bg-surface border border-border px-4 py-1.5 rounded-full text-sm font-medium text-foreground/80 shadow-sm backdrop-blur-md">
               {dateGroup}
             </div>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-12">
             {groupMovies.map((movie, index) => (
               <TimelineItem 
                 key={movie.id} 
@@ -49,40 +50,47 @@ export function Timeline({ movies }: TimelineProps) {
 }
 
 function TimelineItem({ movie, align }: { movie: Movie; align: "left" | "right" }) {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768; // Simple check, better with hook
-  // Forcing left align on mobile would be better via CSS
-  
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      className={`flex flex-col md:flex-row items-center gap-4 ${align === 'right' ? 'md:flex-row-reverse' : ''}`}
+      viewport={{ once: true, margin: "-10% 0px" }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className={cn(
+        "flex flex-col md:flex-row items-center gap-8 md:gap-16",
+        align === 'right' ? 'md:flex-row-reverse' : ''
+      )}
     >
-      {/* Content Side */}
-      <div className={`flex-1 w-full ${align === 'left' ? 'md:text-right' : 'md:text-left'} pl-10 md:pl-0`}>
-        <div className="hidden md:block">
-           <h3 className="text-lg font-serif leading-tight">{movie.title}</h3>
-           <p className="text-xs text-foreground/60">Watched on {new Date(movie.watchedDate!).toLocaleDateString()}</p>
-           <p className="text-xs text-foreground/40 mt-1 line-clamp-2">A fantastic journey through time and space...</p>
-        </div>
+      {/* Content Text */}
+      <div className={cn(
+        "flex-1 w-full pl-16 md:pl-0 hidden md:block",
+        align === 'left' ? 'md:text-right' : 'md:text-left'
+      )}>
+         <h3 className="text-xl font-bold leading-tight text-foreground">{movie.title}</h3>
+         <p className="text-sm text-foreground/50 mt-1 font-medium">
+            Watched on {new Date(movie.watchedDate!).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+         </p>
       </div>
 
       {/* Center Dot */}
-      <div className="absolute left-4 md:left-1/2 w-3 h-3 bg-accent rounded-full border-2 border-background transform -translate-x-1/2 z-10" />
+      <div className="absolute left-8 md:left-1/2 w-4 h-4 bg-background rounded-full border-[3px] border-accent transform -translate-x-1/2 z-10 shadow-[0_0_0_4px_var(--surface)]" />
 
       {/* Card Side */}
-      <div className="flex-1 w-full pl-10 md:pl-0">
-         <div className={`w-32 md:w-36 ${align === 'left' ? 'mr-auto' : 'ml-auto'}`}>
+      <div className="flex-1 w-full pl-16 md:pl-0">
+         <div className={cn(
+           "w-full max-w-[280px]",
+           align === 'left' ? 'mr-auto md:ml-0' : 'mr-auto md:ml-auto'
+         )}>
             <MovieCard movie={movie} aspectRatio="portrait" />
-            {/* Mobile Text shown below card */}
-            <div className="md:hidden mt-2">
-                <h3 className="text-base font-serif leading-tight">{movie.title}</h3>
-                <p className="text-[10px] text-foreground/60">{new Date(movie.watchedDate!).toLocaleDateString()}</p>
+            {/* Mobile Text */}
+            <div className="md:hidden mt-3">
+                <h3 className="text-lg font-bold leading-tight">{movie.title}</h3>
+                <p className="text-xs text-foreground/60 mt-1">
+                   {new Date(movie.watchedDate!).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                </p>
             </div>
          </div>
       </div>
     </motion.div>
   );
 }
-

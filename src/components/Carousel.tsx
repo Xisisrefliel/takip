@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useScroll } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CarouselProps {
@@ -24,35 +23,33 @@ export function Carousel({ title, children }: CarouselProps) {
   };
 
   return (
-    <div className="py-4 w-full">
-      <div className="flex items-center justify-between mb-2 px-4 md:px-6">
-        <h2 className="text-xl md:text-2xl font-serif tracking-wide text-foreground">
+    <div className="py-8 w-full">
+      <div className="flex items-center justify-between mb-6 px-2">
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
           {title}
         </h2>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           <button
             onClick={() => scroll("left")}
-            className="p-1.5 rounded-full border border-white/10 hover:bg-white/5 transition-colors text-foreground/70 hover:text-foreground"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-surface-hover text-foreground/70 hover:text-foreground transition-colors shadow-sm"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={18} />
           </button>
           <button
             onClick={() => scroll("right")}
-            className="p-1.5 rounded-full border border-white/10 hover:bg-white/5 transition-colors text-foreground/70 hover:text-foreground"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-surface-hover text-foreground/70 hover:text-foreground transition-colors shadow-sm"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={18} />
           </button>
         </div>
       </div>
 
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto gap-3 px-4 md:px-6 hide-scrollbar snap-x snap-mandatory pb-2"
-        style={{ scrollBehavior: "smooth" }}
+        className="flex overflow-x-auto gap-6 pb-8 -mx-4 px-4 hide-scrollbar snap-x snap-mandatory"
       >
         {children}
       </div>
     </div>
   );
 }
-

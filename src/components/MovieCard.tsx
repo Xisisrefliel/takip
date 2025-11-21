@@ -19,86 +19,85 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
   const [liked, setLiked] = useState(movie.liked);
 
   return (
-    <motion.div
-      className={cn(
-        "relative group overflow-hidden rounded-xl bg-surface cursor-pointer",
-        aspectRatio === "portrait" ? "aspect-[2/3]" : "aspect-video",
-        className
-      )}
+    <div 
+      className={cn("group flex flex-col gap-3", className)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
     >
-      {/* Image */}
-      <img
-        src={movie.posterUrl}
-        alt={movie.title}
-        className="w-full h-full object-cover transition-transform duration-500"
-      />
-
-      {/* Gradient Overlay - Always visible slightly, fully on hover */}
-      <div
+      {/* Card Container */}
+      <motion.div
         className={cn(
-          "absolute inset-0 bg-linear-to-t from-black/90 via-transparent to-transparent transition-opacity duration-300",
-          isHovered ? "opacity-100" : "opacity-60"
+          "relative overflow-hidden rounded-[16px] bg-surface shadow-sm border border-transparent transition-colors duration-300",
+          isHovered && "border-accent",
+          aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
         )}
-      />
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      >
+        {/* Image */}
+        <img
+          src={movie.posterUrl}
+          alt={movie.title}
+          className="w-full h-full object-cover"
+        />
 
-      {/* Actions Overlay */}
-      <AnimatePresence>
-        {isHovered && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5 }}
-            transition={{ duration: 0.2 }}
-            className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5"
-          >
-             <h3 className="text-white font-serif text-base leading-tight drop-shadow-md line-clamp-1">
-              {movie.title} <span className="text-white/60 text-xs font-sans ml-1">({movie.year})</span>
-            </h3>
-            
-            <div className="flex items-center justify-between mt-1">
-              <div className="flex gap-1.5">
-                {/* Watched Toggle */}
-                <ActionButton
-                  active={watched}
-                  onClick={() => setWatched(!watched)}
-                  icon={watched ? Check : Eye}
-                  label="Watched"
-                />
-                {/* Watchlist Toggle */}
-                <ActionButton
-                  active={watchlist}
-                  onClick={() => setWatchlist(!watchlist)}
-                  icon={Plus}
-                  label="Watchlist"
-                  className={watchlist ? "bg-accent/20 text-accent" : ""}
-                />
-                {/* Like Toggle */}
-                <ActionButton
-                  active={liked}
-                  onClick={() => setLiked(!liked)}
-                  icon={Heart}
-                  label="Like"
-                  className={liked ? "text-red-500" : ""}
-                  fill={liked}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* Status Indicators (visible when not hovering) */}
-      {!isHovered && (
-        <div className="absolute top-2 right-2 flex flex-col gap-1">
-            {watched && <div className="bg-accent text-white p-1 rounded-full text-xs"><Eye size={12} /></div>}
-            {liked && <div className="bg-red-500 text-white p-1 rounded-full text-xs"><Heart size={12} fill="currentColor" /></div>}
+        {/* Overlay Actions - Minimal */}
+        <div className={cn(
+            "absolute inset-0 flex items-end justify-center gap-2 pb-3 transition-opacity duration-300",
+            isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}>
+            <ActionButton
+              active={watched}
+              onClick={() => setWatched(!watched)}
+              icon={watched ? Check : Eye}
+              label="Watched"
+            />
+            <ActionButton
+              active={liked}
+              onClick={() => setLiked(!liked)}
+              icon={Heart}
+              label="Like"
+              fill={liked}
+              className={liked ? "text-red-500 bg-white" : ""}
+            />
+            <ActionButton
+              active={watchlist}
+              onClick={() => setWatchlist(!watchlist)}
+              icon={Plus}
+              label="Watchlist"
+            />
         </div>
-      )}
-    </motion.div>
+
+        {/* Status Badges (Top Right) */}
+        {!isHovered && (
+           <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none">
+              {watched && (
+                  <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
+              )}
+              {liked && (
+                  <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-red-500/50" />
+              )}
+           </div>
+        )}
+      </motion.div>
+
+      {/* Info Below */}
+      <div className="px-1 space-y-0.5">
+        <h3 className="font-semibold text-foreground/90 text-base leading-tight truncate group-hover:text-accent transition-colors">
+          {movie.title}
+        </h3>
+        <div className="flex items-center gap-2 text-sm text-foreground/50">
+          <span>{movie.year}</span>
+          {movie.rating && (
+            <>
+              <span className="w-1 h-1 rounded-full bg-foreground/20" />
+              <span className="flex items-center gap-1">
+                <span className="text-yellow-500/80">★</span> {movie.rating}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -118,20 +117,23 @@ function ActionButton({
   fill?: boolean;
 }) {
   return (
-    <button
+    <motion.button
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9 }}
       onClick={(e) => {
         e.stopPropagation();
         onClick(e);
       }}
       className={cn(
-        "p-1.5 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-colors text-white",
+        "w-9 h-9 rounded-full flex items-center justify-center bg-black/60 text-white backdrop-blur-sm hover:bg-white hover:text-black transition-all shadow-xl border border-white/20",
         active && "bg-white text-black",
         className
       )}
       title={label}
     >
-      <Icon size={14} fill={fill ? "currentColor" : "none"} />
-    </button>
+      <Icon size={16} fill={fill ? "currentColor" : "none"} />
+    </motion.button>
   );
 }
-
