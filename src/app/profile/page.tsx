@@ -1,5 +1,5 @@
 import { getTrendingMovies, getPopularSeries } from "@/lib/tmdb";
-import { HomePage } from "@/components/HomePage";
+import { ProfilePage } from "@/components/ProfilePage";
 
 export default async function Page() {
   const [trendingMovies, popularSeries] = await Promise.all([
@@ -7,5 +7,5 @@ export default async function Page() {
     getPopularSeries(),
   ]);
 
-  return <HomePage trendingMovies={trendingMovies} popularSeries={popularSeries} />;
+  return <ProfilePage trendingMovies={trendingMovies} popularSeries={popularSeries} />;
 }
