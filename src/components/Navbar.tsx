@@ -4,15 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Film, User, Search, X, Book } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { useLastVisited } from "@/context/LastVisitedContext";
 import { useState, useRef, useEffect } from "react";
 
 export function Navbar() {
   const pathname = usePathname();
+  const CurrentIcon = pathname.startsWith("/books") ? Book : Film;
   const { lastVisited } = useLastVisited();
   const [isSearching, setIsSearching] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -69,43 +71,59 @@ export function Navbar() {
         layout
         className={cn(
           "pointer-events-auto flex items-center p-1.5 bg-surface/70 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5",
-          isSearching
-            ? "gap-0 ring-2 ring-white/20 border-transparent"
-            : "gap-2"
+          isSearching ? "ring-2 ring-white/20 border-transparent" : ""
         )}
         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+        onMouseLeave={() => setHoveredLink(null)}
       >
         <AnimatePresence mode="popLayout" initial={false}>
           {isSearching ? (
             <motion.div
               key="search"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-center w-[320px] px-2"
+              layout="position"
+              initial={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              transition={{ 
+                type: "spring",
+                bounce: 0.2,
+                duration: 0.5,
+                opacity: { duration: 0.2 }
+              }}
+              className="flex items-center w-[340px] px-1"
             >
-              <Search size={18} className="text-foreground/60 mr-2 shrink-0" />
+              <Search size={18} className="text-foreground/60 mr-3 shrink-0 ml-2" />
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search movies, series, people..."
+                placeholder="Search..."
                 className="flex-1 bg-transparent border-none outline-none text-sm h-10 placeholder:text-foreground/40 text-foreground min-w-0"
               />
-              <button
-                onClick={() => setIsSearching(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0 ml-1"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-1 ml-1">
+                <div className="hidden sm:flex items-center px-1.5 py-0.5 rounded-md bg-foreground/5 text-[10px] font-medium text-foreground/40 mr-1">
+                  ESC
+                </div>
+                <button
+                  onClick={() => setIsSearching(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </motion.div>
           ) : (
             <motion.div
               key="nav-content"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              layout="position"
+              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              transition={{ 
+                type: "spring",
+                bounce: 0.2,
+                duration: 0.5,
+                opacity: { duration: 0.2 }
+              }}
               className="flex items-center gap-2"
             >
               <div className="relative" ref={dropdownRef}>
@@ -128,7 +146,7 @@ export function Navbar() {
                   whileTap={!isDropdownOpen ? { scale: 0.95 } : {}}
                   transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                 >
-                  <AnimatePresence mode="wait" initial={false}>
+                  <AnimatePresence mode="popLayout" initial={false} presenceAffectsLayout={false}>
                     {isDropdownOpen ? (
                       <motion.div
                         key="dropdown-content"
@@ -169,18 +187,36 @@ export function Navbar() {
                           Books
                         </Link>
                       </motion.div>
-                    ) : null}
+                    ) : (
+                      <motion.div
+                        key="dropdown-icon"
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex items-center justify-center"
+                      >
+                        <CurrentIcon size={18} />
+                      </motion.div>
+                    )}
                   </AnimatePresence>
                 </motion.div>
               </div>
 
               <div className="flex items-center px-2 shrink-0">
-                <NavLink href="/" active={pathname === "/"}>
+                <NavLink 
+                  href="/" 
+                  active={pathname === "/"} 
+                  hoveredLink={hoveredLink}
+                  setHoveredLink={setHoveredLink}
+                >
                   Discover
                 </NavLink>
                 <NavLink
                   href="/profile"
                   active={pathname.startsWith("/profile")}
+                  hoveredLink={hoveredLink}
+                  setHoveredLink={setHoveredLink}
                 >
                   Library
                 </NavLink>
@@ -195,6 +231,8 @@ export function Navbar() {
                       <NavLink
                         href={lastVisited.href}
                         active={pathname === lastVisited.href}
+                        hoveredLink={hoveredLink}
+                        setHoveredLink={setHoveredLink}
                       >
                         <span className="max-w-[120px] truncate block">
                           {lastVisited.title}
@@ -233,28 +271,48 @@ function NavLink({
   href,
   active,
   children,
+  hoveredLink,
+  setHoveredLink,
 }: {
   href: string;
   active: boolean;
   children: React.ReactNode;
+  hoveredLink: string | null;
+  setHoveredLink: (href: string | null) => void;
 }) {
   return (
     <Link
       href={href}
+      onMouseEnter={() => setHoveredLink(href)}
+      draggable="false"
       className={cn(
-        "relative flex items-center justify-center px-5 py-2 text-sm font-medium transition-colors rounded-full whitespace-nowrap",
+        "relative flex items-center justify-center px-5 py-2 text-sm font-medium transition-colors rounded-full whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
+      style={{ userSelect: "none" }}
     >
       {active && (
         <motion.div
           layoutId="nav-pill"
-          className="absolute inset-0 bg-foreground shadow-sm rounded-full"
+          className="absolute inset-0 bg-foreground shadow-sm rounded-full z-10"
           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
           style={{ willChange: "transform, opacity" }}
         />
       )}
-      <span className="relative z-10">{children}</span>
+      <AnimatePresence>
+        {hoveredLink === href && !active && (
+          <motion.div
+            layoutId="nav-hover"
+            className="absolute inset-0 bg-surface-hover rounded-full z-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{ willChange: "transform, opacity" }}
+          />
+        )}
+      </AnimatePresence>
+      <span className="relative z-10 mix-blend-normal">{children}</span>
     </Link>
   );
 }
