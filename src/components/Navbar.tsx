@@ -53,11 +53,15 @@ export function Navbar() {
     }
   }, [isSearching]);
 
-  // Handle escape key to close search
+  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isSearching) {
         setIsSearching(false);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsSearching(true);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
