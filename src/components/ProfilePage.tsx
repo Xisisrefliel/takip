@@ -208,7 +208,7 @@ function TabButton({
       {active && (
         <motion.div
           layoutId="activeTab"
-          className="absolute inset-0 bg-foreground rounded-full shadow-sm"
+          className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
           style={{ willChange: "transform, opacity" }}
         />
@@ -217,7 +217,7 @@ function TabButton({
         {hoveredTab === id && !active && (
           <motion.div
             layoutId="hoverTab"
-            className="absolute inset-0 bg-surface-hover rounded-full"
+            className="absolute inset-0 bg-surface-hover rounded-full z-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

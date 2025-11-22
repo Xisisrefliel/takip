@@ -7,6 +7,7 @@ import { Carousel } from "@/components/Carousel";
 import { LastVisitedUpdater } from "@/components/LastVisitedUpdater";
 import { BackButton } from "@/components/BackButton";
 import { SeasonList } from "@/components/SeasonList";
+import { DetailPoster } from "@/components/DetailPoster";
 
 interface PageProps {
   params: Promise<{
@@ -73,15 +74,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
         <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start">
           {/* Poster Column */}
           <div className="w-full md:w-[300px] lg:w-[350px] shrink-0 group perspective-1000">
-             <div className="relative aspect-2/3 rounded-[24px] overflow-hidden shadow-2xl border border-white/10 transform transition-transform duration-500 hover:rotate-y-6 hover:scale-105">
-                <Image
-                  src={movie.posterUrl}
-                  alt={movie.title}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-             </div>
+             <DetailPoster movie={movie} />
           </div>
 
           {/* Details Column */}
