@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Film, User, Search, X } from "lucide-react";
+import { Film, User, Search, X, Book } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLastVisited } from "@/context/LastVisitedContext";
@@ -12,13 +12,26 @@ export function Navbar() {
   const pathname = usePathname();
   const { lastVisited } = useLastVisited();
   const [isSearching, setIsSearching] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(event.target as Node) && isSearching) {
+      if (
+        navRef.current &&
+        !navRef.current.contains(event.target as Node) &&
+        isSearching
+      ) {
         setIsSearching(false);
+      }
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        isDropdownOpen
+      ) {
+        setIsDropdownOpen(false);
       }
     };
 
@@ -26,7 +39,7 @@ export function Navbar() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isSearching]);
+  }, [isSearching, isDropdownOpen]);
 
   useEffect(() => {
     if (isSearching) {
@@ -51,20 +64,20 @@ export function Navbar() {
 
   return (
     <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-      <motion.nav 
+      <motion.nav
         ref={navRef}
         layout
         className={cn(
-          "pointer-events-auto flex items-center p-1.5 bg-surface/70 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5 overflow-hidden",
-          isSearching 
-            ? "gap-0 ring-2 ring-white/20 border-transparent" 
+          "pointer-events-auto flex items-center p-1.5 bg-surface/70 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5",
+          isSearching
+            ? "gap-0 ring-2 ring-white/20 border-transparent"
             : "gap-2"
         )}
         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
       >
         <AnimatePresence mode="popLayout" initial={false}>
           {isSearching ? (
-            <motion.div 
+            <motion.div
               key="search"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -72,19 +85,19 @@ export function Navbar() {
               transition={{ duration: 0.2 }}
               className="flex items-center w-[320px] px-2"
             >
-               <Search size={18} className="text-foreground/60 mr-2 shrink-0" />
-               <input 
-                 ref={inputRef}
-                 type="text" 
-                 placeholder="Search movies, series, people..." 
-                 className="flex-1 bg-transparent border-none outline-none text-sm h-10 placeholder:text-foreground/40 text-foreground min-w-0"
-               />
-               <button 
-                 onClick={() => setIsSearching(false)}
-                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0 ml-1"
-               >
-                 <X size={16} />
-               </button>
+              <Search size={18} className="text-foreground/60 mr-2 shrink-0" />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Search movies, series, people..."
+                className="flex-1 bg-transparent border-none outline-none text-sm h-10 placeholder:text-foreground/40 text-foreground min-w-0"
+              />
+              <button
+                onClick={() => setIsSearching(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0 ml-1"
+              >
+                <X size={16} />
+              </button>
             </motion.div>
           ) : (
             <motion.div
@@ -95,13 +108,82 @@ export function Navbar() {
               transition={{ duration: 0.2 }}
               className="flex items-center gap-2"
             >
-              <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-full bg-accent text-accent-foreground hover:scale-105 transition-transform shrink-0">
-                <Film size={18} strokeWidth={2.5} />
-              </Link>
+              <div className="relative" ref={dropdownRef}>
+                {/* Placeholder to maintain layout space */}
+                <div className="w-10 h-10" />
+
+                <motion.div
+                  layout
+                  className={cn(
+                    "absolute top-0 left-0 z-50 flex flex-col bg-accent text-accent-foreground overflow-hidden cursor-pointer",
+                    isDropdownOpen
+                      ? "w-48 shadow-xl border border-white/10 p-1.5 items-stretch justify-start"
+                      : "w-10 h-10 shadow-none border border-transparent p-0 items-center justify-center"
+                  )}
+                  style={{
+                    borderRadius: 24,
+                  }}
+                  onClick={() => !isDropdownOpen && setIsDropdownOpen(true)}
+                  whileHover={!isDropdownOpen ? { scale: 1.05 } : {}}
+                  whileTap={!isDropdownOpen ? { scale: 0.95 } : {}}
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    {isDropdownOpen ? (
+                      <motion.div
+                        key="dropdown-content"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{
+                          opacity: 0,
+                          y: -10,
+                          transition: { duration: 0.1 },
+                        }}
+                        transition={{ duration: 0.2 }}
+                        className="flex flex-col gap-1 w-full"
+                      >
+                        <Link
+                          href="/"
+                          className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg transition-colors text-sm font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsDropdownOpen(false);
+                          }}
+                        >
+                          <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                            <Film size={14} />
+                          </div>
+                          Movies & Series
+                        </Link>
+                        <Link
+                          href="/books"
+                          className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg transition-colors text-sm font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsDropdownOpen(false);
+                          }}
+                        >
+                          <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                            <Book size={14} />
+                          </div>
+                          Books
+                        </Link>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </motion.div>
+              </div>
 
               <div className="flex items-center px-2 shrink-0">
-                <NavLink href="/" active={pathname === "/"}>Discover</NavLink>
-                <NavLink href="/profile" active={pathname.startsWith("/profile")}>Library</NavLink>
+                <NavLink href="/" active={pathname === "/"}>
+                  Discover
+                </NavLink>
+                <NavLink
+                  href="/profile"
+                  active={pathname.startsWith("/profile")}
+                >
+                  Library
+                </NavLink>
                 {lastVisited && (
                   <>
                     <div className="h-4 w-px bg-white/10 mx-1" />
@@ -110,8 +192,13 @@ export function Navbar() {
                       animate={{ opacity: 1, scale: 1 }}
                       key={lastVisited.href}
                     >
-                      <NavLink href={lastVisited.href} active={pathname === lastVisited.href}>
-                        <span className="max-w-[120px] truncate block">{lastVisited.title}</span>
+                      <NavLink
+                        href={lastVisited.href}
+                        active={pathname === lastVisited.href}
+                      >
+                        <span className="max-w-[120px] truncate block">
+                          {lastVisited.title}
+                        </span>
                       </NavLink>
                     </motion.div>
                   </>
@@ -119,13 +206,16 @@ export function Navbar() {
               </div>
 
               <div className="flex items-center pl-2 border-l border-border/50 gap-1 shrink-0">
-                <button 
+                <button
                   onClick={() => setIsSearching(true)}
                   className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
                 >
                   <Search size={18} />
                 </button>
-                <Link href="/profile" className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors">
+                <Link
+                  href="/profile"
+                  className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
+                >
                   <div className="w-8 h-8 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
                     <User size={14} />
                   </div>
@@ -139,7 +229,15 @@ export function Navbar() {
   );
 }
 
-function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}
