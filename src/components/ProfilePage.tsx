@@ -4,10 +4,11 @@ import { useState } from "react";
 import { MovieCard } from "@/components/MovieCard";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, List, Heart, Clock, Bookmark, User } from "lucide-react";
+import { LayoutGrid, List, Heart, Clock, Bookmark, User, Film, Tv, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Tab = "watched" | "watchlist" | "favorites";
+type MediaTypeFilter = "all" | "movie" | "tv";
 
 interface ProfilePageProps {
   trendingMovies: Movie[];
@@ -17,6 +18,7 @@ interface ProfilePageProps {
 export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps) {
   const [activeTab, setActiveTab] = useState<Tab>("watched");
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
+  const [mediaFilter, setMediaFilter] = useState<MediaTypeFilter>("all");
 
   // Combine and process data
   const allContent: Movie[] = [
@@ -46,7 +48,10 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
     }
   };
 
-  const content = getTabContent();
+  const content = getTabContent().filter(item => {
+    if (mediaFilter === "all") return true;
+    return item.mediaType === mediaFilter;
+  });
 
   return (
     <div className="min-h-screen pb-20 pt-12">
@@ -88,8 +93,9 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
           </motion.div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex justify-center mb-12">
+        {/* Controls Container */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-12">
+          {/* Tabs */}
           <div 
             className="flex p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative"
             onMouseLeave={() => setHoveredTab(null)}
@@ -117,6 +123,28 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
               label="Favorites"
               hoveredTab={hoveredTab}
               setHoveredTab={setHoveredTab}
+            />
+          </div>
+
+          {/* Media Filter */}
+          <div className="flex items-center p-1 bg-surface/50 rounded-full border border-border/30">
+            <MediaFilterButton 
+              active={mediaFilter === "movie"} 
+              onClick={() => setMediaFilter("movie")}
+              icon={<Film size={14} />}
+              label="Movies"
+            />
+            <MediaFilterButton 
+              active={mediaFilter === "all"} 
+              onClick={() => setMediaFilter("all")}
+              icon={<Layers size={14} />}
+              label="All"
+            />
+            <MediaFilterButton 
+              active={mediaFilter === "tv"} 
+              onClick={() => setMediaFilter("tv")}
+              icon={<Tv size={14} />}
+              label="Series"
             />
           </div>
         </div>
@@ -199,6 +227,43 @@ function TabButton({
         )}
       </AnimatePresence>
       <span className="relative z-10 mix-blend-normal">{label}</span>
+    </button>
+  );
+}
+
+function MediaFilterButton({
+  active,
+  onClick,
+  icon,
+  label
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "relative flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-colors duration-300 outline-none",
+        active 
+          ? "text-background" 
+          : "text-foreground/60 hover:text-foreground hover:bg-surface-hover"
+      )}
+    >
+      {active && (
+        <motion.div
+          layoutId="activeFilter"
+          className="absolute inset-0 bg-foreground rounded-full shadow-sm"
+          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+          style={{ willChange: "transform, opacity" }}
+        />
+      )}
+      <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
+        {icon}
+        <span>{label}</span>
+      </span>
     </button>
   );
 }

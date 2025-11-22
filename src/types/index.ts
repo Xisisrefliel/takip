@@ -12,6 +12,29 @@ export interface CrewMember {
   profilePath?: string;
 }
 
+export interface Episode {
+  id: number;
+  name: string;
+  overview: string;
+  airDate: string;
+  episodeNumber: number;
+  seasonNumber: number;
+  stillPath?: string;
+  voteAverage: number;
+  runtime?: number;
+}
+
+export interface Season {
+  id: number;
+  name: string;
+  overview: string;
+  posterPath?: string;
+  seasonNumber: number;
+  episodeCount: number;
+  airDate?: string;
+  episodes?: Episode[];
+}
+
 export interface Movie {
   id: string;
   title: string;
@@ -32,4 +55,7 @@ export interface Movie {
   cast?: CastMember[];
   crew?: CrewMember[];
   images?: string[];
+  seasons?: Season[];
+  numberOfSeasons?: number;
+  numberOfEpisodes?: number;
 }

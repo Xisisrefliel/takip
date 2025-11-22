@@ -18,7 +18,7 @@ const GENRES: Record<number, string> = {
   80: "Crime",
   99: "Documentary",
   18: "Drama",
-  10751: "Family",
+  21: "Family",
   14: "Fantasy",
   36: "History",
   27: "Horror",
@@ -38,6 +38,7 @@ const GENRES: Record<number, string> = {
   10766: "Soap",
   10767: "Talk",
   10768: "War & Politics",
+  10751: "Family",
 };
 
 interface TMDBGenre {
@@ -73,6 +74,28 @@ interface TMDBImages {
   backdrops: TMDBImage[];
 }
 
+interface TMDBEpisode {
+  id: number;
+  name: string;
+  overview: string;
+  air_date: string;
+  episode_number: number;
+  season_number: number;
+  still_path: string | null;
+  vote_average: number;
+  runtime: number;
+}
+
+interface TMDBSeasonSummary {
+  air_date: string;
+  episode_count: number;
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  season_number: number;
+}
+
 interface TMDBMovie {
   id: number;
   title?: string;
@@ -91,6 +114,9 @@ interface TMDBMovie {
   status?: string;
   credits?: TMDBCredits;
   images?: TMDBImages;
+  seasons?: TMDBSeasonSummary[];
+  number_of_seasons?: number;
+  number_of_episodes?: number;
 }
 
 interface TMDBResponse {
@@ -178,7 +204,9 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     watchlist: false,
     cast,
     crew,
-    images
+    images,
+    numberOfSeasons: item.number_of_seasons,
+    numberOfEpisodes: item.number_of_episodes
   };
 };
 
@@ -217,7 +245,58 @@ export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
   try {
     const data = await fetchTMDB(`/tv/${id}`, { append_to_response: "credits,images" });
     if (!data) return null;
-    return mapTmdbToMovie(data, 'tv');
+    
+    const movie = mapTmdbToMovie(data, 'tv');
+
+    // Fetch episodes for each season
+    if (data.seasons) {
+        // Filter out Season 0 (Specials) if preferred, but keeping it is fine.
+        // We will fetch up to 20 seasons to avoid throttling.
+        const seasonsToFetch = data.seasons.slice(0, 20);
+        
+        const seasonsWithEpisodes = await Promise.all(
+            seasonsToFetch.map(async (season: TMDBSeasonSummary) => {
+                try {
+                    const seasonDetail = await fetchTMDB(`/tv/${id}/season/${season.season_number}`);
+                    return {
+                        id: season.id,
+                        name: season.name,
+                        overview: season.overview,
+                        posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+                        seasonNumber: season.season_number,
+                        episodeCount: season.episode_count,
+                        airDate: season.air_date,
+                        episodes: seasonDetail?.episodes?.map((ep: TMDBEpisode) => ({
+                            id: ep.id,
+                            name: ep.name,
+                            overview: ep.overview,
+                            airDate: ep.air_date,
+                            episodeNumber: ep.episode_number,
+                            seasonNumber: ep.season_number,
+                            stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+                            voteAverage: ep.vote_average,
+                            runtime: ep.runtime
+                        })) || []
+                    };
+                } catch (e) {
+                    console.error(`Failed to fetch season ${season.season_number} for series ${id}`, e);
+                     return {
+                        id: season.id,
+                        name: season.name,
+                        overview: season.overview,
+                        posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+                        seasonNumber: season.season_number,
+                        episodeCount: season.episode_count,
+                        airDate: season.air_date,
+                        episodes: []
+                    };
+                }
+            })
+        );
+        movie.seasons = seasonsWithEpisodes;
+    }
+
+    return movie;
   } catch (error) {
     console.error(`Error fetching TV series ${id}:`, error);
     return null;

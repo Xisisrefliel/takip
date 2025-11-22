@@ -6,6 +6,7 @@ import { Metadata } from "next";
 import { Carousel } from "@/components/Carousel";
 import { LastVisitedUpdater } from "@/components/LastVisitedUpdater";
 import { BackButton } from "@/components/BackButton";
+import { SeasonList } from "@/components/SeasonList";
 
 interface PageProps {
   params: Promise<{
@@ -153,13 +154,20 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* Seasons Section for TV Series */}
+      {mediaType === 'tv' && movie.seasons && movie.seasons.length > 0 && (
+        <div className="container mx-auto px-6 pt-12">
+            <SeasonList seasons={movie.seasons} />
+        </div>
+      )}
+
       {/* Cast & Crew Section */}
       {movie.cast && movie.cast.length > 0 && (
         <div className="container mx-auto px-6">
            <Carousel title="Cast & Crew">
               {movie.cast.map((person) => (
-                 <div key={person.id} className="flex-shrink-0 w-32 md:w-40 space-y-3 snap-start">
-                    <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface border border-white/5 shadow-sm">
+                 <div key={person.id} className="shrink-0 w-32 md:w-40 space-y-3 snap-start">
+                    <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-surface border border-white/5 shadow-sm">
                        {person.profilePath ? (
                           <Image 
                             src={person.profilePath} 
@@ -194,7 +202,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
                 fill
                 className="object-cover blur-3xl opacity-10 scale-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background" />
+              <div className="absolute inset-0 bg-linear-to-t from-background via-background/50 to-background" />
            </div>
 
            <div className="container mx-auto px-6">
