@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { MovieCard } from "@/components/MovieCard";
-import { Movie } from "@/types";
+import { BookCard } from "@/components/BookCard";
+import { Movie, Book } from "@/types";
+import { books } from "@/data/books";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, List, Heart, Clock, Bookmark, User, Film, Tv, Layers } from "lucide-react";
+import { LayoutGrid, List, Heart, Clock, Bookmark, User, Film, Tv, Layers, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Tab = "watched" | "watchlist" | "favorites";
 type MediaTypeFilter = "all" | "movie" | "tv";
+type ContentType = "movies" | "books";
 
 interface ProfilePageProps {
   trendingMovies: Movie[];
@@ -16,41 +19,59 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps) {
+  const [contentType, setContentType] = useState<ContentType>("movies");
   const [activeTab, setActiveTab] = useState<Tab>("watched");
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
   const [mediaFilter, setMediaFilter] = useState<MediaTypeFilter>("all");
   const [hoveredFilter, setHoveredFilter] = useState<MediaTypeFilter | null>(null);
+  const [hoveredContentType, setHoveredContentType] = useState<ContentType | null>(null);
 
   // Combine and process data
-  const allContent: Movie[] = [
+  const allMovies: Movie[] = [
     ...trendingMovies,
     ...popularSeries,
   ];
 
   // Simulate user data since we don't have a real backend yet
-  const watched = allContent.filter(m => m.watched).length > 0 
-    ? allContent.filter(m => m.watched) 
-    : allContent.slice(0, 8).map(m => ({ ...m, watched: true, watchedDate: new Date().toISOString() }));
+  const watchedMovies = allMovies.filter(m => m.watched).length > 0 
+    ? allMovies.filter(m => m.watched) 
+    : allMovies.slice(0, 8).map(m => ({ ...m, watched: true, watchedDate: new Date().toISOString() }));
     
-  const watchlist = allContent.filter(m => m.watchlist).length > 0
-    ? allContent.filter(m => m.watchlist)
-    : allContent.slice(8, 13).map(m => ({ ...m, watchlist: true }));
+  const watchlistMovies = allMovies.filter(m => m.watchlist).length > 0
+    ? allMovies.filter(m => m.watchlist)
+    : allMovies.slice(8, 13).map(m => ({ ...m, watchlist: true }));
 
-  const favorites = allContent.filter(m => m.liked).length > 0
-    ? allContent.filter(m => m.liked)
-    : allContent.slice(2, 5).map(m => ({ ...m, liked: true }));
+  const favoritesMovies = allMovies.filter(m => m.liked).length > 0
+    ? allMovies.filter(m => m.liked)
+    : allMovies.slice(2, 5).map(m => ({ ...m, liked: true }));
+
+  // Simulate book data
+  const watchedBooks = books.slice(0, 3);
+  const watchlistBooks = books.slice(3, 5);
+  const favoritesBooks = books.slice(1, 4);
 
   const getTabContent = () => {
+    if (contentType === "books") {
+       switch (activeTab) {
+        case "watched": return watchedBooks;
+        case "watchlist": return watchlistBooks;
+        case "favorites": return favoritesBooks;
+        default: return watchedBooks;
+      }
+    }
+
     switch (activeTab) {
-      case "watched": return watched;
-      case "watchlist": return watchlist;
-      case "favorites": return favorites;
-      default: return watched;
+      case "watched": return watchedMovies;
+      case "watchlist": return watchlistMovies;
+      case "favorites": return favoritesMovies;
+      default: return watchedMovies;
     }
   };
 
   const content = getTabContent().filter(item => {
+    if (contentType === "books") return true;
     if (mediaFilter === "all") return true;
+    // @ts-ignore - we know item is Movie here
     return item.mediaType === mediaFilter;
   });
 
@@ -86,16 +107,44 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
             transition={{ delay: 0.2 }}
             className="flex items-center gap-3 text-sm font-medium text-foreground/50"
           >
-            <span className="flex items-center gap-1"><Clock size={14} /> {watched.length} Watched</span>
+            <span className="flex items-center gap-1"><Clock size={14} /> {contentType === "movies" ? watchedMovies.length : watchedBooks.length} Read/Watched</span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
-            <span className="flex items-center gap-1"><Bookmark size={14} /> {watchlist.length} Queue</span>
+            <span className="flex items-center gap-1"><Bookmark size={14} /> {contentType === "movies" ? watchlistMovies.length : watchlistBooks.length} Queue</span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
-            <span className="flex items-center gap-1"><Heart size={14} /> {favorites.length} Loved</span>
+            <span className="flex items-center gap-1"><Heart size={14} /> {contentType === "movies" ? favoritesMovies.length : favoritesBooks.length} Loved</span>
           </motion.div>
         </div>
 
         {/* Controls Container */}
-        <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-12">
+        <div className="flex flex-col gap-6 mb-12">
+           {/* Content Type Switch */}
+           <div className="flex justify-center">
+             <div 
+                className="flex p-1 bg-surface shadow-sm rounded-full border border-border/50 relative"
+                onMouseLeave={() => setHoveredContentType(null)}
+              >
+                <ContentTypeButton
+                  id="movies"
+                  active={contentType === "movies"}
+                  onClick={() => setContentType("movies")}
+                  label="Movies & TV"
+                  icon={<Film size={14} />}
+                  hovered={hoveredContentType}
+                  setHovered={setHoveredContentType}
+                />
+                <ContentTypeButton
+                  id="books"
+                  active={contentType === "books"}
+                  onClick={() => setContentType("books")}
+                  label="Books"
+                  icon={<BookOpen size={14} />}
+                  hovered={hoveredContentType}
+                  setHovered={setHoveredContentType}
+                />
+             </div>
+           </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
           {/* Tabs */}
           <div 
             className="flex p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative"
@@ -127,39 +176,47 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
             />
           </div>
 
-          {/* Media Filter */}
-          <div 
-            className="flex items-center p-1 bg-surface/50 rounded-full border border-border/30 relative"
-            onMouseLeave={() => setHoveredFilter(null)}
-          >
-            <MediaFilterButton 
-              id="movie"
-              active={mediaFilter === "movie"} 
-              onClick={() => setMediaFilter("movie")}
-              icon={<Film size={14} />}
-              label="Movies"
-              hoveredFilter={hoveredFilter}
-              setHoveredFilter={setHoveredFilter}
-            />
-            <MediaFilterButton 
-              id="all"
-              active={mediaFilter === "all"} 
-              onClick={() => setMediaFilter("all")}
-              icon={<Layers size={14} />}
-              label="All"
-              hoveredFilter={hoveredFilter}
-              setHoveredFilter={setHoveredFilter}
-            />
-            <MediaFilterButton 
-              id="tv"
-              active={mediaFilter === "tv"} 
-              onClick={() => setMediaFilter("tv")}
-              icon={<Tv size={14} />}
-              label="Series"
-              hoveredFilter={hoveredFilter}
-              setHoveredFilter={setHoveredFilter}
-            />
-          </div>
+          {/* Media Filter - Only show for movies */}
+          <AnimatePresence mode="popLayout">
+            {contentType === "movies" && (
+              <motion.div 
+                initial={{ opacity: 0, width: 0, scale: 0.8 }}
+                animate={{ opacity: 1, width: "auto", scale: 1 }}
+                exit={{ opacity: 0, width: 0, scale: 0.8 }}
+                className="flex items-center p-1 bg-surface/50 rounded-full border border-border/30 relative overflow-hidden"
+                onMouseLeave={() => setHoveredFilter(null)}
+              >
+                <MediaFilterButton 
+                  id="movie"
+                  active={mediaFilter === "movie"} 
+                  onClick={() => setMediaFilter("movie")}
+                  icon={<Film size={14} />}
+                  label="Movies"
+                  hoveredFilter={hoveredFilter}
+                  setHoveredFilter={setHoveredFilter}
+                />
+                <MediaFilterButton 
+                  id="all"
+                  active={mediaFilter === "all"} 
+                  onClick={() => setMediaFilter("all")}
+                  icon={<Layers size={14} />}
+                  label="All"
+                  hoveredFilter={hoveredFilter}
+                  setHoveredFilter={setHoveredFilter}
+                />
+                <MediaFilterButton 
+                  id="tv"
+                  active={mediaFilter === "tv"} 
+                  onClick={() => setMediaFilter("tv")}
+                  icon={<Tv size={14} />}
+                  label="Series"
+                  hoveredFilter={hoveredFilter}
+                  setHoveredFilter={setHoveredFilter}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         </div>
 
         {/* Content Grid */}
@@ -167,7 +224,7 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
           layout
           className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 md:gap-6"
         >
-            {content.map((movie) => (
+            {content.map((item) => (
               <motion.div
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -175,9 +232,13 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.2 }}
                 style={{ willChange: "transform, opacity" }}
-                key={movie.id}
+                key={item.id}
               >
-                <MovieCard movie={movie} aspectRatio="portrait" />
+                {contentType === "movies" ? (
+                   <MovieCard movie={item as Movie} aspectRatio="portrait" />
+                ) : (
+                   <BookCard book={item as Book} />
+                )}
               </motion.div>
             ))}
         </motion.div>
@@ -240,6 +301,63 @@ function TabButton({
         )}
       </AnimatePresence>
       <span className="relative z-10 mix-blend-normal">{label}</span>
+    </button>
+  );
+}
+
+function ContentTypeButton({
+  active,
+  onClick,
+  icon,
+  label,
+  id,
+  hovered,
+  setHovered
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  id: ContentType;
+  hovered: ContentType | null;
+  setHovered: (type: ContentType | null) => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(id)}
+      className={cn(
+        "relative flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-colors duration-300 outline-none",
+        active 
+          ? "text-background" 
+          : "text-foreground/60 hover:text-foreground"
+      )}
+    >
+      {active && (
+        <motion.div
+          layoutId="activeContentType"
+          className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
+          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+          style={{ willChange: "transform, opacity" }}
+        />
+      )}
+      <AnimatePresence>
+        {hovered === id && !active && (
+          <motion.div
+            layoutId="hoverContentType"
+            className="absolute inset-0 bg-surface-hover rounded-full z-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{ willChange: "transform, opacity" }}
+          />
+        )}
+      </AnimatePresence>
+      <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
+        {icon}
+        <span>{label}</span>
+      </span>
     </button>
   );
 }

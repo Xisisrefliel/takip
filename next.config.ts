@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
         hostname: "image.tmdb.org",
       },
       {hostname: "d28hgpri8am2if.cloudfront.net"},
+      {hostname: "framerusercontent.com"},
     ],
   },
 };

@@ -1,6 +1,7 @@
 "use client";
 
-import Book3DFlip from "@/components/Book3DFlip";
+import { BookCard } from "@/components/BookCard";
+import { Carousel } from "@/components/Carousel";
 import { Book } from "@/types";
 import { motion } from "framer-motion";
 import { BookOpen, Plus, Star } from "lucide-react";
@@ -96,14 +97,13 @@ export function BooksHomePage({ books }: BooksHomePageProps) {
         </div>
       </section>
 
-      {/* 3D Shelf Section */}
+      {/* Carousel Section */}
       <section>
-          <div className="flex items-center justify-between mb-6 px-4 md:px-0">
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Your Library</h2>
-          </div>
-          <div className="w-full overflow-hidden">
-             <Book3DFlip books={books} />
-          </div>
+         <Carousel title="Your Library">
+            {books.map((book) => (
+              <BookCard key={book.id} book={book} className="min-w-[160px] w-[180px] md:w-[220px]" />
+            ))}
+         </Carousel>
       </section>
     </div>
   );
