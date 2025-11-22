@@ -2,7 +2,9 @@ import { Movie } from "@/types";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original";
+const TMDB_IMAGE_BASE_URL_ORIGINAL = "https://image.tmdb.org/t/p/original";
+const TMDB_IMAGE_BASE_URL_W500 = "https://image.tmdb.org/t/p/w500";
+const TMDB_IMAGE_BASE_URL_W1280 = "https://image.tmdb.org/t/p/w1280";
 
 if (!TMDB_API_KEY) {
   console.warn("TMDB_API_KEY is not defined in environment variables.");
@@ -38,6 +40,39 @@ const GENRES: Record<number, string> = {
   10768: "War & Politics",
 };
 
+interface TMDBGenre {
+  id: number;
+  name: string;
+}
+
+interface TMDBCast {
+  id: number;
+  name: string;
+  character: string;
+  profile_path: string | null;
+}
+
+interface TMDBCrew {
+  id: number;
+  name: string;
+  job: string;
+  profile_path: string | null;
+}
+
+interface TMDBCredits {
+  cast: TMDBCast[];
+  crew: TMDBCrew[];
+}
+
+interface TMDBImage {
+  file_path: string;
+  vote_average: number;
+}
+
+interface TMDBImages {
+  backdrops: TMDBImage[];
+}
+
 interface TMDBMovie {
   id: number;
   title?: string;
@@ -47,51 +82,110 @@ interface TMDBMovie {
   poster_path: string;
   backdrop_path: string;
   vote_average: number;
-  genre_ids: number[];
+  genre_ids?: number[];
+  genres?: TMDBGenre[];
+  overview?: string;
+  runtime?: number;
+  episode_run_time?: number[];
+  tagline?: string;
+  status?: string;
+  credits?: TMDBCredits;
+  images?: TMDBImages;
 }
 
 interface TMDBResponse {
   results: TMDBMovie[];
 }
 
-const fetchTMDB = async (endpoint: string): Promise<TMDBResponse> => {
-  const url = `${TMDB_BASE_URL}${endpoint}?api_key=${TMDB_API_KEY}&language=en-US`;
-  const res = await fetch(url, { next: { revalidate: 3600 } }); // Revalidate every hour
+const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
+  const queryParams = new URLSearchParams({
+    api_key: TMDB_API_KEY || "",
+    language: "en-US",
+    ...params,
+  });
+  const url = `${TMDB_BASE_URL}${endpoint}?${queryParams.toString()}`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
 
   if (!res.ok) {
+    // If 404, just return null if possible, but throwing is okay for now
+    if (res.status === 404) return null;
     throw new Error(`Failed to fetch data from TMDB: ${res.statusText}`);
   }
 
   return res.json();
 };
 
-const mapTmdbToMovie = (item: TMDBMovie): Movie => {
+const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
   const title = item.title || item.name || "Unknown Title";
   const date = item.release_date || item.first_air_date || "";
   const year = date ? new Date(date).getFullYear() : 0;
+
+  // Handle genres from either genre_ids (list) or genres (detail)
+  let genreList: string[] = [];
+  if (item.genres) {
+    genreList = item.genres.map((g) => g.name);
+  } else if (item.genre_ids) {
+    genreList = item.genre_ids.map((id) => GENRES[id]).filter(Boolean);
+  }
+
+  const runtime = item.runtime || (item.episode_run_time && item.episode_run_time[0]) || 0;
+
+  // Map Cast
+  const cast = item.credits?.cast?.slice(0, 10).map(c => ({
+    id: c.id,
+    name: c.name,
+    character: c.character,
+    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined
+  })) || [];
+
+  // Map Crew (Director/Creator usually)
+  const crew = item.credits?.crew?.filter(c => c.job === 'Director' || c.job === 'Executive Producer').slice(0, 5).map(c => ({
+    id: c.id,
+    name: c.name,
+    job: c.job,
+    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined
+  })) || [];
+
+  // Map Images
+  const images = item.images?.backdrops?.slice(0, 10).map(img => `${TMDB_IMAGE_BASE_URL_W1280}${img.file_path}`) || [];
+
+  // Get highest rated backdrop if available
+  let backdropPath = item.backdrop_path;
+  if (item.images?.backdrops && item.images.backdrops.length > 0) {
+    const sortedBackdrops = [...item.images.backdrops].sort((a, b) => b.vote_average - a.vote_average);
+    backdropPath = sortedBackdrops[0].file_path;
+  }
 
   return {
     id: item.id.toString(),
     title,
     year,
     posterUrl: item.poster_path
-      ? `${TMDB_IMAGE_BASE_URL}${item.poster_path}`
-      : "/placeholder.jpg", // You might want a local placeholder
-    backdropUrl: item.backdrop_path
-      ? `${TMDB_IMAGE_BASE_URL}${item.backdrop_path}`
+      ? `${TMDB_IMAGE_BASE_URL_W500}${item.poster_path}`
+      : "/placeholder.jpg",
+    backdropUrl: backdropPath
+      ? `${TMDB_IMAGE_BASE_URL_ORIGINAL}${backdropPath}`
       : undefined,
     rating: Number(item.vote_average.toFixed(1)),
-    genre: item.genre_ids.map((id) => GENRES[id]).filter(Boolean).slice(0, 3), // Limit to 3 genres
-    watched: false, // Default
-    liked: false, // Default
-    watchlist: false, // Default
+    genre: genreList.slice(0, 3),
+    overview: item.overview,
+    runtime,
+    tagline: item.tagline,
+    status: item.status,
+    mediaType,
+    watched: false,
+    liked: false,
+    watchlist: false,
+    cast,
+    crew,
+    images
   };
 };
 
 export const getTrendingMovies = async (): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/trending/movie/day");
-    return data.results.map(mapTmdbToMovie);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, 'movie'));
   } catch (error) {
     console.error("Error fetching trending movies:", error);
     return [];
@@ -101,10 +195,40 @@ export const getTrendingMovies = async (): Promise<Movie[]> => {
 export const getPopularSeries = async (): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/tv/popular");
-    return data.results.map(mapTmdbToMovie);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, 'tv'));
   } catch (error) {
     console.error("Error fetching popular series:", error);
     return [];
   }
 };
 
+export const getMovieById = async (id: string): Promise<Movie | null> => {
+  try {
+    const data = await fetchTMDB(`/movie/${id}`, { append_to_response: "credits,images" });
+    if (!data) return null;
+    return mapTmdbToMovie(data, 'movie');
+  } catch (error) {
+    console.error(`Error fetching movie ${id}:`, error);
+    return null;
+  }
+};
+
+export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
+  try {
+    const data = await fetchTMDB(`/tv/${id}`, { append_to_response: "credits,images" });
+    if (!data) return null;
+    return mapTmdbToMovie(data, 'tv');
+  } catch (error) {
+    console.error(`Error fetching TV series ${id}:`, error);
+    return null;
+  }
+};
+
+// Helper to fetch based on type
+export const getMediaById = async (id: string, type: 'movie' | 'tv'): Promise<Movie | null> => {
+  if (type === 'movie') {
+    return getMovieById(id);
+  } else {
+    return getTvSeriesById(id);
+  }
+};

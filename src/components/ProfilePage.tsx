@@ -4,8 +4,8 @@ import { useState } from "react";
 import { MovieCard } from "@/components/MovieCard";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, List, Heart, Clock, Bookmark } from "lucide-react";
-import { motion } from "framer-motion";
+import { LayoutGrid, List, Heart, Clock, Bookmark, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Tab = "watched" | "watchlist" | "favorites";
 
@@ -16,6 +16,7 @@ interface ProfilePageProps {
 
 export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps) {
   const [activeTab, setActiveTab] = useState<Tab>("watched");
+  const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
 
   // Combine and process data
   const allContent: Movie[] = [
@@ -49,7 +50,7 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
 
   return (
     <div className="min-h-screen pb-20 pt-12">
-      <div className="max-w-6xl mx-auto px-4 md:px-8">
+      <div className="mx-auto px-4 md:px-8">
         
         {/* Profile Header */}
         <div className="flex flex-col items-center mb-12">
@@ -58,10 +59,8 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
             animate={{ scale: 1, opacity: 1 }}
             className="relative mb-6"
           >
-            <div className="w-24 h-24 rounded-[32px] overflow-hidden ring-4 ring-surface shadow-2xl">
-                <div className="w-full h-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white">
-                    O
-                </div>
+            <div className="w-24 h-24 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10 shadow-2xl ring-4 ring-surface">
+                <User size={48} className="text-foreground/70" />
             </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-background shadow-sm" />
           </motion.div>
@@ -72,7 +71,7 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2"
           >
-            Omer's Library
+            Your Library
           </motion.h1>
           
           <motion.div 
@@ -91,21 +90,33 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
 
         {/* Tabs */}
         <div className="flex justify-center mb-12">
-          <div className="flex p-1.5 bg-surface shadow-sm rounded-full border border-border/50">
+          <div 
+            className="flex p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative"
+            onMouseLeave={() => setHoveredTab(null)}
+          >
             <TabButton 
+              id="watched"
               active={activeTab === "watched"} 
               onClick={() => setActiveTab("watched")}
               label="Watched"
+              hoveredTab={hoveredTab}
+              setHoveredTab={setHoveredTab}
             />
             <TabButton 
+              id="watchlist"
               active={activeTab === "watchlist"} 
               onClick={() => setActiveTab("watchlist")}
               label="Watchlist"
+              hoveredTab={hoveredTab}
+              setHoveredTab={setHoveredTab}
             />
             <TabButton 
+              id="favorites"
               active={activeTab === "favorites"} 
               onClick={() => setActiveTab("favorites")}
               label="Favorites"
+              hoveredTab={hoveredTab}
+              setHoveredTab={setHoveredTab}
             />
           </div>
         </div>
@@ -146,16 +157,23 @@ function TabButton({
   active, 
   onClick, 
   label,
+  id,
+  hoveredTab,
+  setHoveredTab,
 }: { 
   active: boolean; 
   onClick: () => void; 
   label: string;
+  id: Tab;
+  hoveredTab: Tab | null;
+  setHoveredTab: (tab: Tab | null) => void;
 }) {
   return (
     <button
       onClick={onClick}
+      onMouseEnter={() => setHoveredTab(id)}
       className={cn(
-        "relative px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300",
+        "relative px-6 py-2.5 rounded-full text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
     >
@@ -167,7 +185,20 @@ function TabButton({
           style={{ willChange: "transform, opacity" }}
         />
       )}
-      <span className="relative z-10">{label}</span>
+      <AnimatePresence>
+        {hoveredTab === id && !active && (
+          <motion.div
+            layoutId="hoverTab"
+            className="absolute inset-0 bg-surface-hover rounded-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{ willChange: "transform, opacity" }}
+          />
+        )}
+      </AnimatePresence>
+      <span className="relative z-10 mix-blend-normal">{label}</span>
     </button>
   );
 }

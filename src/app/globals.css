@@ -103,10 +103,15 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.08);
 }
 
-.hide-scrollbar::-webkit-scrollbar {
+.hide-scrollbar::-webkit-scrollbar, .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-.hide-scrollbar {
+.hide-scrollbar, .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.mask-linear-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
 }

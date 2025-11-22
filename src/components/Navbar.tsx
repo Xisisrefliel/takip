@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import { Film, User, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useLastVisited } from "@/context/LastVisitedContext";
 
 export function Navbar() {
   const pathname = usePathname();
+  const { lastVisited } = useLastVisited();
 
   return (
     <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
@@ -20,6 +22,20 @@ export function Navbar() {
         <div className="flex items-center px-2">
           <NavLink href="/" active={pathname === "/"}>Discover</NavLink>
           <NavLink href="/profile" active={pathname.startsWith("/profile")}>Library</NavLink>
+          {lastVisited && (
+            <>
+              <div className="h-4 w-px bg-white/10 mx-1" />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                key={lastVisited.href}
+              >
+                <NavLink href={lastVisited.href} active={pathname === lastVisited.href}>
+                  <span className="max-w-[120px] truncate block">{lastVisited.title}</span>
+                </NavLink>
+              </motion.div>
+            </>
+          )}
         </div>
 
         <div className="flex items-center pl-2 border-l border-border/50 gap-1">
@@ -42,7 +58,7 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
     <Link
       href={href}
       className={cn(
-        "relative px-5 py-2 text-sm font-medium transition-colors rounded-full",
+        "relative flex items-center justify-center px-5 py-2 text-sm font-medium transition-colors rounded-full",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
     >

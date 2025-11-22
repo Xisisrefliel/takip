@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
+import { LastVisitedProvider } from "@/context/LastVisitedContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,10 +32,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${poppins.variable} antialiased bg-background text-foreground font-sans transition-colors duration-300`}
       >
-        <Navbar />
-        <main className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-[1200px] mx-auto">
-          {children}
-        </main>
+        <LastVisitedProvider>
+          <Navbar />
+          <main className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-2/3 mx-auto">
+            {children}
+          </main>
+        </LastVisitedProvider>
       </body>
     </html>
   );
