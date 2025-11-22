@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,10 +15,27 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [watched, setWatched] = useState(movie.watched);
   const [watchlist, setWatchlist] = useState(movie.watchlist);
   const [liked, setLiked] = useState(movie.liked);
+
+  useEffect(() => {
+    const updateMousePosition = (e: MouseEvent) => {
+      if (!cardRef.current) return;
+      const rect = cardRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      cardRef.current.style.setProperty("--mouse-x", `${x}px`);
+      cardRef.current.style.setProperty("--mouse-y", `${y}px`);
+    };
+
+    window.addEventListener("mousemove", updateMousePosition);
+    return () => {
+      window.removeEventListener("mousemove", updateMousePosition);
+    };
+  }, []);
 
   return (
     <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)}>
@@ -29,13 +46,26 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
       >
         {/* Card Container */}
         <motion.div
+          ref={cardRef}
           className={cn(
             "relative overflow-hidden rounded-[16px] bg-surface shadow-sm border border-transparent transition-colors duration-300",
-            isHovered && "border-accent",
             aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
           )}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
         >
+          {/* Glow Border Effect */}
+          <div
+            className="absolute inset-0 z-10 rounded-[inherit] pointer-events-none"
+            style={{
+              background: `radial-gradient(600px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), var(--accent, #3B82F6), transparent 40%)`,
+              mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              maskComposite: "exclude",
+              WebkitMaskComposite: "xor",
+              padding: "2px",
+            }}
+          />
+
           {/* Image */}
           <Image
             src={movie.posterUrl}
@@ -48,8 +78,8 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
 
           {/* Overlay Actions - Minimal */}
           <div className={cn(
-              "absolute inset-0 flex items-end justify-center gap-2 pb-3 transition-opacity duration-300",
-              isHovered ? "opacity-100" : "opacity-0" // removed pointer-events-none to allow clicking if needed, but we want them clickable only when visible? Actually we want them clickable.
+              "absolute inset-0 flex items-end justify-center gap-2 pb-3 transition-opacity duration-300 z-20",
+              isHovered ? "opacity-100" : "opacity-0"
           )}>
               <ActionButton
                 active={watched}
@@ -87,7 +117,7 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
 
           {/* Status Badges (Top Right) */}
           {!isHovered && (
-             <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none">
+             <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none z-20">
                 {watched && (
                     <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
                 )}
