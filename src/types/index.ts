@@ -59,3 +59,17 @@ export interface Movie {
   numberOfSeasons?: number;
   numberOfEpisodes?: number;
 }
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  year: number;
+  coverImage: string;
+  spineColor: string;
+  spineTextColor: string;
+  description: string;
+  rating: number;
+  genre: string[];
+  pages?: number;
+}

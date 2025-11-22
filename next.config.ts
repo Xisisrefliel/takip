@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "image.tmdb.org",
       },
+      {hostname: "d28hgpri8am2if.cloudfront.net"},
     ],
   },
 };

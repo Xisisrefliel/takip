@@ -1,53 +1,35 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import ColorThief from 'colorthief';
+import { Book } from '@/types';
 
-interface BookData {
-  title: string;
-  spineColor: string;
-  spineTextColor: string;
-  coverImage: string;
-}
+const BookItem = ({ book, index, isHovered, onHover }: { book: Book, index: number, isHovered: boolean, onHover: (idx: number | null) => void }) => {
+  const [dominantColor, setDominantColor] = useState<string | null>(null);
+  const [textColor, setTextColor] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-const books: BookData[] = [
-  {
-    title: "The Creative Act",
-    spineColor: "rgb(219, 219, 219)",
-    spineTextColor: "rgb(22, 25, 31)",
-    coverImage: "https://framerusercontent.com/images/I2ofOSfZ5O2tJk7g2xIf0GnMzd8.jpg?width=990&height=1500"
-  },
-  {
-    title: "Wuthering Heights",
-    spineColor: "rgb(76, 71, 39)",
-    spineTextColor: "rgb(213, 213, 213)",
-    coverImage: "https://framerusercontent.com/images/3POpDB30gM2mbKtOqKMPa16gAw.jpg?width=667&height=1000"
-  },
-  {
-    title: "Begin Again",
-    spineColor: "rgb(251, 194, 70)",
-    spineTextColor: "rgb(22, 25, 31)",
-    coverImage: "https://framerusercontent.com/images/JLnJZDPJ2yubUSzTzx32dzsi4N4.jpg?width=667&height=1000"
-  },
-  {
-    title: "Genius Behind Apple",
-    spineColor: "rgb(22, 40, 34)",
-    spineTextColor: "rgb(237, 238, 240)",
-    coverImage: "https://framerusercontent.com/images/ZgEeuI5Vhe2PEJNfH3mvaSQTrf0.jpg?width=699&height=1000"
-  },
-  {
-    title: "The Design of Everyday Things",
-    spineColor: "rgb(246, 218, 60)",
-    spineTextColor: "rgb(22, 25, 31)",
-    coverImage: "https://framerusercontent.com/images/zGdlx1ZDavK6xkO6kRYPTZ1YfeU.jpg?width=667&height=1000"
-  },
-  {
-    title: "A Beautifully Foolish Endeavor",
-    spineColor: "rgb(243, 58, 34)",
-    spineTextColor: "rgb(22, 25, 31)",
-    coverImage: "https://framerusercontent.com/images/plIcJABiUsv8NcFf8kBppbFsdl0.jpg?width=667&height=1000"
-  }
-];
+  const handleImageLoad = () => {
+    const img = imgRef.current;
+    if (!img) return;
 
-const BookItem = ({ book, index, isHovered, onHover }: { book: BookData, index: number, isHovered: boolean, onHover: (idx: number | null) => void }) => {
+    try {
+      const colorThief = new ColorThief();
+      const color = colorThief.getColor(img);
+      
+      // Determine text color based on brightness
+      const brightness = Math.round(((color[0] * 299) + (color[1] * 587) + (color[2] * 114)) / 1000);
+      const calculatedTextColor = brightness > 125 ? 'rgb(22, 25, 31)' : 'rgb(237, 238, 240)';
+
+      setDominantColor(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+      setTextColor(calculatedTextColor);
+    } catch (error) {
+      console.error("Error extracting color:", error);
+    }
+  };
+
+  const finalSpineColor = dominantColor || book.spineColor;
+  const finalTextColor = textColor || book.spineTextColor;
+
   return (
     <div
       className="flex flex-row justify-start outline-none shrink-0"
@@ -72,8 +54,8 @@ const BookItem = ({ book, index, isHovered, onHover }: { book: BookData, index: 
           justifyContent: 'center',
           flexShrink: 0,
           transformOrigin: 'right center',
-          backgroundColor: book.spineColor,
-          color: book.spineTextColor,
+          backgroundColor: finalSpineColor,
+          color: finalTextColor,
           transform: isHovered ? 'rotateY(-50deg)' : 'rotateY(-20deg)',
           transition: '500ms cubic-bezier(0.4, 0, 0.2, 1)',
           willChange: 'transform',
@@ -140,8 +122,11 @@ const BookItem = ({ book, index, isHovered, onHover }: { book: BookData, index: 
           }}
         />
         <img
+          ref={imgRef}
           alt={book.title}
           src={book.coverImage}
+          crossOrigin="anonymous"
+          onLoad={handleImageLoad}
           style={{
             transition: '500ms cubic-bezier(0.4, 0, 0.2, 1)',
             willChange: 'transform',
@@ -159,8 +144,12 @@ const BookItem = ({ book, index, isHovered, onHover }: { book: BookData, index: 
   );
 };
 
-export default function Book3DFlip() {
+export default function Book3DFlip({ books }: { books: Book[] }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  if (!books || books.length === 0) {
+      return null;
+  }
 
   return (
     <div className="h-full w-full flex flex-col items-center justify-center">
@@ -190,7 +179,7 @@ export default function Book3DFlip() {
         >
           {books.map((book, index) => (
             <BookItem
-              key={index}
+              key={book.id || index}
               book={book}
               index={index}
               isHovered={hoveredIndex === index}

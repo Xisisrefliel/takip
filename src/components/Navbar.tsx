@@ -228,8 +228,10 @@ export function Navbar() {
                   <>
                     <div className="h-4 w-px bg-white/10 mx-1" />
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 0.9 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      transition={{ duration: 0.2 }}
                       key={lastVisited.href}
                     >
                       <NavLink
