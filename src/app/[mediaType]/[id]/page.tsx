@@ -1,6 +1,7 @@
 import { getMediaById, getWatchProviders } from "@/lib/tmdb";
 import { getBookById } from "@/lib/hardcover";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Play, Plus, Star, Info, BookOpen } from "lucide-react";
 import { Metadata } from "next";
@@ -143,6 +144,21 @@ export default async function MediaDetailPage({ params }: PageProps) {
                     <span className="text-foreground/80">by {item.author}</span>
                  )}
               </div>
+
+              {/* Director */}
+              {!isBook(item) && item.crew && item.crew.some(c => c.job === 'Director') && (
+                <div className="flex flex-wrap gap-2 items-center text-base font-medium">
+                  <span className="text-muted-foreground">Directed by</span>
+                  {item.crew.filter(c => c.job === 'Director').map((d, i, arr) => (
+                    <span key={d.id}>
+                      <Link href={`/director/${d.id}`} className="text-foreground hover:text-accent transition-colors">
+                        {d.name}
+                      </Link>
+                      {i < arr.length - 1 && <span className="text-muted-foreground">, </span>}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Genres */}
               <div className="flex flex-wrap gap-2 pt-2">

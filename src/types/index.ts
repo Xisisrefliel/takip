@@ -39,9 +39,12 @@ export interface Movie {
   id: string;
   title: string;
   year: number;
+  releaseDate?: string;
   posterUrl: string;
   backdropUrl?: string;
   rating?: number;
+  voteCount?: number;
+  popularity?: number;
   genre: string[];
   overview?: string;
   runtime?: number; // minutes

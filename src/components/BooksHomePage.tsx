@@ -32,21 +32,22 @@ export function BooksHomePage({ books }: BooksHomePageProps) {
                 src={heroBook.coverImage}
                 alt={heroBook.title}
                 fill
+                priority
+                quality={20}
                 sizes="100vw"
-                className="object-cover blur-md scale-110 brightness-50 transition-transform duration-1000 group-hover:scale-115"
+                className="object-cover scale-110 brightness-50 transition-transform duration-1000 group-hover:scale-115"
                 style={{ willChange: "transform" }}
-                loading="lazy"
               />
-              <div className="absolute inset-0 bg-black/40" />
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
               {/* Add a clearer version of the cover on the right side on large screens */}
               <div className="absolute right-10 top-1/2 -translate-y-1/2 hidden lg:block w-[300px] h-[450px] shadow-2xl rotate-[-10deg] opacity-80">
                 <Image
                   src={heroBook.coverImage}
                   alt={heroBook.title}
                   fill
+                  priority
                   sizes="300px"
                   className="object-cover rounded-lg"
-                  loading="lazy"
                 />
               </div>
 

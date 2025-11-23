@@ -21,21 +21,14 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
   const [watchlist, setWatchlist] = useState(movie.watchlist);
   const [liked, setLiked] = useState(movie.liked);
 
-  useEffect(() => {
-    const updateMousePosition = (e: MouseEvent) => {
-      if (!cardRef.current) return;
-      const rect = cardRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      cardRef.current.style.setProperty("--mouse-x", `${x}px`);
-      cardRef.current.style.setProperty("--mouse-y", `${y}px`);
-    };
-
-    window.addEventListener("mousemove", updateMousePosition);
-    return () => {
-      window.removeEventListener("mousemove", updateMousePosition);
-    };
-  }, []);
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    cardRef.current.style.setProperty("--mouse-x", `${x}px`);
+    cardRef.current.style.setProperty("--mouse-y", `${y}px`);
+  };
 
   return (
     <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)}>
@@ -43,6 +36,7 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
         className={cn("group flex flex-col gap-3")}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onMouseMove={handleMouseMove}
       >
         {/* Card Container */}
         <motion.div

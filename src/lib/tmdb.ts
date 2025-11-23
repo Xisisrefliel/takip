@@ -105,6 +105,8 @@ interface TMDBMovie {
   poster_path: string;
   backdrop_path: string;
   vote_average: number;
+  vote_count: number;
+  popularity?: number;
   genre_ids?: number[];
   genres?: TMDBGenre[];
   overview?: string;
@@ -186,6 +188,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     id: item.id.toString(),
     title,
     year,
+    releaseDate: date,
     posterUrl: item.poster_path
       ? `${TMDB_IMAGE_BASE_URL_W500}${item.poster_path}`
       : "/placeholder.jpg",
@@ -193,6 +196,8 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
       ? `${TMDB_IMAGE_BASE_URL_ORIGINAL}${backdropPath}`
       : undefined,
     rating: Number(item.vote_average.toFixed(1)),
+    voteCount: item.vote_count,
+    popularity: item.popularity,
     genre: genreList.slice(0, 3),
     overview: item.overview,
     runtime,
@@ -335,5 +340,31 @@ export const getWatchProviders = async (id: string, mediaType: 'movie' | 'tv') =
   } catch (error) {
     console.error(`Error fetching watch providers for ${mediaType} ${id}:`, error);
     return null;
+  }
+};
+
+export const getDirectorMovies = async (directorId: string): Promise<{ directorName: string; movies: Movie[] }> => {
+  try {
+    const [personData, creditsData] = await Promise.all([
+      fetchTMDB(`/person/${directorId}`),
+      fetchTMDB(`/person/${directorId}/movie_credits`)
+    ]);
+
+    if (!personData || !creditsData) {
+      throw new Error("Failed to fetch director data");
+    }
+
+    const movies = (creditsData.crew || [])
+      .filter((c: any) => c.job === 'Director')
+      .map((item: any) => mapTmdbToMovie({ ...item, genre_ids: item.genre_ids || [] }, 'movie'))
+      .sort((a: Movie, b: Movie) => (b.year || 0) - (a.year || 0));
+
+    return {
+      directorName: personData.name,
+      movies
+    };
+  } catch (error) {
+    console.error(`Error fetching director movies for ${directorId}:`, error);
+    return { directorName: "", movies: [] };
   }
 };
