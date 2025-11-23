@@ -1,6 +1,13 @@
 import { BooksHomePage } from "@/components/BooksHomePage";
-import { books } from "@/data/books";
+import { searchBooks, getTrendingBooks } from "@/lib/hardcover";
 
-export default function BooksPage() {
+export default async function BooksPage() {
+  // Default search to populate the page initially
+  let books = await getTrendingBooks();
+
+  if (books.length === 0) {
+    books = await searchBooks("fiction");
+  }
+  
   return <BooksHomePage books={books} />;
 }

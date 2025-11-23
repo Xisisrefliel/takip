@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMedia } from "@/context/MediaContext";
 import { MovieCard } from "@/components/MovieCard";
 import { BookCard } from "@/components/BookCard";
 import { Movie, Book } from "@/types";
@@ -19,7 +20,7 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps) {
-  const [contentType, setContentType] = useState<ContentType>("movies");
+  const { mediaType: contentType, setMediaType: setContentType } = useMedia();
   const [activeTab, setActiveTab] = useState<Tab>("watched");
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
   const [mediaFilter, setMediaFilter] = useState<MediaTypeFilter>("all");
@@ -154,7 +155,7 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
               id="watched"
               active={activeTab === "watched"} 
               onClick={() => setActiveTab("watched")}
-              label="Watched"
+              label={contentType === "books" ? "Read" : "Watched"}
               hoveredTab={hoveredTab}
               setHoveredTab={setHoveredTab}
             />
@@ -162,7 +163,7 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
               id="watchlist"
               active={activeTab === "watchlist"} 
               onClick={() => setActiveTab("watchlist")}
-              label="Watchlist"
+              label={contentType === "books" ? "Read Later" : "Watchlist"}
               hoveredTab={hoveredTab}
               setHoveredTab={setHoveredTab}
             />

@@ -60,16 +60,39 @@ export interface Movie {
   numberOfEpisodes?: number;
 }
 
+export interface WatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority: number;
+}
+
+export interface WatchProvidersData {
+  link?: string;
+  flatrate?: WatchProvider[];
+  rent?: WatchProvider[];
+  buy?: WatchProvider[];
+}
+
 export interface Book {
   id: string;
   title: string;
   author: string;
   year: number;
   coverImage: string;
-  spineColor: string;
-  spineTextColor: string;
+  spineColor?: string;
+  spineTextColor?: string;
   description: string;
   rating: number;
   genre: string[];
   pages?: number;
+  mediaType?: 'book';
+  publisher?: string;
+  isbn?: string;
+  images?: string[];
+  // User interaction fields
+  watched?: boolean; // technically "read"
+  liked?: boolean;
+  watchlist?: boolean;
+  readDate?: string;
 }

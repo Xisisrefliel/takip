@@ -4,23 +4,25 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { Eye, Plus, Heart, Check } from "lucide-react";
-import { Movie } from "@/types";
+import { Movie, Book } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface DetailPosterProps {
-  movie: Movie;
+  item: Movie | Book;
 }
 
-export function DetailPoster({ movie }: DetailPosterProps) {
-  const [watched, setWatched] = useState(movie.watched);
-  const [watchlist, setWatchlist] = useState(movie.watchlist);
-  const [liked, setLiked] = useState(movie.liked);
+export function DetailPoster({ item }: DetailPosterProps) {
+  const [watched, setWatched] = useState(item.watched);
+  const [watchlist, setWatchlist] = useState(item.watchlist);
+  const [liked, setLiked] = useState(item.liked);
+
+  const posterUrl = 'posterUrl' in item ? item.posterUrl : item.coverImage;
 
   return (
     <div className="relative aspect-2/3 rounded-[24px] overflow-hidden shadow-2xl border border-white/10 transform transition-transform duration-500 hover:rotate-y-6 hover:scale-105 group">
       <Image
-        src={movie.posterUrl}
-        alt={movie.title}
+        src={posterUrl}
+        alt={item.title}
         fill
         className="object-cover"
         priority

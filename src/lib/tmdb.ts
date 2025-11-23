@@ -311,3 +311,29 @@ export const getMediaById = async (id: string, type: 'movie' | 'tv'): Promise<Mo
     return getTvSeriesById(id);
   }
 };
+
+export const getWatchProviders = async (id: string, mediaType: 'movie' | 'tv') => {
+  try {
+    const data = await fetchTMDB(`/${mediaType}/${id}/watch/providers`);
+    const results = data?.results;
+    
+    if (!results) return null;
+
+    // Process to add full image paths
+    const processed: Record<string, any> = {};
+    Object.keys(results).forEach(region => {
+      const data = results[region];
+      processed[region] = {
+        link: data.link,
+        flatrate: data.flatrate?.map((p: any) => ({ ...p, logo_path: p.logo_path ? `${TMDB_IMAGE_BASE_URL_W500}${p.logo_path}` : null })),
+        rent: data.rent?.map((p: any) => ({ ...p, logo_path: p.logo_path ? `${TMDB_IMAGE_BASE_URL_W500}${p.logo_path}` : null })),
+        buy: data.buy?.map((p: any) => ({ ...p, logo_path: p.logo_path ? `${TMDB_IMAGE_BASE_URL_W500}${p.logo_path}` : null })),
+      };
+    });
+
+    return processed;
+  } catch (error) {
+    console.error(`Error fetching watch providers for ${mediaType} ${id}:`, error);
+    return null;
+  }
+};

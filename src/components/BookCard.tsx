@@ -21,6 +21,7 @@ export function BookCard({ book, className }: BookCardProps) {
 
   return (
     <div className={cn("block w-full", className)}>
+      <Link href={`/book/${book.id}`} className="block outline-none">
       <div 
         className={cn("group flex flex-col gap-3 w-full")}
         onMouseEnter={() => setIsHovered(true)}
@@ -113,13 +114,14 @@ export function BookCard({ book, className }: BookCardProps) {
               <>
                 <span className="w-1 h-1 rounded-full bg-foreground/20" />
                 <span className="flex items-center gap-1">
-                  <span className="text-yellow-500/80">★</span> {book.rating}
+                  <span className="text-yellow-500/80">★</span> {book.rating.toFixed(1)}
                 </span>
               </>
             )}
           </div>
         </div>
       </div>
+      </Link>
     </div>
   );
 }
