@@ -19,26 +19,26 @@ const GENRES: Record<number, string> = {
   99: "Documentary",
   18: "Drama",
   21: "Family",
-  14: "Fantasy",
+  22: "Fantasy",
   36: "History",
-  27: "Horror",
-  10402: "Music",
-  9648: "Mystery",
-  10749: "Romance",
+  24: "Horror",
+  25: "Music",
+  26: "Mystery",
+  27: "Romance",
   878: "Science Fiction",
-  10770: "TV Movie",
+  29: "TV Movie",
   53: "Thriller",
-  10752: "War",
-  37: "Western",
-  10759: "Action & Adventure",
-  10762: "Kids",
-  10763: "News",
-  10764: "Reality",
-  10765: "Sci-Fi & Fantasy",
-  10766: "Soap",
-  10767: "Talk",
-  10768: "War & Politics",
-  10751: "Family",
+  31: "War",
+  32: "Western",
+  33: "Action & Adventure",
+  34: "Kids",
+  35: "News",
+  36: "Reality",
+  37: "Sci-Fi & Fantasy",
+  38: "Soap",
+  39: "Talk",
+  40: "War & Politics",
+  41: "Family",
 };
 
 interface TMDBGenre {
@@ -119,6 +119,7 @@ interface TMDBMovie {
   seasons?: TMDBSeasonSummary[];
   number_of_seasons?: number;
   number_of_episodes?: number;
+  media_type?: string;
 }
 
 interface TMDBResponse {
@@ -366,5 +367,40 @@ export const getDirectorMovies = async (directorId: string): Promise<{ directorN
   } catch (error) {
     console.error(`Error fetching director movies for ${directorId}:`, error);
     return { directorName: "", movies: [] };
+  }
+};
+
+export const searchMoviesAndTv = async (query: string): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/search/multi", { query });
+    const results = data?.results || [];
+    return results
+      .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
+      .map((item: any) => mapTmdbToMovie(item, item.media_type));
+  } catch (error) {
+    console.error("Error searching movies and tv:", error);
+    return [];
+  }
+};
+
+export const searchMoviesOnly = async (query: string): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/search/movie", { query });
+    const results = data?.results || [];
+    return results.map((item: any) => mapTmdbToMovie(item, 'movie'));
+  } catch (error) {
+    console.error("Error searching movies:", error);
+    return [];
+  }
+};
+
+export const searchTvSeries = async (query: string): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/search/tv", { query });
+    const results = data?.results || [];
+    return results.map((item: any) => mapTmdbToMovie(item, 'tv'));
+  } catch (error) {
+    console.error("Error searching tv series:", error);
+    return [];
   }
 };

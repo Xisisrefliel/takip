@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Film, User, Search, X, Book as BookIcon } from "lucide-react";
+import { Film, User, Search, X, Book as BookIcon, BookOpen, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useLastVisited } from "@/context/LastVisitedContext";
 import { useMedia } from "@/context/MediaContext";
 import { useState, useRef, useEffect } from "react";
-import { searchBooksAction } from "@/app/actions";
-import { Book } from "@/types";
+import { searchBooksAction, searchMoviesAction, searchSeriesAction } from "@/app/actions";
+import { Book, Movie } from "@/types";
 import Image from "next/image";
 
 export function Navbar() {
@@ -21,8 +21,11 @@ export function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Book[]>([]);
-  const [isSearchingBooks, setIsSearchingBooks] = useState(false);
+  const [searchResults, setSearchResults] = useState<(Book | Movie)[]>([]);
+  const [isSearchingMedia, setIsSearchingMedia] = useState(false);
+  const [searchType, setSearchType] = useState<"movies" | "series" | "books">("movies");
+  const [hoveredSearchTab, setHoveredSearchTab] = useState<"movies" | "series" | "books" | null>(null);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -31,28 +34,37 @@ export function Navbar() {
   useEffect(() => {
     if (pathname.startsWith("/books") || pathname.startsWith("/book/")) {
       setMediaType("books");
+      setSearchType("books");
+    } else if (pathname.startsWith("/tv/")) {
+      setMediaType("movies"); // Keep generic context as movies for now
+      setSearchType("series");
     } else if (
       pathname === "/" ||
-      pathname.startsWith("/movie/") ||
-      pathname.startsWith("/tv/")
+      pathname.startsWith("/movie/")
     ) {
       setMediaType("movies");
+      setSearchType("movies");
     }
   }, [pathname, setMediaType]);
 
   useEffect(() => {
-    if (!pathname.startsWith("/books")) return;
-
     const timer = setTimeout(async () => {
       if (searchQuery.trim()) {
-        setIsSearchingBooks(true);
+        setIsSearchingMedia(true);
         try {
-          const results = await searchBooksAction(searchQuery);
+          let results: (Book | Movie)[] = [];
+          if (searchType === "movies") {
+             results = await searchMoviesAction(searchQuery);
+          } else if (searchType === "series") {
+             results = await searchSeriesAction(searchQuery);
+          } else {
+             results = await searchBooksAction(searchQuery);
+          }
           setSearchResults(results);
         } catch (error) {
           console.error("Search failed", error);
         } finally {
-          setIsSearchingBooks(false);
+          setIsSearchingMedia(false);
         }
       } else {
         setSearchResults([]);
@@ -60,7 +72,7 @@ export function Navbar() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, pathname]);
+  }, [searchQuery, searchType]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -124,11 +136,12 @@ export function Navbar() {
     : null;
 
   return (
-    <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+    <>
+      <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
       <motion.nav
         ref={navRef}
         className={cn(
-          "pointer-events-auto flex items-center p-1.5 bg-surface/70 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5 transition-all duration-300",
+          "pointer-events-auto flex items-center p-1.5 bg-surface/70 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5 transition-all duration-300",
           isSearching ? "ring-2 ring-white/20 border-transparent" : ""
         )}
         onMouseLeave={() => setHoveredLink(null)}
@@ -138,9 +151,9 @@ export function Navbar() {
             <motion.div
               key="search"
               layout="position"
-              initial={{ opacity: 0, x: 20, filter: "blur(4px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
               transition={{
                 type: "spring",
                 bounce: 0.2,
@@ -149,92 +162,45 @@ export function Navbar() {
               }}
               className="relative flex items-center w-[340px] px-1"
             >
-              <Search
-                size={18}
-                className="text-foreground/60 mr-3 shrink-0 ml-2"
-              />
-              <input
-                ref={inputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  pathname.startsWith("/books")
-                    ? "Search books..."
-                    : "Search..."
-                }
-                className="flex-1 bg-transparent border-none outline-none text-sm h-10 placeholder:text-foreground/40 text-foreground min-w-0"
-              />
-              <div className="flex items-center gap-1 ml-1">
-                <div className="hidden sm:flex items-center px-1.5 py-0.5 rounded-md bg-foreground/5 text-[10px] font-medium text-foreground/40 mr-1">
-                  ESC
-                </div>
-                <button
-                  onClick={() => {
-                    setIsSearching(false);
-                    setSearchQuery("");
-                  }}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Search Results Dropdown */}
-              <AnimatePresence>
-                {pathname.startsWith("/books") && searchQuery.trim() && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute top-full left-0 right-0 mt-4 bg-surface/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl p-2 flex flex-col max-h-[60vh] overflow-y-auto z-50"
+              <motion.div
+                className="flex items-center flex-1 min-w-0"
+                initial={{ filter: "blur(4px)" }}
+                animate={{ filter: "blur(0px)" }}
+                exit={{ filter: "blur(4px)" }}
+              >
+                <Search
+                  size={18}
+                  className="text-foreground/60 mr-3 shrink-0 ml-2"
+                />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={
+                    searchType === "books"
+                      ? "Search books..."
+                      : searchType === "series"
+                      ? "Search TV series..."
+                      : "Search movies..."
+                  }
+                  className="flex-1 bg-transparent border-none outline-none text-sm h-10 placeholder:text-foreground/40 text-foreground min-w-0"
+                />
+                <div className="flex items-center gap-1 ml-1">
+                  <div className="hidden sm:flex items-center px-1.5 py-0.5 rounded-md bg-foreground/5 text-[10px] font-medium text-foreground/40 mr-1">
+                    ESC
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsSearching(false);
+                      setSearchQuery("");
+                    }}
+                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0"
                   >
-                    {isSearchingBooks ? (
-                      <div className="p-8 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        <span className="text-xs">Searching library...</span>
-                      </div>
-                    ) : searchResults.length > 0 ? (
-                      <div className="flex flex-col gap-1">
-                        {searchResults.map((book) => (
-                          <Link
-                            key={book.id}
-                            href={`/book/${book.id}`}
-                            onClick={() => {
-                              setIsSearching(false);
-                              setSearchQuery("");
-                            }}
-                            className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-xl transition-colors group"
-                          >
-                            <div className="relative w-10 h-14 shrink-0 rounded-md overflow-hidden shadow-md bg-white/5">
-                              <Image
-                                src={book.coverImage}
-                                alt={book.title}
-                                fill
-                                className="object-cover transition-transform group-hover:scale-110"
-                                sizes="40px"
-                              />
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-sm font-medium text-foreground truncate group-hover:text-white transition-colors">
-                                {book.title}
-                              </span>
-                              <span className="text-xs text-muted-foreground truncate">
-                                {book.author}
-                              </span>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center text-sm text-muted-foreground">
-                        No books found
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    <X size={16} />
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           ) : (
             <motion.div
@@ -407,6 +373,135 @@ export function Navbar() {
         </AnimatePresence>
       </motion.nav>
     </div>
+
+    <AnimatePresence>
+      {isSearching && searchQuery.trim() && (
+        <motion.div
+          key="search-results-container"
+          className="fixed top-[80px] left-0 right-0 z-40 flex justify-center pointer-events-none"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="pointer-events-auto w-[550px] flex flex-col gap-1.5">
+            {/* Search Type Tabs */}
+            <div className="flex items-center p-1 mt-2 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full shadow-lg">
+              <SearchTabButton 
+                id="movies"
+                active={searchType === "movies"}
+                onClick={() => setSearchType("movies")}
+                label="Movies"
+                icon={<Film size={14} />}
+                hovered={hoveredSearchTab}
+                setHovered={setHoveredSearchTab}
+              />
+              <SearchTabButton 
+                id="series"
+                active={searchType === "series"}
+                onClick={() => setSearchType("series")}
+                label="TV Series"
+                icon={<Tv size={14} />}
+                hovered={hoveredSearchTab}
+                setHovered={setHoveredSearchTab}
+              />
+              <SearchTabButton 
+                id="books"
+                active={searchType === "books"}
+                onClick={() => setSearchType("books")}
+                label="Books"
+                icon={<BookOpen size={14} />}
+                hovered={hoveredSearchTab}
+                setHovered={setHoveredSearchTab}
+              />
+            </div>
+
+            <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[65vh]">
+              <div className="overflow-y-auto p-2 scrollbar-hide">
+                {isSearchingMedia ? (
+                  <div className="h-60 flex flex-col items-center justify-center text-muted-foreground gap-3">
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <span className="text-xs font-medium text-white/40">Searching library...</span>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-1">
+                    {searchResults.map((item) => {
+                      const isBookItem = 'author' in item;
+                      const isBookTab = searchType === "books";
+                      
+                      // Skip items that don't match the current tab type to prevent rendering errors during transitions
+                      if (isBookTab !== isBookItem) return null;
+
+                      const book = isBookItem ? item as Book : null;
+                      const movie = !isBookItem ? item as Movie : null;
+                      
+                      const href = isBookItem 
+                        ? `/book/${book!.id}` 
+                        : `/${movie!.mediaType === 'tv' ? 'tv' : 'movie'}/${movie!.id}`;
+                      const title = isBookItem ? book!.title : movie!.title;
+                      const subtitle = isBookItem ? book!.author : (movie!.year || "Unknown Year");
+                      const image = isBookItem ? book!.coverImage : movie!.posterUrl;
+                      const rating = isBookItem ? book!.rating : movie!.rating;
+                      
+                      return (
+                        <Link
+                          key={item.id}
+                          href={href}
+                          onClick={() => {
+                            setIsSearching(false);
+                            setSearchQuery("");
+                          }}
+                          className="flex items-center gap-4 p-2.5 hover:bg-white/5 rounded-xl transition-all duration-200 group active:scale-[0.99]"
+                        >
+                          <div className="relative w-12 h-[72px] shrink-0 rounded-lg overflow-hidden shadow-lg bg-white/5 ring-1 ring-white/10 group-hover:ring-white/20 transition-all">
+                            <Image
+                              src={image}
+                              alt={title}
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-110"
+                              sizes="48px"
+                            />
+                          </div>
+                          <div className="flex flex-col min-w-0 gap-0.5 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[15px] font-medium text-white/90 truncate group-hover:text-white transition-colors">
+                                {title}
+                              </span>
+                              {rating && rating > 0 && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/10 text-white/60">
+                                  {rating.toFixed(1)}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[13px] text-white/40 truncate group-hover:text-white/60 transition-colors">
+                              {subtitle}
+                            </span>
+                            {!isBookItem && movie?.overview && (
+                              <span className="text-[11px] text-white/30 truncate mt-1">
+                                {movie.overview}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="h-60 flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-white/20">
+                      <Search size={20} />
+                    </div>
+                    <p className="text-sm text-white/40 font-medium">No results found</p>
+                    <p className="text-xs text-white/20 mt-1">Try searching for something else</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
 
@@ -456,5 +551,63 @@ function NavPill({
       )}
       <span className="relative z-10 mix-blend-normal">{children}</span>
     </Link>
+  );
+}
+
+function SearchTabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  id,
+  hovered,
+  setHovered
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  id: "movies" | "series" | "books";
+  hovered: "movies" | "series" | "books" | null;
+  setHovered: (type: "movies" | "series" | "books" | null) => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(id)}
+      onMouseLeave={() => setHovered(null)}
+      className={cn(
+        "relative flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors duration-300 outline-none flex-1 justify-center",
+        active 
+          ? "text-foreground" 
+          : "text-foreground/50 hover:text-foreground"
+      )}
+    >
+      {active && (
+        <motion.div
+          layoutId="activeSearchTab"
+          className="absolute inset-0 bg-foreground/10 rounded-lg shadow-sm z-10 border border-foreground/5"
+          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+          style={{ willChange: "transform, opacity" }}
+        />
+      )}
+      <AnimatePresence>
+        {hovered === id && !active && (
+          <motion.div
+            layoutId="hoverSearchTab"
+            className="absolute inset-0 bg-foreground/5 rounded-lg z-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{ willChange: "transform, opacity" }}
+          />
+        )}
+      </AnimatePresence>
+      <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
+        {icon}
+        <span>{label}</span>
+      </span>
+    </button>
   );
 }
