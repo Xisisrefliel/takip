@@ -32,8 +32,6 @@ const GENRES: Record<number, string> = {
   32: "Western",
   33: "Action & Adventure",
   34: "Kids",
-  35: "News",
-  36: "Reality",
   37: "Sci-Fi & Fantasy",
   38: "Soap",
   39: "Talk",
@@ -376,7 +374,8 @@ export const searchMoviesAndTv = async (query: string): Promise<Movie[]> => {
     const results = data?.results || [];
     return results
       .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
-      .map((item: any) => mapTmdbToMovie(item, item.media_type));
+      .map((item: any) => mapTmdbToMovie(item, item.media_type))
+      .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
   } catch (error) {
     console.error("Error searching movies and tv:", error);
     return [];
@@ -387,7 +386,9 @@ export const searchMoviesOnly = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/movie", { query });
     const results = data?.results || [];
-    return results.map((item: any) => mapTmdbToMovie(item, 'movie'));
+    return results
+      .map((item: any) => mapTmdbToMovie(item, 'movie'))
+      .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
   } catch (error) {
     console.error("Error searching movies:", error);
     return [];
@@ -398,7 +399,9 @@ export const searchTvSeries = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/tv", { query });
     const results = data?.results || [];
-    return results.map((item: any) => mapTmdbToMovie(item, 'tv'));
+    return results
+      .map((item: any) => mapTmdbToMovie(item, 'tv'))
+      .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
   } catch (error) {
     console.error("Error searching tv series:", error);
     return [];

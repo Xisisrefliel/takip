@@ -29,6 +29,7 @@ export function Navbar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Sync media type with pathname
   useEffect(() => {
@@ -76,14 +77,14 @@ export function Navbar() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        navRef.current &&
-        !navRef.current.contains(event.target as Node) &&
-        isSearching
-      ) {
+      const isOutsideNav = navRef.current && !navRef.current.contains(event.target as Node);
+      const isOutsideSearch = searchContainerRef.current ? !searchContainerRef.current.contains(event.target as Node) : true;
+
+      if (isOutsideNav && isOutsideSearch && isSearching) {
         setIsSearching(false);
         setSearchQuery("");
       }
+
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
@@ -377,6 +378,7 @@ export function Navbar() {
     <AnimatePresence>
       {isSearching && searchQuery.trim() && (
         <motion.div
+          ref={searchContainerRef}
           key="search-results-container"
           className="fixed top-[80px] left-0 right-0 z-40 flex justify-center pointer-events-none"
           initial={{ opacity: 0, y: 10 }}
