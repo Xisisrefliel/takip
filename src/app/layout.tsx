@@ -4,7 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { LastVisitedProvider } from "@/context/LastVisitedContext";
 import { MediaProvider } from "@/context/MediaContext";
 import "./globals.css";
-
+import { ConvexClientProvider } from "./ConvexProvider";
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -35,10 +35,12 @@ export default function RootLayout({
       >
         <MediaProvider>
           <LastVisitedProvider>
-            <Navbar />
-            <main className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-2/3 mx-auto">
-              {children}
-            </main>
+            <ConvexClientProvider>
+              <Navbar />
+              <main className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-2/3 mx-auto">
+                {children}
+              </main>
+            </ConvexClientProvider>
           </LastVisitedProvider>
         </MediaProvider>
       </body>
