@@ -9,6 +9,9 @@ import { books } from "@/data/books";
 import { cn } from "@/lib/utils";
 import { LayoutGrid, List, Heart, Clock, Bookmark, User, Film, Tv, Layers, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { authClient } from "@/lib/auth-client";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 type Tab = "watched" | "watchlist" | "favorites";
 type MediaTypeFilter = "all" | "movie" | "tv";
@@ -20,6 +23,8 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps) {
+  const currentUser = useQuery(api.auth.getCurrentUser);
+
   const { mediaType: contentType, setMediaType: setContentType } = useMedia();
   const [activeTab, setActiveTab] = useState<Tab>("watched");
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
@@ -99,7 +104,7 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2"
           >
-            Your Library
+            {currentUser?.name ? `${currentUser.name}'s Library` : "Your Library"}
           </motion.h1>
           
           <motion.div 
