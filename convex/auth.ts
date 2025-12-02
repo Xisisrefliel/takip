@@ -23,10 +23,6 @@ export const createAuth = (
             disabled: optionsOnly,
         },
         baseURL: siteUrl,
-        trustedOrigins: [
-            siteUrl,
-            process.env.ALLOWED_WEB_ORIGINS || "http://localhost:3000",
-        ].filter(Boolean),
         database: authComponent.adapter(ctx),
         // Configure simple, non-verified email/password to get started
         emailAndPassword: {
