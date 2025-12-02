@@ -72,29 +72,29 @@ export function AuthButton() {
 
   if (isLoading) {
     return (
-      <div className="w-10 h-10 flex items-center justify-center rounded-full">
-        <div className="w-6 h-6 border-2 border-foreground/20 border-t-foreground/60 rounded-full animate-spin" />
+      <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full">
+        <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-foreground/20 border-t-foreground/60 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (session?.user) {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 sm:gap-1">
         <Link
           href="/profile"
-          className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
+          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
-            <User size={14} />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
+            <User size={12} className="sm:w-[14px] sm:h-[14px]" />
           </div>
         </Link>
         <button
           onClick={handleSignOut}
-          className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
+          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
           title="Sign out"
         >
-          <LogOut size={16} />
+          <LogOut size={14} className="sm:w-4 sm:h-4" />
         </button>
       </div>
     );
@@ -103,11 +103,11 @@ export function AuthButton() {
   return (
     <Link
       href="/login"
-      className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
+      className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
       title="Sign in"
     >
-      <div className="w-8 h-8 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
-        <User size={14} />
+      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
+        <User size={12} className="sm:w-[14px] sm:h-[14px]" />
       </div>
     </Link>
   );

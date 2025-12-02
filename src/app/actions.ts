@@ -6,6 +6,7 @@ import { Book, Movie } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
 import { createUser, getUserByEmail } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -174,6 +175,10 @@ export async function toggleWatchedAction(
       }
     }
 
+    // Revalidate pages that display movies
+    revalidatePath("/");
+    revalidatePath("/profile");
+
     return { success: true };
   } catch (error) {
     console.error("Toggle watched error:", error);
@@ -250,6 +255,10 @@ export async function toggleWatchlistAction(
       }
     }
 
+    // Revalidate pages that display movies
+    revalidatePath("/");
+    revalidatePath("/profile");
+
     return { success: true };
   } catch (error) {
     console.error("Toggle watchlist error:", error);
@@ -325,6 +334,10 @@ export async function toggleLikedAction(
         });
       }
     }
+
+    // Revalidate pages that display movies
+    revalidatePath("/");
+    revalidatePath("/profile");
 
     return { success: true };
   } catch (error) {
@@ -603,5 +616,89 @@ export async function getWatchedEpisodesAction(episodeIds: number[]): Promise<Se
   } catch (error) {
     console.error("Get watched episodes error:", error);
     return new Set();
+  }
+}
+
+export async function enrichMoviesWithUserStatus(movies: Movie[]): Promise<Movie[]> {
+  const session = await auth();
+  if (!session?.user?.id || !movies || movies.length === 0) {
+    return movies;
+  }
+
+  const userId = session.user.id;
+
+  try {
+    // Group movies by mediaType and collect their IDs
+    const movieIds: string[] = [];
+    const tvIds: string[] = [];
+    
+    movies.forEach(movie => {
+      if (movie.mediaType === 'movie') {
+        movieIds.push(movie.id);
+      } else if (movie.mediaType === 'tv') {
+        tvIds.push(movie.id);
+      }
+    });
+
+    // Fetch all user statuses in parallel
+    const [movieStatuses, tvStatuses] = await Promise.all([
+      movieIds.length > 0
+        ? db
+            .select()
+            .from(userMovies)
+            .where(
+              and(
+                eq(userMovies.userId, userId),
+                eq(userMovies.mediaType, 'movie'),
+                inArray(userMovies.movieId, movieIds)
+              )
+            )
+        : [],
+      tvIds.length > 0
+        ? db
+            .select()
+            .from(userMovies)
+            .where(
+              and(
+                eq(userMovies.userId, userId),
+                eq(userMovies.mediaType, 'tv'),
+                inArray(userMovies.movieId, tvIds)
+              )
+            )
+        : [],
+    ]);
+
+    // Create a map for quick lookup
+    const statusMap = new Map<string, { watched: boolean; liked: boolean; watchlist: boolean }>();
+    
+    [...movieStatuses, ...tvStatuses].forEach(status => {
+      statusMap.set(status.movieId, {
+        watched: status.watched ?? false,
+        liked: status.liked ?? false,
+        watchlist: status.watchlist ?? false,
+      });
+    });
+
+    // Enrich movies with user status
+    return movies.map(movie => {
+      const status = statusMap.get(movie.id);
+      if (status) {
+        return {
+          ...movie,
+          watched: status.watched,
+          liked: status.liked,
+          watchlist: status.watchlist,
+        };
+      }
+      return {
+        ...movie,
+        watched: false,
+        liked: false,
+        watchlist: false,
+      };
+    });
+  } catch (error) {
+    console.error("Enrich movies with user status error:", error);
+    return movies;
   }
 }

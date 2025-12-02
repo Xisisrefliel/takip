@@ -106,10 +106,10 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Globe size={18} />
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+        <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
+            <Globe size={16} className="sm:w-[18px] sm:h-[18px]" />
             Where to Watch
         </h3>
         
@@ -117,7 +117,7 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
             <select
                 value={currentRegion}
                 onChange={(e) => setSelectedRegion(e.target.value)}
-                className="appearance-none bg-surface border border-border rounded-lg px-3 py-1.5 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer min-w-[140px]"
+                className="appearance-none bg-surface border border-border rounded-lg px-3 py-1.5 pr-8 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer w-full sm:w-auto sm:min-w-[140px]"
             >
                 {availableRegions.map(region => (
                     <option key={region} value={region} className="bg-background">
@@ -133,19 +133,20 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {data.flatrate && data.flatrate.length > 0 && (
-            <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stream</h4>
-                <div className="flex flex-wrap gap-3">
+            <div className="space-y-2 sm:space-y-3">
+                <h4 className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider">Stream</h4>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                     {data.flatrate.map(provider => (
                         <div key={provider.provider_id} className="relative group" title={provider.provider_name}>
-                             <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                             <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
                                 <Image
                                     src={provider.logo_path}
                                     alt={provider.provider_name}
                                     fill
                                     className="object-cover"
+                                    sizes="(max-width: 640px) 40px, 48px"
                                 />
                              </div>
                              <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
@@ -158,17 +159,18 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
         )}
 
         {data.rent && data.rent.length > 0 && (
-            <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Rent</h4>
-                <div className="flex flex-wrap gap-3">
+            <div className="space-y-2 sm:space-y-3">
+                <h4 className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider">Rent</h4>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                     {data.rent.map(provider => (
                         <div key={provider.provider_id} className="relative group" title={provider.provider_name}>
-                             <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                             <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
                                 <Image
                                     src={provider.logo_path}
                                     alt={provider.provider_name}
                                     fill
                                     className="object-cover"
+                                    sizes="(max-width: 640px) 40px, 48px"
                                 />
                              </div>
                              <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
@@ -181,17 +183,18 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
         )}
 
         {data.buy && data.buy.length > 0 && (
-            <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Buy</h4>
-                <div className="flex flex-wrap gap-3">
+            <div className="space-y-2 sm:space-y-3">
+                <h4 className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider">Buy</h4>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                     {data.buy.map(provider => (
                         <div key={provider.provider_id} className="relative group" title={provider.provider_name}>
-                             <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                             <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
                                 <Image
                                     src={provider.logo_path}
                                     alt={provider.provider_name}
                                     fill
                                     className="object-cover"
+                                    sizes="(max-width: 640px) 40px, 48px"
                                 />
                              </div>
                              <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">

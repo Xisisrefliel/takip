@@ -36,7 +36,7 @@ export default function RootLayout({
         <MediaProvider>
           <LastVisitedProvider>
             <Navbar />
-            <main className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-2/3 mx-auto">
+            <main className="min-h-screen pt-20 sm:pt-24 pb-12 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 w-full lg:w-2/3 mx-auto">
               {children}
             </main>
           </LastVisitedProvider>

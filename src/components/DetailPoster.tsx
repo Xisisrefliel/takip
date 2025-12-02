@@ -67,21 +67,21 @@ export function DetailPoster({ item, initialWatched = false, initialWatchlist = 
   const posterUrl = 'posterUrl' in item ? item.posterUrl : item.coverImage;
 
   return (
-    <div className="relative aspect-2/3 rounded-[24px] overflow-hidden shadow-2xl border border-white/10 transform transition-transform duration-500 hover:rotate-y-6 hover:scale-105 group">
+    <div className="relative aspect-2/3 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden shadow-2xl border border-white/10 transform transition-transform duration-500 hover:rotate-y-6 hover:scale-105 group">
       <Image
         src={posterUrl}
         alt={item.title}
         fill
         className="object-cover"
         priority
-        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        sizes="(max-width: 640px) 240px, (max-width: 768px) 280px, 350px"
       />
       
       {/* Gradient Overlay for text visibility */}
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-24 sm:h-32 bg-linear-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
 
       {/* Actions - Always Visible */}
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-4 pb-6 z-10">
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-2 sm:gap-3 md:gap-4 pb-4 sm:pb-5 md:pb-6 z-10">
         <ActionButton
           active={watched}
           onClick={handleWatched}
@@ -132,8 +132,9 @@ function ActionButton({
   size?: "md" | "lg";
   disabled?: boolean;
 }) {
-  const sizeClasses = size === "lg" ? "w-12 h-12" : "w-9 h-9";
-  const iconSize = size === "lg" ? 20 : 16;
+  const sizeClasses = size === "lg" ? "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12" : "w-8 h-8 sm:w-9 sm:h-9";
+  const iconSize = size === "lg" ? 18 : 14;
+  const iconSizeClass = size === "lg" ? "sm:w-5 sm:h-5 md:w-[20px] md:h-[20px]" : "sm:w-4 sm:h-4";
 
   return (
     <motion.button
@@ -153,8 +154,9 @@ function ActionButton({
         className
       )}
       title={label}
+      aria-label={label}
     >
-      <Icon size={iconSize} fill={fill ? "currentColor" : "none"} />
+      <Icon size={iconSize} className={iconSizeClass} fill={fill ? "currentColor" : "none"} />
     </motion.button>
   );
 }

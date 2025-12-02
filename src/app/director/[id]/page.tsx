@@ -3,6 +3,7 @@ import { BackButton } from "@/components/BackButton";
 import { DirectorMovies } from "@/components/DirectorMovies";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { enrichMoviesWithUserStatus } from "@/app/actions";
 
 interface PageProps {
   params: Promise<{
@@ -34,12 +35,15 @@ export default async function DirectorPage({ params }: PageProps) {
     notFound();
   }
 
+  // Enrich movies with user status from database
+  const enrichedMovies = await enrichMoviesWithUserStatus(movies);
+
   return (
     <main className="min-h-screen bg-background text-foreground relative pb-20">
       <BackButton />
       
       <div className="container mx-auto px-6 pt-24 md:pt-32">
-        <DirectorMovies movies={movies} directorName={directorName} />
+        <DirectorMovies movies={enrichedMovies} directorName={directorName} />
       </div>
     </main>
   );

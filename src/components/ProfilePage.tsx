@@ -125,27 +125,27 @@ export function ProfilePage() {
   });
 
   return (
-    <div className="min-h-screen pb-20 pt-12">
-      <div className="mx-auto px-4 md:px-8">
+    <div className="min-h-screen pb-20 pt-8 sm:pt-12">
+      <div className="mx-auto px-4 sm:px-6 md:px-8">
         
         {/* Profile Header */}
-        <div className="flex flex-col items-center mb-12">
+        <div className="flex flex-col items-center mb-8 sm:mb-12">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="relative mb-6"
+            className="relative mb-4 sm:mb-6"
           >
-            <div className="w-24 h-24 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10 shadow-2xl ring-4 ring-surface">
-                <User size={48} className="text-foreground/70" />
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10 shadow-2xl ring-2 sm:ring-4 ring-surface">
+                <User size={40} className="sm:w-12 sm:h-12 text-foreground/70" />
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-background shadow-sm" />
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded-full border-2 sm:border-4 border-background shadow-sm" />
           </motion.div>
           
           <motion.h1 
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2"
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2"
           >
             Your Library
           </motion.h1>
@@ -154,22 +154,22 @@ export function ProfilePage() {
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="flex items-center gap-3 text-sm font-medium text-foreground/50"
+            className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium text-foreground/50 px-4"
           >
             <span className="flex items-center gap-1">
-              <Clock size={14} /> 
+              <Clock size={12} className="sm:w-[14px] sm:h-[14px]" /> 
               {isLoading ? "..." : contentType === "movies" ? watchedMovies.length : watchedBooks.length} 
               {contentType === "books" ? " Read" : " Watched"}
             </span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
             <span className="flex items-center gap-1">
-              <Bookmark size={14} /> 
+              <Bookmark size={12} className="sm:w-[14px] sm:h-[14px]" /> 
               {isLoading ? "..." : contentType === "movies" ? watchlistMovies.length : watchlistBooks.length} 
               {" Queue"}
             </span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
             <span className="flex items-center gap-1">
-              <Heart size={14} /> 
+              <Heart size={12} className="sm:w-[14px] sm:h-[14px]" /> 
               {isLoading ? "..." : contentType === "movies" ? favoritesMovies.length : favoritesBooks.length} 
               {" Loved"}
             </span>
@@ -177,11 +177,11 @@ export function ProfilePage() {
         </div>
 
         {/* Controls Container */}
-        <div className="flex flex-col gap-6 mb-12">
+        <div className="flex flex-col gap-4 sm:gap-6 mb-8 sm:mb-12">
            {/* Content Type Switch */}
            <div className="flex justify-center">
              <div 
-                className="flex p-1 bg-surface shadow-sm rounded-full border border-border/50 relative"
+                className="flex p-0.5 sm:p-1 bg-surface shadow-sm rounded-full border border-border/50 relative"
                 onMouseLeave={() => setHoveredContentType(null)}
               >
                 <ContentTypeButton
@@ -189,7 +189,7 @@ export function ProfilePage() {
                   active={contentType === "movies"}
                   onClick={() => setContentType("movies")}
                   label="Movies & TV"
-                  icon={<Film size={14} />}
+                  icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
                   hovered={hoveredContentType}
                   setHovered={setHoveredContentType}
                 />
@@ -198,17 +198,17 @@ export function ProfilePage() {
                   active={contentType === "books"}
                   onClick={() => setContentType("books")}
                   label="Books"
-                  icon={<BookOpen size={14} />}
+                  icon={<BookOpen size={12} className="sm:w-[14px] sm:h-[14px]" />}
                   hovered={hoveredContentType}
                   setHovered={setHoveredContentType}
                 />
              </div>
            </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
           {/* Tabs */}
           <div 
-            className="flex p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative"
+            className="flex p-0.5 sm:p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative w-fit justify-center"
             onMouseLeave={() => setHoveredTab(null)}
           >
             <TabButton 
@@ -244,14 +244,14 @@ export function ProfilePage() {
                 initial={{ opacity: 0, width: 0, scale: 0.8 }}
                 animate={{ opacity: 1, width: "auto", scale: 1 }}
                 exit={{ opacity: 0, width: 0, scale: 0.8 }}
-                className="flex items-center p-1 bg-surface/50 rounded-full border border-border/30 relative overflow-hidden"
+                className="flex items-center p-0.5 sm:p-1 bg-surface/50 rounded-full border border-border/30 relative overflow-hidden w-full sm:w-auto justify-center"
                 onMouseLeave={() => setHoveredFilter(null)}
               >
                 <MediaFilterButton 
                   id="movie"
                   active={mediaFilter === "movie"} 
                   onClick={() => setMediaFilter("movie")}
-                  icon={<Film size={14} />}
+                  icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
                   label="Movies"
                   hoveredFilter={hoveredFilter}
                   setHoveredFilter={setHoveredFilter}
@@ -260,7 +260,7 @@ export function ProfilePage() {
                   id="all"
                   active={mediaFilter === "all"} 
                   onClick={() => setMediaFilter("all")}
-                  icon={<Layers size={14} />}
+                  icon={<Layers size={12} className="sm:w-[14px] sm:h-[14px]" />}
                   label="All"
                   hoveredFilter={hoveredFilter}
                   setHoveredFilter={setHoveredFilter}
@@ -269,7 +269,7 @@ export function ProfilePage() {
                   id="tv"
                   active={mediaFilter === "tv"} 
                   onClick={() => setMediaFilter("tv")}
-                  icon={<Tv size={14} />}
+                  icon={<Tv size={12} className="sm:w-[14px] sm:h-[14px]" />}
                   label="Series"
                   hoveredFilter={hoveredFilter}
                   setHoveredFilter={setHoveredFilter}
@@ -282,21 +282,21 @@ export function ProfilePage() {
 
         {/* Content Grid */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mb-4" />
-            <p className="text-foreground/50 font-medium">Loading your library...</p>
+          <div className="flex flex-col items-center justify-center py-16 sm:py-24">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mb-3 sm:mb-4" />
+            <p className="text-sm sm:text-base text-foreground/50 font-medium">Loading your library...</p>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center py-24 text-foreground/50">
-            <LayoutGrid size={48} strokeWidth={1} className="mb-4 opacity-50" />
-            <p className="font-medium text-lg mb-2">Failed to load library</p>
-            <p className="text-sm text-foreground/40">{error}</p>
+          <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/50 px-4">
+            <LayoutGrid size={40} className="sm:w-12 sm:h-12" strokeWidth={1} className="mb-3 sm:mb-4 opacity-50" />
+            <p className="font-medium text-base sm:text-lg mb-1 sm:mb-2">Failed to load library</p>
+            <p className="text-xs sm:text-sm text-foreground/40 text-center">{error}</p>
           </div>
         ) : (
           <>
             <motion.div
               layout
-              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 md:gap-6"
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6"
             >
                 {content.map((item) => (
                   <motion.div
@@ -318,10 +318,10 @@ export function ProfilePage() {
             </motion.div>
 
             {content.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 text-foreground/30">
-                    <LayoutGrid size={48} strokeWidth={1} className="mb-4 opacity-50" />
-                    <p className="font-medium text-lg mb-2">No items found</p>
-                    <p className="text-sm text-foreground/40">
+                <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/30 px-4">
+                    <LayoutGrid size={40} className="sm:w-12 sm:h-12" strokeWidth={1} className="mb-3 sm:mb-4 opacity-50" />
+                    <p className="font-medium text-base sm:text-lg mb-1 sm:mb-2 text-center">No items found</p>
+                    <p className="text-xs sm:text-sm text-foreground/40 text-center">
                       {activeTab === "watched" 
                         ? `Start ${contentType === "books" ? "reading" : "watching"} to build your library!`
                         : activeTab === "watchlist"
@@ -358,7 +358,7 @@ function TabButton({
       onClick={onClick}
       onMouseEnter={() => setHoveredTab(id)}
       className={cn(
-        "relative px-6 py-2.5 rounded-full text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
+        "relative px-3 sm:px-5 md:px-6 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 whitespace-nowrap",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
     >
@@ -410,7 +410,7 @@ function ContentTypeButton({
       onClick={onClick}
       onMouseEnter={() => setHovered(id)}
       className={cn(
-        "relative flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-colors duration-300 outline-none",
+        "relative flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 md:px-6 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none",
         active 
           ? "text-background" 
           : "text-foreground/60 hover:text-foreground"
@@ -467,7 +467,7 @@ function MediaFilterButton({
       onClick={onClick}
       onMouseEnter={() => setHoveredFilter(id)}
       className={cn(
-        "relative flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-colors duration-300 outline-none",
+        "relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-colors duration-300 outline-none",
         active 
           ? "text-background" 
           : "text-foreground/60 hover:text-foreground"

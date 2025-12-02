@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useTransition, useEffect } from "react";
+import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, Plus, Heart, Check } from "lucide-react";
+import { Eye, EyeOff, Plus, Heart } from "lucide-react";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
+import { toggleWatchedAction, toggleWatchlistAction, toggleLikedAction } from "@/app/actions";
+import { useRouter } from "next/navigation";
 
 interface MovieCardProps {
   movie: Movie;
@@ -15,19 +17,65 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [isHovered, setIsHovered] = useState(false);
-  const [watched, setWatched] = useState(movie.watched);
-  const [watchlist, setWatchlist] = useState(movie.watchlist);
-  const [liked, setLiked] = useState(movie.liked);
+  const [watched, setWatched] = useState(movie.watched ?? false);
+  const [watchlist, setWatchlist] = useState(movie.watchlist ?? false);
+  const [liked, setLiked] = useState(movie.liked ?? false);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    cardRef.current.style.setProperty("--mouse-x", `${x}px`);
-    cardRef.current.style.setProperty("--mouse-y", `${y}px`);
+  // Sync state with props when they change (e.g., after router.refresh())
+  useEffect(() => {
+    setWatched(movie.watched ?? false);
+    setWatchlist(movie.watchlist ?? false);
+    setLiked(movie.liked ?? false);
+  }, [movie.watched, movie.watchlist, movie.liked]);
+
+  const mediaType = movie.mediaType === 'tv' ? 'tv' : 'movie';
+
+  const handleWatched = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newValue = !watched;
+    setWatched(newValue);
+    startTransition(async () => {
+      const result = await toggleWatchedAction(movie.id, mediaType as "movie" | "tv" | "book", newValue);
+      if (result?.error) {
+        setWatched(!newValue);
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  const handleWatchlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newValue = !watchlist;
+    setWatchlist(newValue);
+    startTransition(async () => {
+      const result = await toggleWatchlistAction(movie.id, mediaType as "movie" | "tv" | "book", newValue);
+      if (result?.error) {
+        setWatchlist(!newValue);
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  const handleLiked = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newValue = !liked;
+    setLiked(newValue);
+    startTransition(async () => {
+      const result = await toggleLikedAction(movie.id, mediaType as "movie" | "tv" | "book", newValue);
+      if (result?.error) {
+        setLiked(!newValue);
+      } else {
+        router.refresh();
+      }
+    });
   };
 
   return (
@@ -36,90 +84,81 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
         className={cn("group flex flex-col gap-3")}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onMouseMove={handleMouseMove}
       >
         {/* Card Container */}
         <motion.div
-          ref={cardRef}
-          className={cn(
-            "relative overflow-hidden rounded-[16px] bg-surface shadow-sm border border-transparent transition-colors duration-300",
-            aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
-          )}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          className="relative rounded-[16px]"
+          style={{
+            border: "1px solid",
+            borderColor: isHovered ? "var(--accent)" : "transparent",
+            transition: "border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+            willChange: "border-color",
+          }}
         >
-          {/* Glow Border Effect */}
           <div
-            className="absolute inset-0 z-10 rounded-[inherit] pointer-events-none"
-            style={{
-              background: `radial-gradient(600px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), var(--accent, #3B82F6), transparent 40%)`,
-              mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-              WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-              maskComposite: "exclude",
-              WebkitMaskComposite: "xor",
-              padding: "2px",
-            }}
-          />
+            className={cn(
+              "relative overflow-hidden rounded-[16px] bg-surface shadow-sm",
+              aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
+            )}
+          >
 
-          {/* Image */}
-          <Image
-            src={movie.posterUrl}
-            alt={movie.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            loading="lazy"
-          />
+            {/* Image */}
+            <Image
+              src={movie.posterUrl}
+              alt={movie.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              loading="lazy"
+            />
 
-          {/* Overlay Actions - Minimal */}
-          <div className={cn(
-              "absolute inset-0 flex items-end justify-center gap-2 pb-3 transition-opacity duration-300 z-20",
-              isHovered ? "opacity-100" : "opacity-0"
-          )}>
-              <ActionButton
-                active={watched}
-                onClick={(e) => {
-                  e.preventDefault(); // Prevent navigation
-                  e.stopPropagation();
-                  setWatched(!watched);
-                }}
-                icon={watched ? Check : Eye}
-                label="Watched"
-              />
-              <ActionButton
-                active={liked}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setLiked(!liked);
-                }}
-                icon={Heart}
-                label="Like"
-                fill={liked}
-                className={liked ? "text-red-500 bg-white" : ""}
-              />
-              <ActionButton
-                active={watchlist}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setWatchlist(!watchlist);
-                }}
-                icon={Plus}
-                label="Watchlist"
-              />
+            {/* Overlay Actions - Minimal */}
+            <motion.div
+                className="absolute inset-0 flex items-end justify-center gap-2 pb-3 z-20"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isHovered ? 1 : 0 }}
+                transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+                style={{ willChange: "opacity" }}
+            >
+                <ActionButton
+                  active={watched}
+                  onClick={handleWatched}
+                  icon={watched ? EyeOff : Eye}
+                  label="Watched"
+                  fill={watched}
+                  disabled={isPending}
+                />
+                <ActionButton
+                  active={liked}
+                  onClick={handleLiked}
+                  icon={Heart}
+                  label="Like"
+                  fill={liked}
+                  className={liked ? "text-red-500 bg-white" : ""}
+                  disabled={isPending}
+                />
+                <ActionButton
+                  active={watchlist}
+                  onClick={handleWatchlist}
+                  icon={Plus}
+                  label="Watchlist"
+                  fill={watchlist}
+                  disabled={isPending}
+                />
+            </motion.div>
+
+            {/* Status Badges (Top Right) */}
+            {!isHovered && (
+               <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none z-20">
+                  {watched && (
+                      <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
+                  )}
+                  {liked && (
+                      <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-red-500/50" />
+                  )}
+               </div>
+            )}
           </div>
-
-          {/* Status Badges (Top Right) */}
-          {!isHovered && (
-             <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none z-20">
-                {watched && (
-                    <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
-                )}
-                {liked && (
-                    <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-red-500/50" />
-                )}
-             </div>
-          )}
         </motion.div>
 
         {/* Info Below */}
@@ -150,7 +189,8 @@ function ActionButton({
   icon: Icon, 
   label, 
   className,
-  fill
+  fill,
+  disabled = false
 }: { 
   active?: boolean; 
   onClick: (e: React.MouseEvent) => void; 
@@ -158,18 +198,18 @@ function ActionButton({
   label: string;
   className?: string;
   fill?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <motion.button
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
-      style={{ willChange: "transform, opacity" }}
+      whileHover={disabled ? {} : { scale: 1.1 }}
+      whileTap={disabled ? {} : { scale: 0.9 }}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "w-9 h-9 rounded-full flex items-center justify-center bg-black/60 text-white backdrop-blur-sm hover:bg-white hover:text-black transition-all shadow-xl border border-white/20",
         active && "bg-white text-black",
+        disabled && "opacity-50 cursor-not-allowed",
         className
       )}
       title={label}

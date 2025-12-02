@@ -139,11 +139,11 @@ export function Navbar() {
 
   return (
     <>
-      <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+      <div className="fixed top-4 sm:top-6 left-0 right-0 z-50 flex justify-center px-2 sm:px-4 pointer-events-none">
       <motion.nav
         ref={navRef}
         className={cn(
-          "pointer-events-auto flex items-center p-1.5 bg-surface/70 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5 transition-all duration-300",
+          "pointer-events-auto flex items-center p-1 sm:p-1.5 bg-surface/70 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5 transition-all duration-300 max-w-full",
           isSearching ? "ring-2 ring-white/20 border-transparent" : ""
         )}
         onMouseLeave={() => setHoveredLink(null)}
@@ -162,7 +162,7 @@ export function Navbar() {
                 duration: 0.5,
                 opacity: { duration: 0.2 },
               }}
-              className="relative flex items-center w-[340px] px-1"
+              className="relative flex items-center w-full sm:w-[340px] px-1 min-w-0"
             >
               <motion.div
                 className="flex items-center flex-1 min-w-0"
@@ -172,7 +172,7 @@ export function Navbar() {
               >
                 <Search
                   size={18}
-                  className="text-foreground/60 mr-3 shrink-0 ml-2"
+                  className="text-foreground/60 mr-2 sm:mr-3 shrink-0 ml-1 sm:ml-2"
                 />
                 <input
                   ref={inputRef}
@@ -186,7 +186,7 @@ export function Navbar() {
                       ? "Search TV series..."
                       : "Search movies..."
                   }
-                  className="flex-1 bg-transparent border-none outline-none text-sm h-10 placeholder:text-foreground/40 text-foreground min-w-0"
+                  className="flex-1 bg-transparent border-none outline-none text-sm h-9 sm:h-10 placeholder:text-foreground/40 text-foreground min-w-0"
                 />
                 <div className="flex items-center gap-1 ml-1">
                   <div className="hidden sm:flex items-center px-1.5 py-0.5 rounded-md bg-foreground/5 text-[10px] font-medium text-foreground/40 mr-1">
@@ -216,17 +216,17 @@ export function Navbar() {
                 duration: 0.5,
                 opacity: { duration: 0.2 },
               }}
-              className="flex items-center gap-1 sm:gap-2"
+              className="flex items-center gap-0.5 sm:gap-1 md:gap-2 min-w-0 flex-1"
             >
               {/* Media Switcher */}
-              <div className="relative mr-1" ref={dropdownRef}>
-                <div className="w-10 h-10" /> {/* Placeholder */}
+              <div className="relative mr-0.5 sm:mr-1 shrink-0" ref={dropdownRef}>
+                <div className="w-9 h-9 sm:w-10 sm:h-10" /> {/* Placeholder */}
                 <motion.div
                   className={cn(
                     "absolute top-0 left-0 z-50 flex flex-col bg-accent text-accent-foreground overflow-hidden cursor-pointer",
                     isDropdownOpen
                       ? "w-48 shadow-xl border border-white/10 p-1.5 items-stretch justify-start"
-                      : "w-10 h-10 shadow-none border border-transparent p-0 items-center justify-center"
+                      : "w-9 h-9 sm:w-10 sm:h-10 shadow-none border border-transparent p-0 items-center justify-center"
                   )}
                   style={{ borderRadius: 24 }}
                   onClick={() => !isDropdownOpen && setIsDropdownOpen(true)}
@@ -288,7 +288,7 @@ export function Navbar() {
                         transition={{ duration: 0.2 }}
                         className="flex items-center justify-center"
                       >
-                        <CurrentIcon size={18} />
+                        <CurrentIcon size={16} className="sm:w-[18px] sm:h-[18px]" />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -297,7 +297,7 @@ export function Navbar() {
 
               {/* Main Navigation Pills */}
               <div
-                className="flex items-center bg-surface/50 rounded-full border border-border/30 p-1 relative"
+                className="flex items-center bg-surface/50 rounded-full border border-border/30 p-0.5 sm:p-1 relative shrink-0"
                 onMouseLeave={() => setHoveredLink(null)}
               >
                 <NavPill
@@ -321,7 +321,7 @@ export function Navbar() {
               {/* Separator & Last Visited */}
               {lastVisited && (
                 <>
-                  <div className="h-5 w-px bg-border/50 mx-1" />
+                  <div className="h-4 sm:h-5 w-px bg-border/50 mx-0.5 sm:mx-1 shrink-0 hidden sm:block" />
                   <motion.div
                     initial={
                       isDetailPage || pathname === lastVisited?.href
@@ -332,18 +332,19 @@ export function Navbar() {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                     key={lastVisited.href}
+                    className="shrink min-w-0 hidden md:block"
                   >
                     <Link
                       href={isDetailPage ? pathname : lastVisited?.href || ""}
                       className={cn(
-                        "px-3 py-1.5 text-sm font-medium transition-colors rounded-full hover:text-foreground flex items-center gap-2",
+                        "px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium transition-colors rounded-full hover:text-foreground flex items-center gap-1 sm:gap-2",
                         isDetailPage || pathname === lastVisited?.href
                           ? "text-foreground"
                           : "text-foreground/60"
                       )}
                       onMouseEnter={() => setHoveredLink(lastVisited.href)}
                     >
-                      <span className="max-w-[150px] truncate">
+                      <span className="max-w-[80px] sm:max-w-[120px] md:max-w-[150px] truncate">
                         {isDetailPage && lastVisited?.href !== pathname
                           ? "Details"
                           : lastVisited?.title}
@@ -354,14 +355,16 @@ export function Navbar() {
               )}
 
               {/* Right Actions */}
-              <div className="flex items-center pl-2 border-l border-border/50 gap-1 shrink-0 ml-1">
+              <div className="flex items-center pl-1 sm:pl-2 border-l border-border/50 gap-0.5 sm:gap-1 shrink-0 ml-0.5 sm:ml-1">
                 <button
                   onClick={() => setIsSearching(true)}
-                  className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
+                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors shrink-0"
                 >
-                  <Search size={18} />
+                  <Search size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
-                <AuthButton />
+                <div className="shrink-0">
+                  <AuthButton />
+                </div>
               </div>
             </motion.div>
           )}
@@ -374,21 +377,21 @@ export function Navbar() {
         <motion.div
           ref={searchContainerRef}
           key="search-results-container"
-          className="fixed top-[80px] left-0 right-0 z-40 flex justify-center pointer-events-none"
+          className="fixed top-[72px] sm:top-[80px] left-0 right-0 z-40 flex justify-center pointer-events-none px-2 sm:px-4"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.2 }}
         >
-          <div className="pointer-events-auto w-[550px] flex flex-col gap-1.5">
+          <div className="pointer-events-auto w-full max-w-[550px] flex flex-col gap-1.5">
             {/* Search Type Tabs */}
-            <div className="flex items-center p-1 mt-2 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full shadow-lg">
+            <div className="flex items-center p-0.5 sm:p-1 mt-2 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full shadow-lg">
               <SearchTabButton 
                 id="movies"
                 active={searchType === "movies"}
                 onClick={() => setSearchType("movies")}
                 label="Movies"
-                icon={<Film size={14} />}
+                icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
                 hovered={hoveredSearchTab}
                 setHovered={setHoveredSearchTab}
               />
@@ -397,7 +400,7 @@ export function Navbar() {
                 active={searchType === "series"}
                 onClick={() => setSearchType("series")}
                 label="TV Series"
-                icon={<Tv size={14} />}
+                icon={<Tv size={12} className="sm:w-[14px] sm:h-[14px]" />}
                 hovered={hoveredSearchTab}
                 setHovered={setHoveredSearchTab}
               />
@@ -406,7 +409,7 @@ export function Navbar() {
                 active={searchType === "books"}
                 onClick={() => setSearchType("books")}
                 label="Books"
-                icon={<BookOpen size={14} />}
+                icon={<BookOpen size={12} className="sm:w-[14px] sm:h-[14px]" />}
                 hovered={hoveredSearchTab}
                 setHovered={setHoveredSearchTab}
               />
@@ -520,7 +523,7 @@ function NavPill({
       href={href}
       onMouseEnter={() => setHoveredLink(href)}
       className={cn(
-        "relative px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
+        "relative px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
     >
@@ -573,7 +576,7 @@ function SearchTabButton({
       onMouseEnter={() => setHovered(id)}
       onMouseLeave={() => setHovered(null)}
       className={cn(
-        "relative flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors duration-300 outline-none flex-1 justify-center",
+        "relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium transition-colors duration-300 outline-none flex-1 justify-center",
         active 
           ? "text-foreground" 
           : "text-foreground/50 hover:text-foreground"
@@ -600,9 +603,9 @@ function SearchTabButton({
           />
         )}
       </AnimatePresence>
-      <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
+      <span className="relative z-10 flex items-center gap-1 sm:gap-2 mix-blend-normal">
         {icon}
-        <span>{label}</span>
+        <span className="truncate">{label}</span>
       </span>
     </button>
   );
