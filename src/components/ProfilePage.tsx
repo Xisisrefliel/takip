@@ -1,55 +1,103 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMedia } from "@/context/MediaContext";
 import { MovieCard } from "@/components/MovieCard";
 import { BookCard } from "@/components/BookCard";
 import { Movie, Book } from "@/types";
-import { books } from "@/data/books";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, List, Heart, Clock, Bookmark, User, Film, Tv, Layers, BookOpen } from "lucide-react";
+import { LayoutGrid, Heart, Clock, Bookmark, User, Film, Tv, Layers, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getUserMediaAction } from "@/app/actions";
 
 type Tab = "watched" | "watchlist" | "favorites";
 type MediaTypeFilter = "all" | "movie" | "tv";
 type ContentType = "movies" | "books";
 
-interface ProfilePageProps {
-  trendingMovies: Movie[];
-  popularSeries: Movie[];
-}
-
-export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps) {
+export function ProfilePage() {
   const { mediaType: contentType, setMediaType: setContentType } = useMedia();
   const [activeTab, setActiveTab] = useState<Tab>("watched");
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
   const [mediaFilter, setMediaFilter] = useState<MediaTypeFilter>("all");
   const [hoveredFilter, setHoveredFilter] = useState<MediaTypeFilter | null>(null);
   const [hoveredContentType, setHoveredContentType] = useState<ContentType | null>(null);
+  
+  // Data state
+  const [watchedMovies, setWatchedMovies] = useState<Movie[]>([]);
+  const [watchlistMovies, setWatchlistMovies] = useState<Movie[]>([]);
+  const [favoritesMovies, setFavoritesMovies] = useState<Movie[]>([]);
+  const [watchedBooks, setWatchedBooks] = useState<Book[]>([]);
+  const [watchlistBooks, setWatchlistBooks] = useState<Book[]>([]);
+  const [favoritesBooks, setFavoritesBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Combine and process data
-  const allMovies: Movie[] = [
-    ...trendingMovies,
-    ...popularSeries,
-  ];
+  // Fetch user media data
+  useEffect(() => {
+    const fetchUserMedia = async () => {
+      setIsLoading(true);
+      setError(null);
 
-  // Simulate user data since we don't have a real backend yet
-  const watchedMovies = allMovies.filter(m => m.watched).length > 0 
-    ? allMovies.filter(m => m.watched) 
-    : allMovies.slice(0, 8).map(m => ({ ...m, watched: true, watchedDate: new Date().toISOString() }));
-    
-  const watchlistMovies = allMovies.filter(m => m.watchlist).length > 0
-    ? allMovies.filter(m => m.watchlist)
-    : allMovies.slice(8, 13).map(m => ({ ...m, watchlist: true }));
+      try {
+        if (contentType === "books") {
+          const [watchedResult, watchlistResult, favoritesResult] = await Promise.all([
+            getUserMediaAction("books", "watched"),
+            getUserMediaAction("books", "watchlist"),
+            getUserMediaAction("books", "favorites"),
+          ]);
 
-  const favoritesMovies = allMovies.filter(m => m.liked).length > 0
-    ? allMovies.filter(m => m.liked)
-    : allMovies.slice(2, 5).map(m => ({ ...m, liked: true }));
+          if (watchedResult.error) {
+            setError(watchedResult.error);
+          } else {
+            setWatchedBooks(watchedResult.books || []);
+          }
 
-  // Simulate book data
-  const watchedBooks = books.slice(0, 3);
-  const watchlistBooks = books.slice(3, 5);
-  const favoritesBooks = books.slice(1, 4);
+          if (watchlistResult.error && !error) {
+            setError(watchlistResult.error);
+          } else {
+            setWatchlistBooks(watchlistResult.books || []);
+          }
+
+          if (favoritesResult.error && !error) {
+            setError(favoritesResult.error);
+          } else {
+            setFavoritesBooks(favoritesResult.books || []);
+          }
+        } else {
+          const [watchedResult, watchlistResult, favoritesResult] = await Promise.all([
+            getUserMediaAction("movies", "watched"),
+            getUserMediaAction("movies", "watchlist"),
+            getUserMediaAction("movies", "favorites"),
+          ]);
+
+          if (watchedResult.error) {
+            setError(watchedResult.error);
+          } else {
+            setWatchedMovies(watchedResult.movies || []);
+          }
+
+          if (watchlistResult.error && !error) {
+            setError(watchlistResult.error);
+          } else {
+            setWatchlistMovies(watchlistResult.movies || []);
+          }
+
+          if (favoritesResult.error && !error) {
+            setError(favoritesResult.error);
+          } else {
+            setFavoritesMovies(favoritesResult.movies || []);
+          }
+        }
+      } catch (err) {
+        setError("Failed to load your library");
+        console.error("Error fetching user media:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserMedia();
+  }, [contentType]);
 
   const getTabContent = () => {
     if (contentType === "books") {
@@ -108,11 +156,23 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
             transition={{ delay: 0.2 }}
             className="flex items-center gap-3 text-sm font-medium text-foreground/50"
           >
-            <span className="flex items-center gap-1"><Clock size={14} /> {contentType === "movies" ? watchedMovies.length : watchedBooks.length} Read/Watched</span>
+            <span className="flex items-center gap-1">
+              <Clock size={14} /> 
+              {isLoading ? "..." : contentType === "movies" ? watchedMovies.length : watchedBooks.length} 
+              {contentType === "books" ? " Read" : " Watched"}
+            </span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
-            <span className="flex items-center gap-1"><Bookmark size={14} /> {contentType === "movies" ? watchlistMovies.length : watchlistBooks.length} Queue</span>
+            <span className="flex items-center gap-1">
+              <Bookmark size={14} /> 
+              {isLoading ? "..." : contentType === "movies" ? watchlistMovies.length : watchlistBooks.length} 
+              {" Queue"}
+            </span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
-            <span className="flex items-center gap-1"><Heart size={14} /> {contentType === "movies" ? favoritesMovies.length : favoritesBooks.length} Loved</span>
+            <span className="flex items-center gap-1">
+              <Heart size={14} /> 
+              {isLoading ? "..." : contentType === "movies" ? favoritesMovies.length : favoritesBooks.length} 
+              {" Loved"}
+            </span>
           </motion.div>
         </div>
 
@@ -221,34 +281,56 @@ export function ProfilePage({ trendingMovies, popularSeries }: ProfilePageProps)
         </div>
 
         {/* Content Grid */}
-        <motion.div
-          layout
-          className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 md:gap-6"
-        >
-            {content.map((item) => (
-              <motion.div
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.2 }}
-                style={{ willChange: "transform, opacity" }}
-                key={item.id}
-              >
-                {contentType === "movies" ? (
-                   <MovieCard movie={item as Movie} aspectRatio="portrait" />
-                ) : (
-                   <BookCard book={item as Book} />
-                )}
-              </motion.div>
-            ))}
-        </motion.div>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-24">
+            <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mb-4" />
+            <p className="text-foreground/50 font-medium">Loading your library...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-24 text-foreground/50">
+            <LayoutGrid size={48} strokeWidth={1} className="mb-4 opacity-50" />
+            <p className="font-medium text-lg mb-2">Failed to load library</p>
+            <p className="text-sm text-foreground/40">{error}</p>
+          </div>
+        ) : (
+          <>
+            <motion.div
+              layout
+              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 md:gap-6"
+            >
+                {content.map((item) => (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ willChange: "transform, opacity" }}
+                    key={item.id}
+                  >
+                    {contentType === "movies" ? (
+                       <MovieCard movie={item as Movie} aspectRatio="portrait" />
+                    ) : (
+                       <BookCard book={item as Book} />
+                    )}
+                  </motion.div>
+                ))}
+            </motion.div>
 
-        {content.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 text-foreground/30">
-                <LayoutGrid size={48} strokeWidth={1} className="mb-4 opacity-50" />
-                <p className="font-medium text-lg">No items found</p>
-            </div>
+            {content.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-24 text-foreground/30">
+                    <LayoutGrid size={48} strokeWidth={1} className="mb-4 opacity-50" />
+                    <p className="font-medium text-lg mb-2">No items found</p>
+                    <p className="text-sm text-foreground/40">
+                      {activeTab === "watched" 
+                        ? `Start ${contentType === "books" ? "reading" : "watching"} to build your library!`
+                        : activeTab === "watchlist"
+                        ? `Add items to your ${contentType === "books" ? "reading list" : "watchlist"} to see them here.`
+                        : "Mark items as favorites to see them here."}
+                    </p>
+                </div>
+            )}
+          </>
         )}
 
       </div>
