@@ -1,29 +1,82 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Season } from '@/types';
 import Image from 'next/image';
-import { ChevronDown, Check, Heart, Bookmark, Calendar, Clock } from 'lucide-react';
+import { ChevronDown, Check, Heart, Bookmark, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toggleEpisodeWatchedAction, markSeasonAsWatchedAction, getWatchedEpisodesAction } from '@/app/actions';
+import { useRouter } from 'next/navigation';
 
 interface SeasonListProps {
   seasons: Season[];
 }
 
 export function SeasonList({ seasons }: SeasonListProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  
   // Initialize with season 1 open (or first season if season 1 doesn't exist)
   const season1 = seasons.find(s => s.seasonNumber === 1);
   const [expandedSeasonId, setExpandedSeasonId] = useState<number | null>(season1?.id || seasons[0]?.id || null);
   
-  // Local state for episode interactions (mocking backend persistence)
+  // Local state for episode interactions
   const [watchedEpisodes, setWatchedEpisodes] = useState<Set<number>>(new Set());
   const [likedEpisodes, setLikedEpisodes] = useState<Set<number>>(new Set());
   const [watchlistEpisodes, setWatchlistEpisodes] = useState<Set<number>>(new Set());
+  const [isLoadingWatched, setIsLoadingWatched] = useState(true);
+
+  // Fetch watched episodes on mount
+  useEffect(() => {
+    const fetchWatchedEpisodes = async () => {
+      const allEpisodeIds = seasons
+        .flatMap(season => season.episodes || [])
+        .map(episode => episode.id);
+      
+      if (allEpisodeIds.length > 0) {
+        const watched = await getWatchedEpisodesAction(allEpisodeIds);
+        setWatchedEpisodes(watched);
+      }
+      setIsLoadingWatched(false);
+    };
+
+    fetchWatchedEpisodes();
+  }, [seasons]);
 
   if (!seasons || seasons.length === 0) return null;
 
   const toggleSeason = (seasonId: number) => {
     setExpandedSeasonId(current => current === seasonId ? null : seasonId);
+  };
+
+  const toggleWatched = async (e: React.MouseEvent, episodeId: number) => {
+    e.stopPropagation();
+    const isWatched = watchedEpisodes.has(episodeId);
+    const newSet = new Set(watchedEpisodes);
+    
+    if (isWatched) {
+      newSet.delete(episodeId);
+    } else {
+      newSet.add(episodeId);
+    }
+    
+    setWatchedEpisodes(newSet); // Optimistic update
+    
+    startTransition(async () => {
+      const result = await toggleEpisodeWatchedAction(episodeId, !isWatched);
+      if (result?.error) {
+        // Revert on error
+        const revertedSet = new Set(watchedEpisodes);
+        if (!isWatched) {
+          revertedSet.delete(episodeId);
+        } else {
+          revertedSet.add(episodeId);
+        }
+        setWatchedEpisodes(revertedSet);
+      } else {
+        router.refresh();
+      }
+    });
   };
 
   const toggleAction = (
@@ -42,6 +95,32 @@ export function SeasonList({ seasons }: SeasonListProps) {
     setState(newSet);
   };
 
+  const markSeasonAsWatched = async (e: React.MouseEvent, season: Season) => {
+    e.stopPropagation();
+    
+    if (!season.episodes || season.episodes.length === 0) return;
+    
+    const episodeIds = season.episodes.map(ep => ep.id);
+    
+    // Capture previous state for potential revert
+    const previousWatched = new Set(watchedEpisodes);
+    
+    // Optimistic update
+    const newSet = new Set(watchedEpisodes);
+    episodeIds.forEach(id => newSet.add(id));
+    setWatchedEpisodes(newSet);
+    
+    startTransition(async () => {
+      const result = await markSeasonAsWatchedAction(episodeIds);
+      if (result?.error) {
+        // Revert on error
+        setWatchedEpisodes(previousWatched);
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 animate-slide-up">
       <h2 className="text-2xl font-bold flex items-center gap-2 mb-6">
@@ -52,36 +131,65 @@ export function SeasonList({ seasons }: SeasonListProps) {
       <div className="space-y-4">
         {seasons.map((season) => {
           const isExpanded = expandedSeasonId === season.id;
+          const seasonEpisodeIds = season.episodes?.map(ep => ep.id) || [];
+          const watchedCount = seasonEpisodeIds.filter(id => watchedEpisodes.has(id)).length;
+          const allEpisodesWatched = seasonEpisodeIds.length > 0 && watchedCount === seasonEpisodeIds.length;
           
           return (
             <div 
               key={season.id} 
               className="border border-white/5 rounded-xl bg-surface/30 overflow-hidden transition-colors hover:border-white/10"
             >
-              <button
-                onClick={() => toggleSeason(season.id)}
-                className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/5 transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-lg font-medium text-foreground">{season.name}</span>
-                  <span className="text-sm text-muted-foreground">{season.episodeCount} Episodes</span>
+              <div className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                <button
+                  onClick={() => toggleSeason(season.id)}
+                  className="flex-1 flex items-center gap-4 text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-lg font-medium text-foreground">{season.name}</span>
+                    <span className="text-sm text-muted-foreground">{season.episodeCount} Episodes</span>
+                    {allEpisodesWatched && (
+                      <span className="text-xs text-green-500 font-medium flex items-center gap-1">
+                        <CheckCircle2 size={14} />
+                        Complete
+                      </span>
+                    )}
+                  </div>
+                </button>
+                
+                <div className="flex items-center gap-3">
+                  {season.episodes && season.episodes.length > 0 && (
+                    <button
+                      onClick={(e) => markSeasonAsWatched(e, season)}
+                      disabled={isPending || allEpisodesWatched}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all border",
+                        allEpisodesWatched
+                          ? "bg-green-500/10 text-green-500 border-green-500/20 cursor-default"
+                          : "bg-white/5 text-foreground border-white/10 hover:bg-white/10 hover:border-white/20",
+                        isPending && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <CheckCircle2 size={14} />
+                      {allEpisodesWatched ? 'All Watched' : 'Mark Season as Watched'}
+                    </button>
+                  )}
+                  <ChevronDown 
+                    className={cn(
+                      "w-5 h-5 text-muted-foreground transition-transform duration-300",
+                      isExpanded && "rotate-180 text-accent"
+                    )} 
+                  />
                 </div>
-                <ChevronDown 
-                  className={cn(
-                    "w-5 h-5 text-muted-foreground transition-transform duration-300",
-                    isExpanded && "rotate-180 text-accent"
-                  )} 
-                />
-              </button>
+              </div>
 
               <div 
                 className={cn(
-                  "grid transition-all duration-300 ease-in-out",
-                  isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                  "overflow-hidden transition-all duration-300 ease-in-out",
+                  isExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
                 )}
               >
-                <div className="overflow-hidden">
-                  <div className="p-4 pt-0 grid gap-4">
+                <div className="p-4 pt-0 grid gap-4">
                     {season.episodes && season.episodes.length > 0 ? (
                       season.episodes.map((episode) => {
                         const isWatched = watchedEpisodes.has(episode.id);
@@ -140,12 +248,14 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                {/* Actions */}
                                <div className="flex items-center gap-2">
                                  <button
-                                   onClick={(e) => toggleAction(e, episode.id, watchedEpisodes, setWatchedEpisodes)}
+                                   onClick={(e) => toggleWatched(e, episode.id)}
+                                   disabled={isPending}
                                    className={cn(
                                      "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all border",
                                      isWatched 
                                        ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" 
-                                       : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                       : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground",
+                                     isPending && "opacity-50 cursor-not-allowed"
                                    )}
                                  >
                                    <Check size={14} />
@@ -192,7 +302,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
                   </div>
                 </div>
               </div>
-            </div>
           );
         })}
       </div>

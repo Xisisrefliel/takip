@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Film, User, Search, X, Book as BookIcon, BookOpen, Tv } from "lucide-react";
+import { Film, User, Search, X, Book as BookIcon, BookOpen, Tv, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useLastVisited } from "@/context/LastVisitedContext";
@@ -11,6 +11,7 @@ import { useState, useRef, useEffect } from "react";
 import { searchBooksAction, searchMoviesAction, searchSeriesAction } from "@/app/actions";
 import { Book, Movie } from "@/types";
 import Image from "next/image";
+import { AuthButton } from "@/components/AuthButton";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -360,14 +361,7 @@ export function Navbar() {
                 >
                   <Search size={18} />
                 </button>
-                <Link
-                  href="/profile"
-                  className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-linear-to-tr from-gray-200 to-gray-100 dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-white/10">
-                    <User size={14} />
-                  </div>
-                </Link>
+                <AuthButton />
               </div>
             </motion.div>
           )}

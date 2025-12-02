@@ -12,6 +12,7 @@ import { SeasonList } from "@/components/SeasonList";
 import { DetailPoster } from "@/components/DetailPoster";
 import { WatchProviders } from "@/components/WatchProviders";
 import { Movie, Book } from "@/types";
+import { getUserMediaStatusAction } from "@/app/actions";
 
 interface PageProps {
   params: Promise<{
@@ -69,6 +70,12 @@ export default async function MediaDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  // Get user media status
+  const mediaStatus = await getUserMediaStatusAction(
+    id,
+    mediaType === 'book' ? 'book' : (mediaType as 'movie' | 'tv')
+  );
+
   // Normalize fields for display
   const backdrop = isBook(item) ? item.coverImage : (item.backdropUrl || item.posterUrl);
   const poster = isBook(item) ? item.coverImage : item.posterUrl;
@@ -106,7 +113,12 @@ export default async function MediaDetailPage({ params }: PageProps) {
         <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start">
           {/* Poster Column */}
           <div className="w-full md:w-[300px] lg:w-[350px] shrink-0 group perspective-1000">
-             <DetailPoster item={item} />
+             <DetailPoster 
+               item={item} 
+               initialWatched={mediaStatus.watched}
+               initialWatchlist={mediaStatus.watchlist}
+               initialLiked={mediaStatus.liked}
+             />
           </div>
 
           {/* Details Column */}
