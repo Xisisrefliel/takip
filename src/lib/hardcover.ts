@@ -266,7 +266,7 @@ function mapSearchResultToBook(doc: HardcoverSearchResultDoc): Book {
 }
 
 function mapHardcoverBookToBook(item: HardcoverBookResult): Book {
-  // Assuming release_date is "YYYY-MM-DD" or similar string
+
   let year = new Date().getFullYear();
   if (item.release_date && typeof item.release_date === 'string') {
      const parts = item.release_date.split("-");

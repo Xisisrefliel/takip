@@ -24,7 +24,6 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
   const [watchlist, setWatchlist] = useState(movie.watchlist ?? false);
   const [liked, setLiked] = useState(movie.liked ?? false);
 
-  // Sync state with props when they change (e.g., after router.refresh())
   useEffect(() => {
     setWatched(movie.watched ?? false);
     setWatchlist(movie.watchlist ?? false);

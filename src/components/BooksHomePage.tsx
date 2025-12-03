@@ -114,7 +114,7 @@ export function BooksHomePage({ books }: BooksHomePageProps) {
 
           {/* Carousel Section */}
           <section>
-            <Carousel title="Your Library">
+            <Carousel title="Trending Books">
               {books.map((book) => (
                 <BookCard
                   key={book.id}
