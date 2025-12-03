@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import { Globe } from "lucide-react";
 import { WatchProvidersData } from "@/types";
 
 interface WatchProvidersProps {
@@ -60,12 +59,6 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
     return null;
   }
 
-  // If the selected region is not in the providers (e.g. default US but movie not in US), switch to first available
-  if (!providers[selectedRegion] && availableRegions.length > 0) {
-    // careful with infinite loops/renders here if not handled well, but logic runs on render.
-    // better to derive the data to show directly.
-  }
-
   const currentRegion = providers[selectedRegion]
     ? selectedRegion
     : availableRegions[0];
@@ -81,11 +74,7 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
   if (!hasProviders) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Globe size={18} />
-            Where to Watch
-          </h3>
+        <div className="flex items-center justify-end">
           <div className="relative">
             <select
               value={currentRegion}
@@ -126,12 +115,7 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-        <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-          <Globe size={16} className="sm:w-[18px] sm:h-[18px]" />
-          Where to Watch
-        </h3>
-
+      <div className="flex items-center justify-between gap-3">
         <div className="relative">
           <select
             value={currentRegion}

@@ -120,13 +120,17 @@ export default async function MediaDetailPage({ params }: PageProps) {
       <div className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-24 md:pt-32 pb-12">
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-12 items-start">
           {/* Poster Column */}
-          <div className="w-full max-w-[240px] mx-auto md:mx-0 md:w-[280px] lg:w-[350px] shrink-0 group perspective-1000">
+          <div className="w-full max-w-[240px] mx-auto md:mx-0 md:w-[280px] lg:w-[350px] shrink-0 group perspective-1000 space-y-4">
             <DetailPoster
               item={item}
               initialWatched={mediaStatus.watched}
               initialWatchlist={mediaStatus.watchlist}
               initialLiked={mediaStatus.liked}
             />
+            {/* Watch Providers (Movies/TV only) */}
+            {!isBook(item) && (
+              <WatchProviders providers={providers} />
+            )}
           </div>
 
           {/* Details Column */}
@@ -212,8 +216,9 @@ export default async function MediaDetailPage({ params }: PageProps) {
 
             {/* Tagline */}
             {!isBook(item) && item.tagline && (
-              <p className="text-lg sm:text-xl text-muted-foreground font-light italic border-l-4 border-accent pl-3 sm:pl-4">
-                &ldquo;{item.tagline}&rdquo;
+              <p className="text-lg sm:text-xl text-muted-foreground font-light italic flex items-center gap-3 sm:gap-4">
+                <span className="w-1 h-6 sm:h-8 bg-accent rounded-full shrink-0"></span>
+                <span>&ldquo;{item.tagline}&rdquo;</span>
               </p>
             )}
 
@@ -253,13 +258,6 @@ export default async function MediaDetailPage({ params }: PageProps) {
                 <span>{isBook(item) ? "Read Later" : "Watchlist"}</span>
               </button>
             </div>
-
-            {/* Watch Providers (Movies/TV only) */}
-            {!isBook(item) && (
-              <div className="pt-8 border-t border-border">
-                <WatchProviders providers={providers} />
-              </div>
-            )}
 
             {/* Reviews Section */}
             <div className="pt-8 border-t border-border">

@@ -4,11 +4,10 @@ import { useState, useTransition, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Season } from '@/types';
 import Image from 'next/image';
-import { ChevronDown, Check, Heart, Bookmark, Calendar, Clock, CheckCircle2, MessageSquare, Star } from 'lucide-react';
+import { ChevronDown, Check, Heart, Bookmark, Calendar, Clock, CheckCircle2, MessageSquare, Star, X, Send, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toggleEpisodeWatchedAction, markSeasonAsWatchedAction, getWatchedEpisodesAction, getUserReviewAction, getReviewsAction, Review } from '@/app/actions';
+import { toggleEpisodeWatchedAction, markSeasonAsWatchedAction, getWatchedEpisodesAction, getUserReviewAction, getReviewsAction, createReviewAction, updateReviewAction, deleteReviewAction, Review } from '@/app/actions';
 import { useRouter } from 'next/navigation';
-import { Reviews } from './Reviews';
 
 interface SeasonListProps {
   seasons: Season[];
@@ -29,6 +28,23 @@ export function SeasonList({ seasons }: SeasonListProps) {
   const [isLoadingWatched, setIsLoadingWatched] = useState(true);
   const [expandedEpisodeReviews, setExpandedEpisodeReviews] = useState<Set<number>>(new Set());
   const [episodeReviews, setEpisodeReviews] = useState<Map<number, { review: Review | null; averageRating: number; count: number }>>(new Map());
+  const [showReviewForm, setShowReviewForm] = useState<Set<number>>(new Set());
+  const [editingReviewId, setEditingReviewId] = useState<Map<number, string>>(new Map());
+  const [session, setSession] = useState<{ user: { id: string } } | null>(null);
+
+  // Fetch session
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        setSession(data?.user ? { user: { id: data.user.id || data.user.email } } : null);
+      } catch {
+        setSession(null);
+      }
+    };
+    fetchSession();
+  }, []);
 
   // Fetch watched episodes and reviews on mount
   useEffect(() => {
@@ -286,123 +302,247 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                 duration: 0.2,
                                 ease: [0.4, 0, 0.2, 1]
                               }}
-                              className="group relative flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-black/10 border border-white/5 hover:bg-black/20 hover:border-white/10 transition-all duration-200"
+                              className="group relative rounded-xl bg-black/10 border border-white/5 hover:bg-black/20 hover:border-white/10 transition-all duration-200"
                             >
-                              {/* Episode Image */}
-                              <div className="relative shrink-0 w-full sm:w-40 lg:w-48 aspect-video rounded-lg overflow-hidden bg-surface/50">
-                                {episode.stillPath ? (
-                                  <Image
-                                    src={episode.stillPath}
-                                    alt={episode.name}
-                                    fill
-                                    sizes="(max-width: 640px) 100vw, 192px"
-                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-white/5">
-                                    <span className="text-muted-foreground text-xs">No Image</span>
-                                  </div>
-                                )}
-                              </div>
-             
-                              {/* Info */}
-                              <div className="flex-1 min-w-0 py-1 flex flex-col justify-between gap-3">
-                                <div className="space-y-2">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="text-base sm:text-lg font-semibold text-foreground leading-tight">
-                                        <span className="text-accent mr-2">{episode.episodeNumber}.</span>
-                                        <span className="break-words">{episode.name}</span>
-                                      </h4>
-                                      <div className="flex items-center gap-2 sm:gap-3 text-xs font-medium text-muted-foreground mt-2 flex-wrap">
-                                        {episode.airDate && (
-                                          <span className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-md">
-                                            <Calendar size={12} />
-                                            <span className="hidden sm:inline">
-                                              {new Date(episode.airDate).toLocaleDateString()}
-                                            </span>
-                                            <span className="sm:hidden">
-                                              {new Date(episode.airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                            </span>
-                                          </span>
-                                        )}
-                                        {episode.runtime && (
-                                          <span className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-md">
-                                            <Clock size={12} />
-                                            {episode.runtime}m
-                                          </span>
-                                        )}
-                                      </div>
+                              {/* Main Episode Content */}
+                              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4">
+                                {/* Episode Image */}
+                                <div className="relative shrink-0 w-full sm:w-40 lg:w-48 aspect-video rounded-lg overflow-hidden bg-surface/50">
+                                  {episode.stillPath ? (
+                                    <Image
+                                      src={episode.stillPath}
+                                      alt={episode.name}
+                                      fill
+                                      sizes="(max-width: 640px) 100vw, 192px"
+                                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-white/5">
+                                      <span className="text-muted-foreground text-xs">No Image</span>
                                     </div>
-                                  </div>
-                                  {episode.overview && (
-                                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 leading-relaxed">
-                                      {episode.overview}
-                                    </p>
                                   )}
                                 </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={(e) => toggleWatched(e, episode.id)}
-                                    disabled={isPending}
-                                    className={cn(
-                                      "flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all border",
-                                      isWatched 
-                                        ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" 
-                                        : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground",
-                                      isPending && "opacity-50 cursor-not-allowed"
+             
+                                {/* Info */}
+                                <div className="flex-1 min-w-0 py-1 flex flex-col justify-between gap-3">
+                                  <div className="space-y-2">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-base sm:text-lg font-semibold text-foreground leading-tight">
+                                          <span className="text-accent mr-2">{episode.episodeNumber}.</span>
+                                          <span className="break-words">{episode.name}</span>
+                                        </h4>
+                                        <div className="flex items-center gap-2 sm:gap-3 text-xs font-medium text-muted-foreground mt-2 flex-wrap">
+                                          {episode.airDate && (
+                                            <span className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-md">
+                                              <Calendar size={12} />
+                                              <span className="hidden sm:inline">
+                                                {new Date(episode.airDate).toLocaleDateString()}
+                                              </span>
+                                              <span className="sm:hidden">
+                                                {new Date(episode.airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                              </span>
+                                            </span>
+                                          )}
+                                          {episode.runtime && (
+                                            <span className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-md">
+                                              <Clock size={12} />
+                                              {episode.runtime}m
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {episode.overview && (
+                                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 leading-relaxed">
+                                        {episode.overview}
+                                      </p>
                                     )}
-                                  >
-                                    <Check size={14} />
-                                    <span className="hidden sm:inline">
-                                      {isWatched ? 'Watched' : 'Mark as Watched'}
-                                    </span>
-                                    <span className="sm:hidden">{isWatched ? 'Watched' : 'Watch'}</span>
-                                  </motion.button>
-                                  
-                                  <div className="h-4 w-px bg-white/10" />
+                                  </div>
 
-                                  <motion.button
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={(e) => toggleAction(e, episode.id, likedEpisodes, setLikedEpisodes)}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-all border",
-                                      isLiked
-                                        ? "bg-pink-500/10 text-pink-500 border-pink-500/20 hover:bg-pink-500/20"
-                                        : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                  {/* Actions */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <motion.button
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={(e) => toggleWatched(e, episode.id)}
+                                      disabled={isPending}
+                                      className={cn(
+                                        "flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all border",
+                                        isWatched 
+                                          ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" 
+                                          : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground",
+                                        isPending && "opacity-50 cursor-not-allowed"
+                                      )}
+                                    >
+                                      <Check size={14} />
+                                      <span className="hidden sm:inline">
+                                        {isWatched ? 'Watched' : 'Mark as Watched'}
+                                      </span>
+                                      <span className="sm:hidden">{isWatched ? 'Watched' : 'Watch'}</span>
+                                    </motion.button>
+                                    
+                                    <div className="h-4 w-px bg-white/10" />
+
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.9 }}
+                                      onClick={(e) => toggleAction(e, episode.id, likedEpisodes, setLikedEpisodes)}
+                                      className={cn(
+                                        "p-1.5 rounded-md transition-all border",
+                                        isLiked
+                                          ? "bg-pink-500/10 text-pink-500 border-pink-500/20 hover:bg-pink-500/20"
+                                          : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                      )}
+                                      title="Like"
+                                    >
+                                      <Heart size={14} className={isLiked ? "fill-current" : ""} />
+                                    </motion.button>
+
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.9 }}
+                                      onClick={(e) => toggleAction(e, episode.id, watchlistEpisodes, setWatchlistEpisodes)}
+                                      className={cn(
+                                        "p-1.5 rounded-md transition-all border",
+                                        isInWatchlist
+                                          ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
+                                          : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                      )}
+                                      title="Add to Watchlist"
+                                    >
+                                      <Bookmark size={14} className={isInWatchlist ? "fill-current" : ""} />
+                                    </motion.button>
+
+                                    <div className="h-4 w-px bg-white/10" />
+
+                                    {session && (
+                                      <motion.button
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const newSet = new Set(showReviewForm);
+                                          if (newSet.has(episode.id)) {
+                                            newSet.delete(episode.id);
+                                            setEditingReviewId(prev => {
+                                              const next = new Map(prev);
+                                              next.delete(episode.id);
+                                              return next;
+                                            });
+                                          } else {
+                                            newSet.add(episode.id);
+                                            const userReview = episodeReviews.get(episode.id)?.review;
+                                            if (userReview) {
+                                              setEditingReviewId(prev => new Map(prev).set(episode.id, userReview.id));
+                                            }
+                                          }
+                                          setShowReviewForm(newSet);
+                                        }}
+                                        className={cn(
+                                          "p-1.5 rounded-md transition-all border flex items-center gap-1",
+                                          showReviewForm.has(episode.id)
+                                            ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
+                                            : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                        )}
+                                        title="Write a review"
+                                      >
+                                        <MessageSquare size={14} />
+                                      </motion.button>
                                     )}
-                                    title="Like"
-                                  >
-                                    <Heart size={14} className={isLiked ? "fill-current" : ""} />
-                                  </motion.button>
 
-                                  <motion.button
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={(e) => toggleAction(e, episode.id, watchlistEpisodes, setWatchlistEpisodes)}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-all border",
-                                      isInWatchlist
-                                        ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
-                                        : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                    {episodeReviews.get(episode.id)?.count && episodeReviews.get(episode.id)!.count > 0 && (
+                                      <>
+                                        <div className="h-4 w-px bg-white/10" />
+                                        <motion.button
+                                          whileHover={{ scale: 1.1 }}
+                                          whileTap={{ scale: 0.9 }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const newSet = new Set(expandedEpisodeReviews);
+                                            if (newSet.has(episode.id)) {
+                                              newSet.delete(episode.id);
+                                            } else {
+                                              newSet.add(episode.id);
+                                            }
+                                            setExpandedEpisodeReviews(newSet);
+                                          }}
+                                          className={cn(
+                                            "p-1.5 rounded-md transition-all border flex items-center gap-1",
+                                            expandedEpisodeReviews.has(episode.id)
+                                              ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
+                                              : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                          )}
+                                          title="View reviews"
+                                        >
+                                          <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                                          <span className="text-[10px]">{episodeReviews.get(episode.id)?.count}</span>
+                                        </motion.button>
+                                      </>
                                     )}
-                                    title="Add to Watchlist"
-                                  >
-                                    <Bookmark size={14} className={isInWatchlist ? "fill-current" : ""} />
-                                  </motion.button>
+                                  </div>
+                                </div>
+                              </div>
 
-                                  <div className="h-4 w-px bg-white/10" />
+                              {/* Inline Review Form */}
+                              <AnimatePresence>
+                                {showReviewForm.has(episode.id) && session && (
+                                  <EpisodeReviewForm
+                                    episodeId={episode.id}
+                                    existingReview={episodeReviews.get(episode.id)?.review || null}
+                                    onSuccess={async () => {
+                                      // Refresh reviews
+                                      const [userReviewResult, reviewsResult] = await Promise.all([
+                                        getUserReviewAction(undefined, undefined, episode.id),
+                                        getReviewsAction(undefined, undefined, episode.id),
+                                      ]);
 
-                                  <motion.button
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
+                                      const reviews = reviewsResult.reviews || [];
+                                      const averageRating = reviews.length > 0
+                                        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+                                        : 0;
+
+                                      setEpisodeReviews(prev => new Map(prev).set(episode.id, {
+                                        review: userReviewResult.review,
+                                        averageRating,
+                                        count: reviews.length,
+                                      }));
+
+                                      // Close form after successful submit
+                                      setShowReviewForm(prev => {
+                                        const next = new Set(prev);
+                                        next.delete(episode.id);
+                                        return next;
+                                      });
+                                      setEditingReviewId(prev => {
+                                        const next = new Map(prev);
+                                        next.delete(episode.id);
+                                        return next;
+                                      });
+                                    }}
+                                    onCancel={() => {
+                                      setShowReviewForm(prev => {
+                                        const next = new Set(prev);
+                                        next.delete(episode.id);
+                                        return next;
+                                      });
+                                      setEditingReviewId(prev => {
+                                        const next = new Map(prev);
+                                        next.delete(episode.id);
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                )}
+                              </AnimatePresence>
+
+                              {/* Episode Reviews List */}
+                              <AnimatePresence>
+                                {expandedEpisodeReviews.has(episode.id) && (
+                                  <EpisodeReviewsList
+                                    episodeId={episode.id}
+                                    episodeReviews={episodeReviews.get(episode.id)}
+                                    onToggle={() => {
                                       const newSet = new Set(expandedEpisodeReviews);
                                       if (newSet.has(episode.id)) {
                                         newSet.delete(episode.id);
@@ -411,31 +551,9 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                       }
                                       setExpandedEpisodeReviews(newSet);
                                     }}
-                                    className={cn(
-                                      "p-1.5 rounded-md transition-all border flex items-center gap-1",
-                                      expandedEpisodeReviews.has(episode.id)
-                                        ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
-                                        : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
-                                    )}
-                                    title="Reviews"
-                                  >
-                                    <MessageSquare size={14} />
-                                    {episodeReviews.get(episode.id)?.count ? (
-                                      <span className="text-[10px]">{episodeReviews.get(episode.id)?.count}</span>
-                                    ) : null}
-                                  </motion.button>
-                                </div>
-                              </div>
-
-                              {/* Episode Reviews */}
-                              {expandedEpisodeReviews.has(episode.id) && (
-                                <div className="w-full mt-3 pt-3 border-t border-white/10">
-                                  <Reviews
-                                    episodeId={episode.id}
-                                    compact={true}
                                   />
-                                </div>
-                              )}
+                                )}
+                              </AnimatePresence>
                             </motion.div>
                           );
                         })
@@ -453,6 +571,318 @@ export function SeasonList({ seasons }: SeasonListProps) {
         })}
       </div>
     </div>
+  );
+}
+
+// Inline Episode Review Form Component
+interface EpisodeReviewFormProps {
+  episodeId: number;
+  existingReview: Review | null;
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+function EpisodeReviewForm({ episodeId, existingReview, onSuccess, onCancel }: EpisodeReviewFormProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [rating, setRating] = useState(existingReview?.rating || 0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [text, setText] = useState(existingReview?.text || "");
+
+  // Update form when existingReview changes
+  useEffect(() => {
+    setRating(existingReview?.rating || 0);
+    setText(existingReview?.text || "");
+  }, [existingReview]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (rating === 0) {
+      return;
+    }
+
+    startTransition(async () => {
+      let result;
+      if (existingReview) {
+        result = await updateReviewAction(existingReview.id, rating, text || null);
+      } else {
+        result = await createReviewAction(rating, text || null, undefined, undefined, episodeId);
+      }
+
+      if (result?.error) {
+        console.error(result.error);
+      } else {
+        router.refresh();
+        onSuccess();
+      }
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!existingReview?.id) return;
+    
+    startTransition(async () => {
+      const result = await deleteReviewAction(existingReview.id);
+      if (result?.error) {
+        console.error(result.error);
+      } else {
+        router.refresh();
+        onSuccess();
+      }
+    });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+      className="w-full px-3 sm:px-4 pb-3 sm:pb-4 border-t border-white/10 overflow-hidden"
+    >
+      <motion.form
+        initial={{ y: -10 }}
+        animate={{ y: 0 }}
+        exit={{ y: -10 }}
+        transition={{ duration: 0.2 }}
+        onSubmit={handleSubmit}
+        className="space-y-3 p-3 rounded-lg bg-black/20 border border-white/10 mt-3"
+      >
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-foreground">
+            {existingReview ? "Edit Review" : "Write a Review"}
+          </h4>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="p-1 rounded-md hover:bg-white/10 transition-colors"
+          >
+            <X size={14} className="text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Star Rating */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Rating:</span>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoveredRating(star)}
+                onMouseLeave={() => setHoveredRating(0)}
+                className="p-0.5 transition-transform hover:scale-110"
+                disabled={isPending}
+              >
+                <Star
+                  size={16}
+                  className={cn(
+                    "transition-colors",
+                    star <= (hoveredRating || rating)
+                      ? "text-yellow-500 fill-yellow-500"
+                      : "text-muted-foreground/30"
+                  )}
+                />
+              </button>
+            ))}
+            {rating > 0 && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                {rating}/5
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Review Text */}
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Share your thoughts... (optional)"
+          rows={2}
+          className="w-full px-3 py-2 rounded-md bg-background/50 border border-white/10 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+          disabled={isPending}
+        />
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <motion.button
+            type="submit"
+            disabled={isPending || rating === 0}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+              rating === 0
+                ? "bg-muted-foreground/20 text-muted-foreground cursor-not-allowed"
+                : "bg-accent text-accent-foreground hover:bg-accent/90",
+              isPending && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Send size={12} />
+            <span>{existingReview ? "Update" : "Submit"}</span>
+          </motion.button>
+
+          {existingReview && (
+            <motion.button
+              type="button"
+              onClick={handleDelete}
+              disabled={isPending}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-3 py-1.5 rounded-md text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Delete
+            </motion.button>
+          )}
+        </div>
+      </motion.form>
+    </motion.div>
+  );
+}
+
+// Episode Reviews List Component
+interface EpisodeReviewsListProps {
+  episodeId: number;
+  episodeReviews?: { review: Review | null; averageRating: number; count: number };
+  onToggle: () => void;
+}
+
+function EpisodeReviewsList({ episodeId, episodeReviews, onToggle }: EpisodeReviewsListProps) {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<{ user: { id: string } } | null>(null);
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        setSession(data?.user ? { user: { id: data.user.id || data.user.email } } : null);
+      } catch {
+        setSession(null);
+      }
+    };
+    fetchSession();
+  }, []);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      setIsLoading(true);
+      const reviewsResult = await getReviewsAction(undefined, undefined, episodeId);
+      if (reviewsResult.reviews) {
+        setReviews(reviewsResult.reviews);
+      }
+      setIsLoading(false);
+    };
+    fetchReviews();
+  }, [episodeId]);
+
+  const allReviews = reviews.filter(r => !episodeReviews?.review || r.id !== episodeReviews.review.id);
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: "auto" }}
+        exit={{ opacity: 0, height: 0 }}
+        transition={{ duration: 0.2 }}
+        className="w-full mt-3 pt-3 border-t border-white/10 overflow-hidden"
+      >
+        <div className="h-8 bg-surface/50 rounded-lg animate-pulse" />
+      </motion.div>
+    );
+  }
+
+  if (allReviews.length === 0) {
+    return null;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+      className="w-full px-3 sm:px-4 pb-3 sm:pb-4 border-t border-white/10 overflow-hidden"
+    >
+      <motion.div
+        initial={{ y: -10 }}
+        animate={{ y: 0 }}
+        exit={{ y: -10 }}
+        transition={{ duration: 0.2 }}
+        className="space-y-2 pt-3"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <MessageSquare size={14} className="text-accent" />
+            Other Reviews ({allReviews.length})
+          </h4>
+          <button
+            onClick={onToggle}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Hide
+          </button>
+        </div>
+        {allReviews.map((review, idx) => (
+          <motion.div
+            key={review.id}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.03 }}
+            className="p-2.5 rounded-lg border border-white/5 bg-black/10"
+          >
+            <div className="flex items-start gap-2">
+              <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center overflow-hidden shrink-0">
+                {review.userImage ? (
+                  <Image
+                    src={review.userImage}
+                    alt={review.userName || "User"}
+                    width={32}
+                    height={32}
+                    className="object-cover"
+                  />
+                ) : (
+                  <span className="text-foreground/60 font-semibold text-xs">
+                    {review.userName?.[0]?.toUpperCase() || "U"}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-semibold text-xs">
+                    {review.userName || "Anonymous"}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 mb-1.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      size={10}
+                      className={
+                        star <= review.rating
+                          ? "text-yellow-500 fill-yellow-500"
+                          : "text-muted-foreground/20"
+                      }
+                    />
+                  ))}
+                </div>
+                {review.text && (
+                  <p className="text-xs text-foreground/80 leading-relaxed">
+                    {review.text}
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+    </motion.div>
   );
 }
 

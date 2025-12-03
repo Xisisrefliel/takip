@@ -94,63 +94,76 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
     : reviews;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <MessageSquare className="w-5 h-5 text-accent" />
-          <h2 className="text-xl sm:text-2xl font-bold">Reviews</h2>
-          {reviews.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              ({reviews.length})
-            </span>
-          )}
+          <div className="w-1 h-6 sm:h-8 bg-accent rounded-full"></div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+              Reviews
+            </h2>
+            {reviews.length > 0 && (
+              <span className="px-2.5 py-0.5 rounded-full bg-surface border border-border text-xs sm:text-sm text-muted-foreground font-medium">
+                {reviews.length}
+              </span>
+            )}
+          </div>
         </div>
         {averageRating > 0 && (
-          <div className="flex items-center gap-1.5">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border"
+          >
             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-            <span className="text-sm font-medium">
+            <span className="text-sm font-semibold text-foreground">
               {averageRating.toFixed(1)}
             </span>
-          </div>
+          </motion.div>
         )}
       </div>
 
       {/* User's Review */}
       {session && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {userReview && !editingReview && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-xl border border-accent/20 bg-accent/5"
+              className="p-5 sm:p-6 rounded-xl border border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-surface/50 backdrop-blur-sm"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center overflow-hidden">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-accent/20 border-2 border-accent/30 flex items-center justify-center overflow-hidden shrink-0">
                     {userReview.userImage ? (
                       <Image
                         src={userReview.userImage}
                         alt={userReview.userName || "You"}
-                        width={40}
-                        height={40}
+                        width={48}
+                        height={48}
                         className="object-cover"
                       />
                     ) : (
-                      <span className="text-accent font-semibold text-sm">
+                      <span className="text-accent font-bold text-base sm:text-lg">
                         {userReview.userName?.[0]?.toUpperCase() || "U"}
                       </span>
                     )}
                   </div>
                   <div>
-                    <p className="font-semibold text-sm">
-                      {userReview.userName || "You"}
-                    </p>
-                    <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-sm sm:text-base text-foreground">
+                        {userReview.userName || "You"}
+                      </p>
+                      <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-[10px] sm:text-xs font-medium">
+                        Your Review
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
-                          size={12}
+                          size={14}
                           className={
                             star <= userReview.rating
                               ? "text-yellow-500 fill-yellow-500"
@@ -163,13 +176,14 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
                 </div>
                 <button
                   onClick={() => setEditingReview(userReview)}
-                  className="p-1.5 rounded-md hover:bg-surface-hover transition-colors"
+                  className="p-2 rounded-lg hover:bg-accent/20 transition-colors group"
+                  aria-label="Edit review"
                 >
-                  <Edit2 size={14} className="text-muted-foreground" />
+                  <Edit2 size={16} className="text-muted-foreground group-hover:text-accent transition-colors" />
                 </button>
               </div>
               {userReview.text && (
-                <p className="text-sm text-foreground/80 mt-2">
+                <p className="text-sm sm:text-base text-foreground/90 leading-relaxed pl-0 sm:pl-16">
                   {userReview.text}
                 </p>
               )}
@@ -192,22 +206,28 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
           )}
 
           {!userReview && !showForm && !editingReview && (
-            <div>
-              <ReviewForm
-                mediaId={mediaId}
-                mediaType={mediaType}
-                episodeId={episodeId}
-                onSuccess={handleFormSubmit}
-                compact={true}
-              />
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-center py-8 sm:py-10"
+            >
+              <motion.button
+                onClick={() => setShowForm(true)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="group flex items-center gap-2.5 px-5 sm:px-6 py-3 sm:py-3.5 rounded-full bg-surface border-2 border-border hover:border-accent text-foreground font-semibold transition-all shadow-sm hover:shadow-md"
+              >
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-accent group-hover:scale-110 transition-transform" />
+                <span className="text-sm sm:text-base">Write a review</span>
+              </motion.button>
+            </motion.div>
           )}
         </div>
       )}
 
       {/* Other Reviews */}
       {allReviews.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {allReviews.map((review, idx) => {
             const isUserReview = session?.user?.id === review.userId;
             if (isUserReview && userReview && review.id === userReview.id) {
@@ -220,38 +240,42 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="p-4 rounded-xl border border-border bg-surface/30 hover:bg-surface/50 transition-colors"
+                className="group p-4 sm:p-5 rounded-xl border border-border bg-surface/50 hover:bg-surface/70 hover:border-accent/30 transition-all duration-300"
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center overflow-hidden shrink-0">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-surface border border-border flex items-center justify-center overflow-hidden shrink-0 group-hover:border-accent/30 transition-colors">
                     {review.userImage ? (
                       <Image
                         src={review.userImage}
                         alt={review.userName || "User"}
-                        width={40}
-                        height={40}
+                        width={44}
+                        height={44}
                         className="object-cover"
                       />
                     ) : (
-                      <span className="text-foreground/60 font-semibold text-sm">
+                      <span className="text-foreground/60 font-semibold text-sm sm:text-base">
                         {review.userName?.[0]?.toUpperCase() || "U"}
                       </span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-sm">
+                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                      <p className="font-semibold text-sm sm:text-base text-foreground">
                         {review.userName || "Anonymous"}
                       </p>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(review.createdAt).toLocaleDateString()}
+                      <span className="text-xs sm:text-sm text-muted-foreground font-medium">
+                        {new Date(review.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 mb-2">
+                    <div className="flex items-center gap-1 mb-2.5">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
-                          size={12}
+                          size={13}
                           className={
                             star <= review.rating
                               ? "text-yellow-500 fill-yellow-500"
@@ -261,7 +285,7 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
                       ))}
                     </div>
                     {review.text && (
-                      <p className="text-sm text-foreground/80 leading-relaxed">
+                      <p className="text-sm sm:text-base text-foreground/85 leading-relaxed">
                         {review.text}
                       </p>
                     )}
@@ -274,10 +298,14 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
       )}
 
       {allReviews.length === 0 && !session && (
-        <div className="text-center py-12 text-muted-foreground bg-surface/30 rounded-xl border border-border">
-          <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No reviews yet. Be the first to review!</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-12 sm:py-16 text-muted-foreground bg-surface/30 rounded-xl border border-border"
+        >
+          <MessageSquare className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-4 opacity-40" />
+          <p className="text-sm sm:text-base font-medium">No reviews yet. Be the first to review!</p>
+        </motion.div>
       )}
     </div>
   );
