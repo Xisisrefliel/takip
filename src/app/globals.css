@@ -115,3 +115,15 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
   mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
 }
+
+.hover-border {
+  border: 1px solid transparent;
+  transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: border-color;
+}
+
+.hover-border:hover,
+.group:hover .hover-border,
+.hover-border-active {
+  border-color: var(--accent);
+}

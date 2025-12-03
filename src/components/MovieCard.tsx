@@ -87,13 +87,10 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
       >
         {/* Card Container */}
         <motion.div
-          className="relative rounded-[16px]"
-          style={{
-            border: "1px solid",
-            borderColor: isHovered ? "var(--accent)" : "transparent",
-            transition: "border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
-            willChange: "border-color",
-          }}
+          className={cn(
+            "relative rounded-[16px] hover-border",
+            isHovered && "hover-border-active"
+          )}
         >
           <div
             className={cn(

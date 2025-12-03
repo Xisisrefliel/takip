@@ -236,7 +236,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
            <Carousel title="Cast & Crew">
               {cast.map((person) => (
                  <Link key={person.id} href={`/actor/${person.id}`} className="shrink-0 w-28 sm:w-32 md:w-40 space-y-2 sm:space-y-3 snap-start group">
-                    <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-surface border border-white/5 shadow-sm group-hover:border-accent/50 transition-colors">
+                    <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-surface shadow-sm hover-border">
                        {person.profilePath ? (
                           <Image 
                             src={person.profilePath} 
