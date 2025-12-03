@@ -170,9 +170,6 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
                       sizes="(max-width: 640px) 40px, 48px"
                     />
                   </div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                    {provider.provider_name}
-                  </span>
                 </div>
               ))}
             </div>
@@ -200,9 +197,6 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
                       sizes="(max-width: 640px) 40px, 48px"
                     />
                   </div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                    {provider.provider_name}
-                  </span>
                 </div>
               ))}
             </div>
@@ -230,9 +224,6 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
                       sizes="(max-width: 640px) 40px, 48px"
                     />
                   </div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                    {provider.provider_name}
-                  </span>
                 </div>
               ))}
             </div>
