@@ -4,10 +4,11 @@ import { useState, useTransition, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Season } from '@/types';
 import Image from 'next/image';
-import { ChevronDown, Check, Heart, Bookmark, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Check, Heart, Bookmark, Calendar, Clock, CheckCircle2, MessageSquare, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toggleEpisodeWatchedAction, markSeasonAsWatchedAction, getWatchedEpisodesAction } from '@/app/actions';
+import { toggleEpisodeWatchedAction, markSeasonAsWatchedAction, getWatchedEpisodesAction, getUserReviewAction, getReviewsAction, Review } from '@/app/actions';
 import { useRouter } from 'next/navigation';
+import { Reviews } from './Reviews';
 
 interface SeasonListProps {
   seasons: Season[];
@@ -26,10 +27,12 @@ export function SeasonList({ seasons }: SeasonListProps) {
   const [likedEpisodes, setLikedEpisodes] = useState<Set<number>>(new Set());
   const [watchlistEpisodes, setWatchlistEpisodes] = useState<Set<number>>(new Set());
   const [isLoadingWatched, setIsLoadingWatched] = useState(true);
+  const [expandedEpisodeReviews, setExpandedEpisodeReviews] = useState<Set<number>>(new Set());
+  const [episodeReviews, setEpisodeReviews] = useState<Map<number, { review: Review | null; averageRating: number; count: number }>>(new Map());
 
-  // Fetch watched episodes on mount
+  // Fetch watched episodes and reviews on mount
   useEffect(() => {
-    const fetchWatchedEpisodes = async () => {
+    const fetchData = async () => {
       const allEpisodeIds = seasons
         .flatMap(season => season.episodes || [])
         .map(episode => episode.id);
@@ -37,11 +40,34 @@ export function SeasonList({ seasons }: SeasonListProps) {
       if (allEpisodeIds.length > 0) {
         const watched = await getWatchedEpisodesAction(allEpisodeIds);
         setWatchedEpisodes(watched);
+
+        // Fetch reviews for all episodes
+        const reviewsMap = new Map<number, { review: Review | null; averageRating: number; count: number }>();
+        await Promise.all(
+          allEpisodeIds.map(async (episodeId) => {
+            const [userReviewResult, reviewsResult] = await Promise.all([
+              getUserReviewAction(undefined, undefined, episodeId),
+              getReviewsAction(undefined, undefined, episodeId),
+            ]);
+
+            const reviews = reviewsResult.reviews || [];
+            const averageRating = reviews.length > 0
+              ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+              : 0;
+
+            reviewsMap.set(episodeId, {
+              review: userReviewResult.review,
+              averageRating,
+              count: reviews.length,
+            });
+          })
+        );
+        setEpisodeReviews(reviewsMap);
       }
       setIsLoadingWatched(false);
     };
 
-    fetchWatchedEpisodes();
+    fetchData();
   }, [seasons]);
 
   if (!seasons || seasons.length === 0) return null;
@@ -369,8 +395,47 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                   >
                                     <Bookmark size={14} className={isInWatchlist ? "fill-current" : ""} />
                                   </motion.button>
+
+                                  <div className="h-4 w-px bg-white/10" />
+
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newSet = new Set(expandedEpisodeReviews);
+                                      if (newSet.has(episode.id)) {
+                                        newSet.delete(episode.id);
+                                      } else {
+                                        newSet.add(episode.id);
+                                      }
+                                      setExpandedEpisodeReviews(newSet);
+                                    }}
+                                    className={cn(
+                                      "p-1.5 rounded-md transition-all border flex items-center gap-1",
+                                      expandedEpisodeReviews.has(episode.id)
+                                        ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
+                                        : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                    )}
+                                    title="Reviews"
+                                  >
+                                    <MessageSquare size={14} />
+                                    {episodeReviews.get(episode.id)?.count ? (
+                                      <span className="text-[10px]">{episodeReviews.get(episode.id)?.count}</span>
+                                    ) : null}
+                                  </motion.button>
                                 </div>
                               </div>
+
+                              {/* Episode Reviews */}
+                              {expandedEpisodeReviews.has(episode.id) && (
+                                <div className="w-full mt-3 pt-3 border-t border-white/10">
+                                  <Reviews
+                                    episodeId={episode.id}
+                                    compact={true}
+                                  />
+                                </div>
+                              )}
                             </motion.div>
                           );
                         })

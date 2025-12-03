@@ -88,3 +88,20 @@ export const userEpisodes = sqliteTable("user_episodes", {
   updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
+export const reviews = sqliteTable("reviews", {
+  id: text("id").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // For movies/TV series reviews
+  mediaId: text("mediaId"), // null if episode review
+  mediaType: text("mediaType", { enum: ["movie", "tv"] }), // null if episode review
+  // For episode reviews
+  episodeId: integer("episodeId"), // null if media review
+  // Review content
+  rating: integer("rating").notNull(), // 1-5 stars
+  text: text("text"), // optional review text
+  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+

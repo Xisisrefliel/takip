@@ -8,8 +8,9 @@ import { createUser, getUserByEmail } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { userMovies, userBooks, userEpisodes } from "@/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema";
+import * as schema from "@/db/schema";
+import { eq, and, inArray, or, isNull } from "drizzle-orm";
 
 export async function searchBooksAction(query: string): Promise<Book[]> {
   if (!query.trim()) return [];
@@ -700,5 +701,337 @@ export async function enrichMoviesWithUserStatus(movies: Movie[]): Promise<Movie
   } catch (error) {
     console.error("Enrich movies with user status error:", error);
     return movies;
+  }
+}
+
+// Review Actions
+export interface Review {
+  id: string;
+  userId: string;
+  userName?: string;
+  userImage?: string;
+  mediaId?: string;
+  mediaType?: "movie" | "tv";
+  episodeId?: number;
+  rating: number;
+  text?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function createReviewAction(
+  rating: number,
+  text: string | null,
+  mediaId?: string,
+  mediaType?: "movie" | "tv",
+  episodeId?: number
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  if (rating < 1 || rating > 5) {
+    return { error: "Rating must be between 1 and 5" };
+  }
+
+  if (!mediaId && !episodeId) {
+    return { error: "Either mediaId or episodeId must be provided" };
+  }
+
+  if (mediaId && !mediaType) {
+    return { error: "mediaType is required when mediaId is provided" };
+  }
+
+  const userId = session.user.id;
+  const now = new Date();
+
+  try {
+    // Check if user already has a review for this item
+    let existingReview;
+    if (episodeId) {
+      const [review] = await db
+        .select()
+        .from(reviews)
+        .where(
+          and(
+            eq(reviews.userId, userId),
+            eq(reviews.episodeId, episodeId),
+            isNull(reviews.mediaId)
+          )
+        )
+        .limit(1);
+      existingReview = review;
+    } else if (mediaId && mediaType) {
+      const [review] = await db
+        .select()
+        .from(reviews)
+        .where(
+          and(
+            eq(reviews.userId, userId),
+            eq(reviews.mediaId, mediaId),
+            eq(reviews.mediaType, mediaType),
+            isNull(reviews.episodeId)
+          )
+        )
+        .limit(1);
+      existingReview = review;
+    }
+
+    if (existingReview) {
+      // Update existing review
+      await db
+        .update(reviews)
+        .set({
+          rating,
+          text: text || null,
+          updatedAt: now,
+        })
+        .where(eq(reviews.id, existingReview.id));
+    } else {
+      // Create new review
+      await db.insert(reviews).values({
+        id: crypto.randomUUID(),
+        userId,
+        mediaId: mediaId || null,
+        mediaType: mediaType || null,
+        episodeId: episodeId || null,
+        rating,
+        text: text || null,
+      });
+    }
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Create review error:", error);
+    return { error: "Failed to create review" };
+  }
+}
+
+export async function updateReviewAction(
+  reviewId: string,
+  rating: number,
+  text: string | null
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  if (rating < 1 || rating > 5) {
+    return { error: "Rating must be between 1 and 5" };
+  }
+
+  const userId = session.user.id;
+  const now = new Date();
+
+  try {
+    // Verify the review belongs to the user
+    const [existingReview] = await db
+      .select()
+      .from(reviews)
+      .where(and(eq(reviews.id, reviewId), eq(reviews.userId, userId)))
+      .limit(1);
+
+    if (!existingReview) {
+      return { error: "Review not found or unauthorized" };
+    }
+
+    await db
+      .update(reviews)
+      .set({
+        rating,
+        text: text || null,
+        updatedAt: now,
+      })
+      .where(eq(reviews.id, reviewId));
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Update review error:", error);
+    return { error: "Failed to update review" };
+  }
+}
+
+export async function deleteReviewAction(reviewId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    // Verify the review belongs to the user
+    const [existingReview] = await db
+      .select()
+      .from(reviews)
+      .where(and(eq(reviews.id, reviewId), eq(reviews.userId, userId)))
+      .limit(1);
+
+    if (!existingReview) {
+      return { error: "Review not found or unauthorized" };
+    }
+
+    await db.delete(reviews).where(eq(reviews.id, reviewId));
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Delete review error:", error);
+    return { error: "Failed to delete review" };
+  }
+}
+
+export async function getReviewsAction(
+  mediaId?: string,
+  mediaType?: "movie" | "tv",
+  episodeId?: number
+): Promise<{ reviews: Review[]; error?: string }> {
+  try {
+    let reviewRecords;
+    
+    if (episodeId) {
+      reviewRecords = await db
+        .select({
+          id: reviews.id,
+          userId: reviews.userId,
+          mediaId: reviews.mediaId,
+          mediaType: reviews.mediaType,
+          episodeId: reviews.episodeId,
+          rating: reviews.rating,
+          text: reviews.text,
+          createdAt: reviews.createdAt,
+          updatedAt: reviews.updatedAt,
+          userName: schema.users.name,
+          userImage: schema.users.image,
+        })
+        .from(reviews)
+        .leftJoin(schema.users, eq(reviews.userId, schema.users.id))
+        .where(
+          and(
+            eq(reviews.episodeId, episodeId),
+            isNull(reviews.mediaId)
+          )
+        )
+        .orderBy(reviews.createdAt);
+    } else if (mediaId && mediaType) {
+      reviewRecords = await db
+        .select({
+          id: reviews.id,
+          userId: reviews.userId,
+          mediaId: reviews.mediaId,
+          mediaType: reviews.mediaType,
+          episodeId: reviews.episodeId,
+          rating: reviews.rating,
+          text: reviews.text,
+          createdAt: reviews.createdAt,
+          updatedAt: reviews.updatedAt,
+          userName: schema.users.name,
+          userImage: schema.users.image,
+        })
+        .from(reviews)
+        .leftJoin(schema.users, eq(reviews.userId, schema.users.id))
+        .where(
+          and(
+            eq(reviews.mediaId, mediaId),
+            eq(reviews.mediaType, mediaType),
+            isNull(reviews.episodeId)
+          )
+        )
+        .orderBy(reviews.createdAt);
+    } else {
+      return { reviews: [], error: "Either mediaId/mediaType or episodeId must be provided" };
+    }
+
+    const reviewsList: Review[] = reviewRecords.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      userName: r.userName || undefined,
+      userImage: r.userImage || undefined,
+      mediaId: r.mediaId || undefined,
+      mediaType: r.mediaType || undefined,
+      episodeId: r.episodeId || undefined,
+      rating: r.rating,
+      text: r.text || undefined,
+      createdAt: r.createdAt || new Date(),
+      updatedAt: r.updatedAt || new Date(),
+    }));
+
+    return { reviews: reviewsList };
+  } catch (error) {
+    console.error("Get reviews error:", error);
+    return { reviews: [], error: "Failed to fetch reviews" };
+  }
+}
+
+export async function getUserReviewAction(
+  mediaId?: string,
+  mediaType?: "movie" | "tv",
+  episodeId?: number
+): Promise<{ review: Review | null; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { review: null };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    let reviewRecord;
+    
+    if (episodeId) {
+      const [review] = await db
+        .select()
+        .from(reviews)
+        .where(
+          and(
+            eq(reviews.userId, userId),
+            eq(reviews.episodeId, episodeId),
+            isNull(reviews.mediaId)
+          )
+        )
+        .limit(1);
+      reviewRecord = review;
+    } else if (mediaId && mediaType) {
+      const [review] = await db
+        .select()
+        .from(reviews)
+        .where(
+          and(
+            eq(reviews.userId, userId),
+            eq(reviews.mediaId, mediaId),
+            eq(reviews.mediaType, mediaType),
+            isNull(reviews.episodeId)
+          )
+        )
+        .limit(1);
+      reviewRecord = review;
+    } else {
+      return { review: null, error: "Either mediaId/mediaType or episodeId must be provided" };
+    }
+
+    if (!reviewRecord) {
+      return { review: null };
+    }
+
+    const review: Review = {
+      id: reviewRecord.id,
+      userId: reviewRecord.userId,
+      mediaId: reviewRecord.mediaId || undefined,
+      mediaType: reviewRecord.mediaType || undefined,
+      episodeId: reviewRecord.episodeId || undefined,
+      rating: reviewRecord.rating,
+      text: reviewRecord.text || undefined,
+      createdAt: reviewRecord.createdAt || new Date(),
+      updatedAt: reviewRecord.updatedAt || new Date(),
+    };
+
+    return { review };
+  } catch (error) {
+    console.error("Get user review error:", error);
+    return { review: null, error: "Failed to fetch review" };
   }
 }

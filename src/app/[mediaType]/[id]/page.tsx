@@ -11,6 +11,7 @@ import { BackButton } from "@/components/BackButton";
 import { SeasonList } from "@/components/SeasonList";
 import { DetailPoster } from "@/components/DetailPoster";
 import { WatchProviders } from "@/components/WatchProviders";
+import { Reviews } from "@/components/Reviews";
 import { Movie, Book } from "@/types";
 import { getUserMediaStatusAction } from "@/app/actions";
 
@@ -259,6 +260,14 @@ export default async function MediaDetailPage({ params }: PageProps) {
                 <WatchProviders providers={providers} />
               </div>
             )}
+
+            {/* Reviews Section */}
+            <div className="pt-8 border-t border-border">
+              <Reviews
+                mediaId={id}
+                mediaType={mediaType === "book" ? undefined : (mediaType as "movie" | "tv")}
+              />
+            </div>
 
           </div>
         </div>
