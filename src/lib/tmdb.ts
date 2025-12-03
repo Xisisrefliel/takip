@@ -368,6 +368,31 @@ export const getDirectorMovies = async (directorId: string): Promise<{ directorN
   }
 };
 
+export const getActorMovies = async (actorId: string): Promise<{ actorName: string; movies: Movie[] }> => {
+  try {
+    const [personData, creditsData] = await Promise.all([
+      fetchTMDB(`/person/${actorId}`),
+      fetchTMDB(`/person/${actorId}/movie_credits`)
+    ]);
+
+    if (!personData || !creditsData) {
+      throw new Error("Failed to fetch actor data");
+    }
+
+    const movies = (creditsData.cast || [])
+      .map((item: any) => mapTmdbToMovie({ ...item, genre_ids: item.genre_ids || [] }, 'movie'))
+      .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
+
+    return {
+      actorName: personData.name,
+      movies
+    };
+  } catch (error) {
+    console.error(`Error fetching actor movies for ${actorId}:`, error);
+    return { actorName: "", movies: [] };
+  }
+};
+
 export const searchMoviesAndTv = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/multi", { query });

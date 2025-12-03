@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 export function AuthButton() {
   const router = useRouter();
   const pathname = usePathname();
-  const [session, setSession] = useState<{ user: { email: string; name?: string | null } } | null>(null);
+  const [session, setSession] = useState<{
+    user: { email: string; name?: string | null };
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchSession = async () => {
@@ -112,4 +114,3 @@ export function AuthButton() {
     </Link>
   );
 }
-

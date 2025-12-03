@@ -235,14 +235,14 @@ export default async function MediaDetailPage({ params }: PageProps) {
         <div className="container mx-auto px-4 sm:px-6">
            <Carousel title="Cast & Crew">
               {cast.map((person) => (
-                 <div key={person.id} className="shrink-0 w-28 sm:w-32 md:w-40 space-y-2 sm:space-y-3 snap-start">
-                    <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-surface border border-white/5 shadow-sm">
+                 <Link key={person.id} href={`/actor/${person.id}`} className="shrink-0 w-28 sm:w-32 md:w-40 space-y-2 sm:space-y-3 snap-start group">
+                    <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-surface border border-white/5 shadow-sm group-hover:border-accent/50 transition-colors">
                        {person.profilePath ? (
                           <Image 
                             src={person.profilePath} 
                             alt={person.name} 
                             fill 
-                            className="object-cover"
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
                             sizes="(max-width: 640px) 112px, (max-width: 768px) 128px, 160px"
                           />
                        ) : (
@@ -252,10 +252,10 @@ export default async function MediaDetailPage({ params }: PageProps) {
                        )}
                     </div>
                     <div className="space-y-1 px-1">
-                       <p className="text-xs sm:text-sm font-medium leading-tight truncate">{person.name}</p>
+                       <p className="text-xs sm:text-sm font-medium leading-tight truncate group-hover:text-accent transition-colors">{person.name}</p>
                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{person.character}</p>
                     </div>
-                 </div>
+                 </Link>
               ))}
            </Carousel>
         </div>

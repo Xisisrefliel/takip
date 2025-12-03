@@ -14,5 +14,10 @@ export default async function Page() {
     enrichMoviesWithUserStatus(popularSeries),
   ]);
 
-  return <HomePage trendingMovies={enrichedTrendingMovies} popularSeries={enrichedPopularSeries} />;
+  return (
+    <HomePage
+      trendingMovies={enrichedTrendingMovies}
+      popularSeries={enrichedPopularSeries}
+    />
+  );
 }

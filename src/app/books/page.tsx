@@ -8,6 +8,6 @@ export default async function BooksPage() {
   if (books.length === 0) {
     books = await searchBooks("fiction");
   }
-  
+
   return <BooksHomePage books={books} />;
 }

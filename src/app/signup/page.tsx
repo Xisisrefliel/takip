@@ -14,7 +14,10 @@ export default function SignupPage() {
         <SignupForm />
         <p className="text-center mt-6 text-sm text-foreground/60">
           Already have an account?{" "}
-          <Link href="/login" className="text-foreground hover:underline font-medium">
+          <Link
+            href="/login"
+            className="text-foreground hover:underline font-medium"
+          >
             Sign in
           </Link>
         </p>
@@ -22,4 +25,3 @@ export default function SignupPage() {
     </div>
   );
 }
-

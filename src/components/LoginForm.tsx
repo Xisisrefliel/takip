@@ -33,9 +33,12 @@ export function LoginForm() {
           {error}
         </div>
       )}
-      
+
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-foreground mb-2"
+        >
           Email
         </label>
         <input
@@ -51,7 +54,10 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-foreground mb-2"
+        >
           Password
         </label>
         <input
@@ -80,4 +86,3 @@ export function LoginForm() {
     </form>
   );
 }
-

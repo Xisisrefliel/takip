@@ -20,7 +20,9 @@ export function BooksHomePage({ books }: BooksHomePageProps) {
       {!heroBook ? (
         <div className="min-h-[50vh] flex flex-col items-center justify-center text-white/50 gap-4">
           <Search size={40} className="sm:w-12 sm:h-12" strokeWidth={1} />
-          <p className="text-base sm:text-lg font-light px-4 text-center">No books found. Try another search.</p>
+          <p className="text-base sm:text-lg font-light px-4 text-center">
+            No books found. Try another search.
+          </p>
         </div>
       ) : (
         <>
@@ -77,10 +79,17 @@ export function BooksHomePage({ books }: BooksHomePageProps) {
                   <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white/40 rounded-full" />
                   <span className="line-clamp-1">{heroBook.author}</span>
                   <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white/40 rounded-full" />
-                  <span className="line-clamp-1">{heroBook.genre.join(", ")}</span>
+                  <span className="line-clamp-1">
+                    {heroBook.genre.join(", ")}
+                  </span>
                   <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white/40 rounded-full" />
                   <span className="flex items-center gap-1 text-yellow-400">
-                    <Star size={14} className="sm:w-4 sm:h-4" fill="currentColor" /> {heroBook.rating.toFixed(1)}
+                    <Star
+                      size={14}
+                      className="sm:w-4 sm:h-4"
+                      fill="currentColor"
+                    />{" "}
+                    {heroBook.rating.toFixed(1)}
                   </span>
                 </div>
 
