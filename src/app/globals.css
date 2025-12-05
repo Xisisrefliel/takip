@@ -50,7 +50,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Soft Dark Mode */
-    --background: #0A0A0A;
+    --background: black;
     --foreground: #EDEDED;
     --surface: #171717;
     --surface-hover: #262626;

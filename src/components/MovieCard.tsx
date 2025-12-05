@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, EyeOff, Plus, Heart } from "lucide-react";
+import { Eye, EyeOff, Plus, Heart, Check } from "lucide-react";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
 import { toggleWatchedAction, toggleWatchlistAction, toggleLikedAction } from "@/app/actions";
@@ -119,9 +119,8 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
                 <ActionButton
                   active={watched}
                   onClick={handleWatched}
-                  icon={watched ? EyeOff : Eye}
+                  icon={watched ? Check : Eye}
                   label="Watched"
-                  fill={watched}
                   disabled={isPending}
                 />
                 <ActionButton
