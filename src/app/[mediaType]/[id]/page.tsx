@@ -3,7 +3,7 @@ import { getBookById } from "@/lib/hardcover";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Play, Plus, Star, Info, BookOpen } from "lucide-react";
+import { Star, Info } from "lucide-react";
 import { Metadata } from "next";
 import { Carousel } from "@/components/Carousel";
 import { LastVisitedUpdater } from "@/components/LastVisitedUpdater";
@@ -237,26 +237,6 @@ export default async function MediaDetailPage({ params }: PageProps) {
                   ? overview || "No overview available."
                   : undefined}
               </div>
-            </div>
-
-            {/* Actions */}
-            <div className="pt-2 sm:pt-4 flex flex-wrap gap-3 sm:gap-4">
-              <button className="h-12 sm:h-14 px-6 sm:px-8 rounded-full bg-foreground text-background font-bold flex items-center gap-2 hover:opacity-90 transition-all transform hover:scale-105 shadow-lg shadow-foreground/10 text-sm sm:text-base">
-                {isBook(item) ? (
-                  <BookOpen size={18} className="sm:w-5 sm:h-5" />
-                ) : (
-                  <Play
-                    size={18}
-                    className="sm:w-5 sm:h-5"
-                    fill="currentColor"
-                  />
-                )}
-                <span>{isBook(item) ? "Preview" : "Play Now"}</span>
-              </button>
-              <button className="h-12 sm:h-14 px-6 sm:px-8 rounded-full bg-surface border border-border text-foreground font-semibold flex items-center gap-2 hover:bg-surface-hover transition-all text-sm sm:text-base">
-                <Plus size={18} className="sm:w-5 sm:h-5" />
-                <span>{isBook(item) ? "Read Later" : "Watchlist"}</span>
-              </button>
             </div>
 
             {/* Reviews Section */}

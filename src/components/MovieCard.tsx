@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, EyeOff, Plus, Heart, Check } from "lucide-react";
+import { Eye, ClockPlus,ClockCheck, Heart, Check } from "lucide-react";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
 import { toggleWatchedAction, toggleWatchlistAction, toggleLikedAction } from "@/app/actions";
@@ -91,12 +91,12 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
             isHovered && "hover-border-active"
           )}
         >
-          <div
-            className={cn(
-              "relative overflow-hidden rounded-[16px] bg-surface shadow-sm",
-              aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
-            )}
-          >
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-[16px] bg-surface shadow-sm",
+          aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
+        )}
+      >
 
             {/* Image */}
             <Image
@@ -135,9 +135,8 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
                 <ActionButton
                   active={watchlist}
                   onClick={handleWatchlist}
-                  icon={Plus}
+                  icon={watchlist ? ClockCheck : ClockPlus}
                   label="Watchlist"
-                  fill={watchlist}
                   disabled={isPending}
                 />
             </motion.div>
@@ -202,14 +201,19 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-9 h-9 rounded-full flex items-center justify-center bg-black/60 text-white backdrop-blur-sm hover:bg-white hover:text-black transition-all shadow-xl border border-white/20",
-        active && "bg-white text-black",
+        "w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm transition-all shadow-xl border hover:shadow-2xl",
+        active
+          ? "bg-white text-black border-white/40 hover:bg-white hover:text-black"
+          : "bg-black/60 text-white border-white/20 hover:bg-black/70 hover:text-white hover:border-white/30",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
       title={label}
     >
-      <Icon size={16} fill={fill ? "currentColor" : "none"} />
+      <Icon 
+        size={16} 
+        {...(fill ? { fill: "currentColor" } : {})}
+      />
     </motion.button>
   );
 }

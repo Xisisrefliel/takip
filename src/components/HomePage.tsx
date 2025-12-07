@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Carousel } from "@/components/Carousel";
 import { MovieCard } from "@/components/MovieCard";
 import { motion } from "framer-motion";
@@ -13,7 +14,30 @@ interface HomePageProps {
 }
 
 export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
-  const heroMovie = trendingMovies[0]; 
+  const [orderedTrending, setOrderedTrending] = useState(trendingMovies);
+  const initialOrderRef = useRef<string[]>(trendingMovies.map((movie) => movie.id));
+
+  useEffect(() => {
+    const order = initialOrderRef.current;
+    const byId = new Map(trendingMovies.map((movie) => [movie.id, movie]));
+    const merged: Movie[] = [];
+
+    order.forEach((id) => {
+      const movie = byId.get(id);
+      if (movie) merged.push(movie);
+    });
+
+    trendingMovies.forEach((movie) => {
+      if (!order.includes(movie.id)) {
+        order.push(movie.id);
+        merged.push(movie);
+      }
+    });
+
+    setOrderedTrending(merged);
+  }, [trendingMovies]);
+
+  const heroMovie = orderedTrending[0]; 
 
   if (!heroMovie) {
     return (
@@ -91,7 +115,7 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
       {/* Trending Movies Carousel */}
       <section>
          <Carousel title="Trending Movies">
-            {trendingMovies.map((movie) => (
+            {orderedTrending.map((movie) => (
                <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
                   <MovieCard movie={movie} />
                </div>
