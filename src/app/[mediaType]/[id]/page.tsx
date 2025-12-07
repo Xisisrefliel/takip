@@ -12,6 +12,7 @@ import { SeasonList } from "@/components/SeasonList";
 import { DetailPoster } from "@/components/DetailPoster";
 import { WatchProviders } from "@/components/WatchProviders";
 import { Reviews } from "@/components/Reviews";
+import { MovieCard } from "@/components/MovieCard";
 import { Movie, Book } from "@/types";
 import { getUserMediaStatusAction } from "@/app/actions";
 
@@ -92,6 +93,8 @@ export default async function MediaDetailPage({ params }: PageProps) {
   const images = "images" in item ? item.images : null;
   const seasons =
     !isBook(item) && item.mediaType === "tv" ? item.seasons : null;
+  const recommendations =
+    !isBook(item) && item.recommendations ? item.recommendations : [];
 
   return (
     <main className="min-h-screen bg-background text-foreground relative pb-20">
@@ -336,6 +339,21 @@ export default async function MediaDetailPage({ params }: PageProps) {
             </div>
           </div>
         </section>
+      )}
+
+      {/* Recommendations - bottom of page */}
+      {!isBook(item) && recommendations.length > 0 && (
+        <div className="container mx-auto px-4 sm:px-6 pb-8 sm:pb-12">
+          <Carousel title="Recommended Tonight">
+            {recommendations.map((rec) => (
+              <MovieCard
+                key={rec.id}
+                movie={rec}
+                className="shrink-0 w-36 sm:w-44 md:w-52 lg:w-56 snap-start"
+              />
+            ))}
+          </Carousel>
+        </div>
       )}
     </main>
   );

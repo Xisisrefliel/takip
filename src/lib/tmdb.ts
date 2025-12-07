@@ -72,6 +72,18 @@ interface TMDBImages {
   backdrops: TMDBImage[];
 }
 
+interface TMDBVideo {
+  key: string;
+  site: string;
+  type: string;
+  official?: boolean;
+  name?: string;
+}
+
+interface TMDBVideos {
+  results: TMDBVideo[];
+}
+
 interface TMDBEpisode {
   id: number;
   name: string;
@@ -114,6 +126,7 @@ interface TMDBMovie {
   status?: string;
   credits?: TMDBCredits;
   images?: TMDBImages;
+  videos?: TMDBVideos;
   seasons?: TMDBSeasonSummary[];
   number_of_seasons?: number;
   number_of_episodes?: number;
@@ -140,6 +153,31 @@ const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) 
   }
 
   return res.json();
+};
+
+const pickTrailer = (videos?: TMDBVideo[]) => {
+  if (!videos || videos.length === 0) return { trailerKey: undefined, trailerUrl: undefined };
+
+  const byPriority = videos.find(
+    (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
+  ) || videos.find(
+    (video) => video.site === "YouTube" && video.type === "Trailer"
+  ) || videos.find((video) => video.site === "YouTube");
+
+  if (!byPriority) return { trailerKey: undefined, trailerUrl: undefined };
+
+  const trailerUrl = `https://www.youtube.com/watch?v=${byPriority.key}`;
+  return { trailerKey: byPriority.key, trailerUrl };
+};
+
+const fetchTrailerForMedia = async (id: string, mediaType: 'movie' | 'tv') => {
+  try {
+    const data = await fetchTMDB(`/${mediaType}/${id}/videos`);
+    return pickTrailer(data?.results);
+  } catch (error) {
+    console.error(`Error fetching trailer for ${mediaType} ${id}:`, error);
+    return { trailerKey: undefined, trailerUrl: undefined };
+  }
 };
 
 const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
@@ -183,6 +221,8 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     backdropPath = sortedBackdrops[0].file_path;
   }
 
+  const { trailerKey, trailerUrl } = pickTrailer(item.videos?.results);
+
   return {
     id: item.id.toString(),
     title,
@@ -199,6 +239,8 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     popularity: item.popularity,
     genre: genreList.slice(0, 3),
     overview: item.overview,
+    trailerKey,
+    trailerUrl,
     runtime,
     tagline: item.tagline,
     status: item.status,
@@ -217,7 +259,14 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
 export const getTrendingMovies = async (): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/trending/movie/day");
-    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, 'movie'));
+    const movies = (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, 'movie'));
+
+    if (movies[0]) {
+      const trailer = await fetchTrailerForMedia(movies[0].id, 'movie');
+      movies[0] = { ...movies[0], ...trailer };
+    }
+
+    return movies;
   } catch (error) {
     console.error("Error fetching trending movies:", error);
     return [];
@@ -236,9 +285,17 @@ export const getPopularSeries = async (): Promise<Movie[]> => {
 
 export const getMovieById = async (id: string): Promise<Movie | null> => {
   try {
-    const data = await fetchTMDB(`/movie/${id}`, { append_to_response: "credits,images" });
+    const data = await fetchTMDB(`/movie/${id}`, { append_to_response: "credits,images,recommendations,videos" });
     if (!data) return null;
-    return mapTmdbToMovie(data, 'movie');
+    const movie = mapTmdbToMovie(data, 'movie');
+    const { trailerKey, trailerUrl } = pickTrailer(data.videos?.results);
+    movie.trailerKey = trailerKey;
+    movie.trailerUrl = trailerUrl;
+    movie.recommendations = (data.recommendations?.results || [])
+      .filter((rec: TMDBMovie) => rec.id !== data.id)
+      .map((item: TMDBMovie) => mapTmdbToMovie(item, 'movie'))
+      .slice(0, 16);
+    return movie;
   } catch (error) {
     console.error(`Error fetching movie ${id}:`, error);
     return null;
@@ -247,10 +304,17 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
 
 export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
   try {
-    const data = await fetchTMDB(`/tv/${id}`, { append_to_response: "credits,images" });
+    const data = await fetchTMDB(`/tv/${id}`, { append_to_response: "credits,images,recommendations,videos" });
     if (!data) return null;
     
     const movie = mapTmdbToMovie(data, 'tv');
+    const { trailerKey, trailerUrl } = pickTrailer(data.videos?.results);
+    movie.trailerKey = trailerKey;
+    movie.trailerUrl = trailerUrl;
+    movie.recommendations = (data.recommendations?.results || [])
+      .filter((rec: TMDBMovie) => rec.id !== data.id)
+      .map((item: TMDBMovie) => mapTmdbToMovie(item, 'tv'))
+      .slice(0, 16);
 
     // Fetch episodes for each season
     if (data.seasons) {

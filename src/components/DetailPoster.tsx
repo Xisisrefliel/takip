@@ -1,9 +1,10 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Eye, Plus, Heart, Check } from "lucide-react";
+import { Eye, ClockPlus, ClockCheck, Heart, Check } from "lucide-react";
 import { Movie, Book } from "@/types";
 import { cn } from "@/lib/utils";
 import {
@@ -35,7 +36,9 @@ export function DetailPoster({
   const mediaType =
     "posterUrl" in item ? (item.mediaType === "tv" ? "tv" : "movie") : "book";
 
-  const handleWatched = () => {
+  const handleWatched = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newValue = !watched;
     setWatched(newValue); // Optimistic update
     startTransition(async () => {
@@ -52,7 +55,9 @@ export function DetailPoster({
     });
   };
 
-  const handleWatchlist = () => {
+  const handleWatchlist = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newValue = !watchlist;
     setWatchlist(newValue); // Optimistic update
     startTransition(async () => {
@@ -69,7 +74,9 @@ export function DetailPoster({
     });
   };
 
-  const handleLiked = () => {
+  const handleLiked = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newValue = !liked;
     setLiked(newValue); // Optimistic update
     startTransition(async () => {
@@ -109,7 +116,6 @@ export function DetailPoster({
           onClick={handleWatched}
           icon={watched ? Check : Eye}
           label="Watched"
-          size="lg"
           disabled={isPending}
         />
         <ActionButton
@@ -118,16 +124,14 @@ export function DetailPoster({
           icon={Heart}
           label="Like"
           fill={liked}
-          className={liked ? "text-red-500 bg-white border-white" : ""}
-          size="lg"
+          className={liked ? "text-red-500 bg-white" : ""}
           disabled={isPending}
         />
         <ActionButton
           active={watchlist}
           onClick={handleWatchlist}
-          icon={Plus}
+          icon={watchlist ? ClockCheck : ClockPlus}
           label="Watchlist"
-          size="lg"
           disabled={isPending}
         />
       </div>
@@ -142,40 +146,27 @@ function ActionButton({
   label,
   className,
   fill,
-  size = "md",
   disabled = false,
 }: {
   active?: boolean;
-  onClick: () => void;
+  onClick: (e: MouseEvent) => void;
   icon: any;
   label: string;
   className?: string;
   fill?: boolean;
-  size?: "md" | "lg";
   disabled?: boolean;
 }) {
-  const sizeClasses =
-    size === "lg"
-      ? "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12"
-      : "w-8 h-8 sm:w-9 sm:h-9";
-  const iconSize = size === "lg" ? 18 : 14;
-  const iconSizeClass =
-    size === "lg" ? "sm:w-5 sm:h-5 md:w-[20px] md:h-[20px]" : "sm:w-4 sm:h-4";
-
   return (
     <motion.button
       whileHover={disabled ? {} : { scale: 1.1 }}
       whileTap={disabled ? {} : { scale: 0.9 }}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!disabled) onClick();
-      }}
+      onClick={onClick}
       disabled={disabled}
       className={cn(
-        sizeClasses,
-        "rounded-full flex items-center justify-center bg-black/40 text-white backdrop-blur-md hover:bg-white hover:text-black transition-all shadow-xl border border-white/20",
-        active && "bg-white text-black border-white",
+        "w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center backdrop-blur-sm transition-all shadow-xl border hover:shadow-2xl",
+        active
+          ? "bg-white text-black border-white/40 hover:bg-white hover:text-black"
+          : "bg-black/60 text-white border-white/20 hover:bg-black/70 hover:text-white hover:border-white/30",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
@@ -183,9 +174,8 @@ function ActionButton({
       aria-label={label}
     >
       <Icon
-        size={iconSize}
-        className={iconSizeClass}
-        fill={fill ? "currentColor" : "none"}
+        size={18}
+        {...(fill ? { fill: "currentColor" } : {})}
       />
     </motion.button>
   );

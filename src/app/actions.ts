@@ -376,23 +376,27 @@ export async function getUserMediaAction(
         .where(and(...conditions));
       
       // Fetch full book data from Hardcover API
-      const books = await Promise.all(
-        userBooksData.map(async (userBook) => {
-          const book = await getBookById(userBook.bookId);
-          if (!book) return null;
-          
-          // Merge user-specific data
-          return {
-            ...book,
-            watched: userBook.watched ?? false,
-            liked: userBook.liked ?? false,
-            watchlist: userBook.watchlist ?? false,
-            readDate: userBook.readDate?.toISOString(),
-          };
-        })
-      );
+      const books: Book[] = (
+        await Promise.all(
+          userBooksData.map(async (userBook) => {
+            const book = await getBookById(userBook.bookId);
+            if (!book) return null;
+            
+            // Merge user-specific data
+            return {
+              ...book,
+              watched: userBook.watched ?? false,
+              liked: userBook.liked ?? false,
+              watchlist: userBook.watchlist ?? false,
+              readDate: userBook.readDate
+                ? userBook.readDate.toISOString()
+                : undefined,
+            } as Book;
+          })
+        )
+      ).flatMap((book) => (book ? [book] : []));
 
-      return { books: books.filter((b): b is Book => b !== null) };
+      return { books };
     } else {
       let conditions = [eq(userMovies.userId, userId)];
       
@@ -410,23 +414,30 @@ export async function getUserMediaAction(
         .where(and(...conditions));
       
       // Fetch full movie/TV data from TMDB
-      const movies = await Promise.all(
-        userMoviesData.map(async (userMovie) => {
-          const movie = await getMediaById(userMovie.movieId, userMovie.mediaType as "movie" | "tv");
-          if (!movie) return null;
-          
-          // Merge user-specific data
-          return {
-            ...movie,
-            watched: userMovie.watched ?? false,
-            liked: userMovie.liked ?? false,
-            watchlist: userMovie.watchlist ?? false,
-            watchedDate: userMovie.watchedDate?.toISOString(),
-          };
-        })
-      );
+      const movies: Movie[] = (
+        await Promise.all(
+          userMoviesData.map(async (userMovie) => {
+            const movie = await getMediaById(
+              userMovie.movieId,
+              userMovie.mediaType as "movie" | "tv"
+            );
+            if (!movie) return null;
+            
+            // Merge user-specific data
+            return {
+              ...movie,
+              watched: userMovie.watched ?? false,
+              liked: userMovie.liked ?? false,
+              watchlist: userMovie.watchlist ?? false,
+              watchedDate: userMovie.watchedDate
+                ? userMovie.watchedDate.toISOString()
+                : undefined,
+            } as Movie;
+          })
+        )
+      ).flatMap((movie) => (movie ? [movie] : []));
 
-      return { movies: movies.filter((m): m is Movie => m !== null) };
+      return { movies };
     }
   } catch (error) {
     console.error("Get user media error:", error);

@@ -288,7 +288,11 @@ export function ProfilePage() {
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/50 px-4">
-            <LayoutGrid size={40} className="sm:w-12 sm:h-12" strokeWidth={1} className="mb-3 sm:mb-4 opacity-50" />
+            <LayoutGrid
+              size={40}
+              strokeWidth={1}
+              className="sm:w-12 sm:h-12 mb-3 sm:mb-4 opacity-50"
+            />
             <p className="font-medium text-base sm:text-lg mb-1 sm:mb-2">Failed to load library</p>
             <p className="text-xs sm:text-sm text-foreground/40 text-center">{error}</p>
           </div>
@@ -319,7 +323,11 @@ export function ProfilePage() {
 
             {content.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/30 px-4">
-                    <LayoutGrid size={40} className="sm:w-12 sm:h-12" strokeWidth={1} className="mb-3 sm:mb-4 opacity-50" />
+                    <LayoutGrid
+                      size={40}
+                      strokeWidth={1}
+                      className="sm:w-12 sm:h-12 mb-3 sm:mb-4 opacity-50"
+                    />
                     <p className="font-medium text-base sm:text-lg mb-1 sm:mb-2 text-center">No items found</p>
                     <p className="text-xs sm:text-sm text-foreground/40 text-center">
                       {activeTab === "watched" 

@@ -47,6 +47,14 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
     );
   }
 
+  const heroDescription =
+    heroMovie.overview?.trim() ||
+    "Dive into the cinematic experience that has captivated audiences worldwide. A journey of emotion and spectacle awaits.";
+
+  const trailerUrl =
+    heroMovie.trailerUrl ||
+    `https://www.youtube.com/results?search_query=${encodeURIComponent(`${heroMovie.title} trailer`)}`;
+
   return (
     <div className="space-y-8 sm:space-y-12 pb-20">
       {/* Hero Section - Card Style */}
@@ -95,15 +103,20 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
             </div>
             
             <p className="text-sm sm:text-base md:text-lg text-white/80 line-clamp-2 sm:line-clamp-3 max-w-2xl font-light leading-relaxed">
-              Dive into the cinematic experience that has captivated audiences worldwide. A journey of emotion and spectacle awaits.
+              {heroDescription}
             </p>
 
             <div className="flex items-center gap-3 sm:gap-4 pt-2 sm:pt-4">
-               <button className="h-11 sm:h-12 md:h-14 px-5 sm:px-6 md:px-8 rounded-full bg-white text-black font-semibold flex items-center gap-2 hover:bg-white/90 transition-all transform hover:scale-105 shadow-lg shadow-white/10 text-sm sm:text-base">
+               <a
+                 href={trailerUrl}
+                 target="_blank"
+                 rel="noreferrer noopener"
+                 className="h-11 sm:h-12 md:h-14 px-5 sm:px-6 md:px-8 rounded-full bg-white text-black font-semibold flex items-center gap-2 hover:bg-white/90 transition-all transform hover:scale-105 shadow-lg shadow-white/10 text-sm sm:text-base"
+               >
                   <Play size={18} className="sm:w-5 sm:h-5" fill="currentColor" />
                   <span className="hidden sm:inline">Watch Trailer</span>
                   <span className="sm:hidden">Watch</span>
-               </button>
+               </a>
                <button className="h-11 w-11 sm:h-12 sm:w-12 md:h-14 md:w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-all hover:scale-105">
                   <Plus size={20} className="sm:w-6 sm:h-6" />
                </button>

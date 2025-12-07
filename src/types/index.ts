@@ -47,6 +47,8 @@ export interface Movie {
   popularity?: number;
   genre: string[];
   overview?: string;
+  trailerKey?: string;
+  trailerUrl?: string;
   runtime?: number; // minutes
   tagline?: string;
   status?: string;
@@ -61,6 +63,7 @@ export interface Movie {
   seasons?: Season[];
   numberOfSeasons?: number;
   numberOfEpisodes?: number;
+  recommendations?: Movie[];
 }
 
 export interface WatchProvider {
