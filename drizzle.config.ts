@@ -1,14 +1,18 @@
 import { defineConfig } from "drizzle-kit";
+import { loadEnvConfig } from "@next/env";
+
+// Load env vars from .env/.env.local so drizzle-kit can read DATABASE_URL
+loadEnvConfig(process.cwd());
 
 const databaseUrl = process.env.DATABASE_URL;
-const usePostgres = databaseUrl?.startsWith("postgres");
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required for drizzle config");
+}
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
   out: "./drizzle",
-  dialect: usePostgres ? "postgresql" : "sqlite",
-  dbCredentials: usePostgres
-    ? { url: databaseUrl! }
-    : { url: databaseUrl || "./db.sqlite" },
+  dialect: "postgresql",
+  dbCredentials: { url: databaseUrl },
 });
 

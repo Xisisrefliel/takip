@@ -1,19 +1,28 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
-import { sql } from "drizzle-orm";
+import {
+  pgEnum,
+  pgTable,
+  text,
+  integer,
+  primaryKey,
+  boolean,
+  timestamp,
+} from "drizzle-orm/pg-core";
+
+const mediaTypeEnum = pgEnum("media_type", ["movie", "tv"]);
 
 // NextAuth tables
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name"),
   email: text("email").notNull().unique(),
-  emailVerified: integer("emailVerified", { mode: "timestamp" }),
+  emailVerified: timestamp("emailVerified", { withTimezone: true, mode: "date" }),
   image: text("image"),
   password: text("password"), // hashed password for credentials provider
-  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });
 
-export const accounts = sqliteTable("accounts", {
+export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   userId: text("userId")
     .notNull()
@@ -30,78 +39,78 @@ export const accounts = sqliteTable("accounts", {
   session_state: text("session_state"),
 });
 
-export const sessions = sqliteTable("sessions", {
+export const sessions = pgTable("sessions", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  expires: integer("expires", { mode: "timestamp" }).notNull(),
+  expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
 });
 
-export const verificationTokens = sqliteTable("verification_tokens", {
+export const verificationTokens = pgTable("verification_tokens", {
   identifier: text("identifier").notNull(),
   token: text("token").notNull(),
-  expires: integer("expires", { mode: "timestamp" }).notNull(),
+  expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
 }, (table) => ({
   pk: primaryKey({ columns: [table.identifier, table.token] }),
 }));
 
 // User media tables
-export const userMovies = sqliteTable("user_movies", {
+export const userMovies = pgTable("user_movies", {
   id: text("id").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   movieId: text("movieId").notNull(),
-  mediaType: text("mediaType", { enum: ["movie", "tv"] }).notNull(),
-  watched: integer("watched", { mode: "boolean" }).default(false),
-  watchedDate: integer("watchedDate", { mode: "timestamp" }),
-  liked: integer("liked", { mode: "boolean" }).default(false),
-  watchlist: integer("watchlist", { mode: "boolean" }).default(false),
-  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  mediaType: mediaTypeEnum("mediaType").notNull(),
+  watched: boolean("watched").default(false),
+  watchedDate: timestamp("watchedDate", { withTimezone: true, mode: "date" }),
+  liked: boolean("liked").default(false),
+  watchlist: boolean("watchlist").default(false),
+  createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });
 
-export const userBooks = sqliteTable("user_books", {
+export const userBooks = pgTable("user_books", {
   id: text("id").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   bookId: text("bookId").notNull(),
-  watched: integer("watched", { mode: "boolean" }).default(false), // "read"
-  readDate: integer("readDate", { mode: "timestamp" }),
-  liked: integer("liked", { mode: "boolean" }).default(false),
-  watchlist: integer("watchlist", { mode: "boolean" }).default(false),
-  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  watched: boolean("watched").default(false), // "read"
+  readDate: timestamp("readDate", { withTimezone: true, mode: "date" }),
+  liked: boolean("liked").default(false),
+  watchlist: boolean("watchlist").default(false),
+  createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });
 
-export const userEpisodes = sqliteTable("user_episodes", {
+export const userEpisodes = pgTable("user_episodes", {
   id: text("id").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   episodeId: integer("episodeId").notNull(),
-  watched: integer("watched", { mode: "boolean" }).default(false),
-  watchedDate: integer("watchedDate", { mode: "timestamp" }),
-  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  watched: boolean("watched").default(false),
+  watchedDate: timestamp("watchedDate", { withTimezone: true, mode: "date" }),
+  createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });
 
-export const reviews = sqliteTable("reviews", {
+export const reviews = pgTable("reviews", {
   id: text("id").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   // For movies/TV series reviews
   mediaId: text("mediaId"), // null if episode review
-  mediaType: text("mediaType", { enum: ["movie", "tv"] }), // null if episode review
+  mediaType: mediaTypeEnum("mediaType"), // null if episode review
   // For episode reviews
   episodeId: integer("episodeId"), // null if media review
   // Review content
   rating: integer("rating").notNull(), // 1-5 stars
   text: text("text"), // optional review text
-  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });
 
