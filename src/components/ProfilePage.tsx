@@ -96,7 +96,8 @@ export function ProfilePage() {
       }
     };
 
-    fetchUserMedia();
+    const data = fetchUserMedia();
+    console.log(data);
   }, [contentType]);
 
   const getTabContent = () => {
