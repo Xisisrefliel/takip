@@ -22,7 +22,6 @@ export function ProfilePage() {
   const [hoveredFilter, setHoveredFilter] = useState<MediaTypeFilter | null>(null);
   const [hoveredContentType, setHoveredContentType] = useState<ContentType | null>(null);
   
-  // Data state
   const [watchedMovies, setWatchedMovies] = useState<Movie[]>([]);
   const [watchlistMovies, setWatchlistMovies] = useState<Movie[]>([]);
   const [favoritesMovies, setFavoritesMovies] = useState<Movie[]>([]);
@@ -32,7 +31,6 @@ export function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch user media data
   useEffect(() => {
     const fetchUserMedia = async () => {
       setIsLoading(true);
@@ -124,12 +122,13 @@ export function ProfilePage() {
     }
   };
 
-  const content = getTabContent().filter(item => {
-    if (contentType === "books") return true;
-    if (mediaFilter === "all") return true;
-    // @ts-expect-error - we know item is Movie here
-    return item.mediaType === mediaFilter;
-  });
+  const tabContent = getTabContent();
+  const content =
+    contentType === "books"
+      ? (tabContent as Book[])
+      : (tabContent as Movie[]).filter((item) =>
+          mediaFilter === "all" ? true : item.mediaType === mediaFilter
+        );
 
   return (
     <div className="min-h-screen pb-20 pt-8 sm:pt-12">

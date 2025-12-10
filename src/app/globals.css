@@ -76,6 +76,51 @@
   --accent-foreground: #ffffff;
 }
 
+/* Light-mode glass + chrome corrections so navbar stays legible */
+.light {
+  --chrome-surface: rgba(18, 22, 30, 0.08);
+  --chrome-surface-strong: rgba(18, 22, 30, 0.14);
+  --chrome-border: rgba(12, 18, 30, 0.14);
+  --chrome-ring: rgba(12, 18, 30, 0.16);
+}
+
+.light .bg-black\/40 {
+  background-color: rgba(18, 22, 30, 0.1);
+}
+
+.light .bg-black\/70 {
+  background-color: rgba(18, 22, 30, 0.18);
+}
+
+.light .bg-white\/5,
+.light .bg-white\/8 {
+  background-color: var(--chrome-surface);
+}
+
+.light .bg-white\/10,
+.light .bg-white\/12,
+.light .bg-white\/14 {
+  background-color: var(--chrome-surface-strong);
+}
+
+.light .bg-white\/60 {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.light .border-white\/8,
+.light .border-white\/10,
+.light .border-white\/12,
+.light .border-white\/15,
+.light .border-white\/20 {
+  border-color: var(--chrome-border);
+}
+
+.light .ring-white\/10,
+.light .ring-white\/12,
+.light .ring-white\/15 {
+  --tw-ring-color: var(--chrome-ring);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

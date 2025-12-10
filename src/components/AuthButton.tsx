@@ -98,8 +98,14 @@ export function AuthButton() {
               priority={false}
             />
           ) : (
-             <div className="w-full h-full bg-linear-to-tr from-stone-200 to-stone-100 dark:from-stone-700 dark:to-stone-600 flex items-center justify-center">
-               <User size={14} className="text-foreground/70" />
+             <div
+               className="w-full h-full flex items-center justify-center"
+               style={{
+                 background:
+                   "linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, #0b1625) 100%)",
+               }}
+             >
+               <User size={14} className="text-white" />
              </div>
           )}
         </motion.button>
@@ -176,12 +182,10 @@ export function AuthButton() {
   return (
     <Link
       href="/login"
-      className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/70 hover:text-foreground bg-surface/80 hover:bg-surface-hover transition-colors border border-border/60 shadow-sm"
+      className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all border border-black/8 dark:border-white/10 bg-black/5 dark:bg-white/6 hover:bg-black/8 dark:hover:bg-white/10"
       title="Sign in"
     >
-      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-linear-to-tr from-white to-surface-hover dark:from-neutral-700 dark:to-neutral-600 flex items-center justify-center border border-border/70 shadow-inner">
-        <User size={12} className="sm:w-[14px] sm:h-[14px] text-foreground/70" />
-      </div>
+      <User size={14} className="text-foreground/70" />
     </Link>
   );
 }

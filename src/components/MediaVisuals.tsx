@@ -97,34 +97,7 @@ export function MediaVisuals({ images, mediaType }: MediaVisualsProps) {
               <button
                 key={`${img}-${idx}`}
                 type="button"
-                onClick={() => {
-                  // #region agent log: open modal
-                  fetch(
-                    "http://127.0.0.1:7242/ingest/a9152166-8d97-4c3d-8ed2-83a4373a7e01",
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        sessionId: "debug-session",
-                        runId: "run1",
-                        hypothesisId: "H1",
-                        location: "MediaVisuals.tsx:openClick",
-                        message: "Image click -> open modal",
-                        data: {
-                          img,
-                          idx,
-                          scrollY:
-                            typeof window !== "undefined"
-                              ? window.scrollY
-                              : null,
-                        },
-                        timestamp: Date.now(),
-                      }),
-                    }
-                  ).catch(() => {});
-                  // #endregion
-                  setSelectedImage(img);
-                }}
+                onClick={() => setSelectedImage(img)}
                 className={`group relative w-full overflow-hidden rounded-xl sm:rounded-2xl border border-white/10 shadow-2xl focus:outline-none focus:ring-2 focus:ring-accent/70 ${mediaType === "book" ? "aspect-3/4" : "aspect-video"}`}
               >
                 <Image

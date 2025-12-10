@@ -12,6 +12,7 @@ import { searchBooksAction, searchMoviesAction, searchSeriesAction } from "@/app
 import { Book, Movie } from "@/types";
 import Image from "next/image";
 import { AuthButton } from "@/components/AuthButton";
+import { createPortal } from "react-dom";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -28,10 +29,12 @@ export function Navbar() {
   const [hoveredSearchTab, setHoveredSearchTab] = useState<"movies" | "series" | "books" | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [hasMounted, setHasMounted] = useState(false);
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownButtonRef = useRef<HTMLDivElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const applyTheme = (next: "light" | "dark") => {
@@ -45,7 +48,6 @@ export function Navbar() {
     }, 80);
   };
 
-  // Resolve initial theme from storage or system preference
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
     const prefersDark =
@@ -59,13 +61,11 @@ export function Navbar() {
     setHasMounted(true);
   }, []);
 
-  // Persist theme changes and flip document class
   useEffect(() => {
     if (!hasMounted) return;
     applyTheme(theme);
   }, [theme, hasMounted]);
 
-  // Sync media type with pathname
   useEffect(() => {
     if (pathname.startsWith("/books") || pathname.startsWith("/book/")) {
       setMediaType("books");
@@ -119,11 +119,9 @@ export function Navbar() {
         setSearchQuery("");
       }
 
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        isDropdownOpen
-      ) {
+      const isInsideDropdownButton = dropdownButtonRef.current?.contains(event.target as Node);
+      const isInsideDropdown = dropdownRef.current?.contains(event.target as Node);
+      if (!isInsideDropdownButton && !isInsideDropdown && isDropdownOpen) {
         setIsDropdownOpen(false);
       }
     };
@@ -158,12 +156,28 @@ export function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSearching]);
 
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const updatePosition = () => {
+      const btn = dropdownButtonRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      setDropdownCoords({ top: rect.top, left: rect.left });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, { passive: true });
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition);
+    };
+  }, [isDropdownOpen]);
+
   const isDetailPage =
     pathname.startsWith("/movie/") ||
     pathname.startsWith("/tv/") ||
     pathname.startsWith("/book/");
 
-  // Determine active tab for Discover/Library
   const activeTab = pathname.startsWith("/profile")
     ? "library"
     : pathname === "/" || pathname === "/books"
@@ -176,8 +190,11 @@ export function Navbar() {
       <motion.nav
         ref={navRef}
         className={cn(
-          "pointer-events-auto flex items-center p-1 sm:p-1.5 bg-surface/70 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full shadow-lg shadow-black/5 transition-all duration-300 max-w-full",
-          isSearching ? "ring-2 ring-white/20 border-transparent" : ""
+          "pointer-events-auto flex items-center p-1 sm:p-1.5",
+          "bg-white/60 dark:bg-black/60 backdrop-blur-2xl",
+          "border border-white/20 dark:border-white/10",
+          "rounded-full shadow-2xl shadow-black/20 transition-all duration-300 max-w-full",
+          isSearching ? "ring-2 ring-accent/30 border-accent/20 shadow-black/25" : ""
         )}
         onMouseLeave={() => setHoveredLink(null)}
       >
@@ -252,85 +269,22 @@ export function Navbar() {
               className="flex items-center gap-0.5 sm:gap-1 md:gap-2 min-w-0 flex-1"
             >
               {/* Media Switcher */}
-              <div className="relative mr-0.5 sm:mr-1 shrink-0" ref={dropdownRef}>
-                <div className="w-9 h-9 sm:w-10 sm:h-10" /> {/* Placeholder */}
+              <div className="relative mr-0.5 sm:mr-1 shrink-0">
                 <motion.div
-                  className={cn(
-                    "absolute top-0 left-0 z-50 flex flex-col bg-accent text-accent-foreground overflow-hidden cursor-pointer",
-                    isDropdownOpen
-                      ? "w-48 shadow-xl border border-white/10 p-1.5 items-stretch justify-start"
-                      : "w-9 h-9 sm:w-10 sm:h-10 shadow-none border border-transparent p-0 items-center justify-center"
-                  )}
-                  style={{ borderRadius: 24 }}
-                  onClick={() => !isDropdownOpen && setIsDropdownOpen(true)}
-                  whileHover={!isDropdownOpen ? { scale: 1.05 } : {}}
-                  whileTap={!isDropdownOpen ? { scale: 0.95 } : {}}
+                  ref={dropdownButtonRef}
+                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/12 dark:bg-white/8 text-foreground cursor-pointer border border-transparent hover:border-white/10"
+                  onClick={() => setIsDropdownOpen((prev) => !prev)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                 >
-                  <AnimatePresence
-                    mode="popLayout"
-                    initial={false}
-                    presenceAffectsLayout={false}
-                  >
-                    {isDropdownOpen ? (
-                      <motion.div
-                        key="dropdown-content"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{
-                          opacity: 0,
-                          y: -10,
-                          transition: { duration: 0.1 },
-                        }}
-                        transition={{ duration: 0.2 }}
-                        className="flex flex-col gap-1 w-full"
-                      >
-                        <Link
-                          href="/"
-                          className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg transition-colors text-sm font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsDropdownOpen(false);
-                          }}
-                        >
-                          <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                            <Film size={14} />
-                          </div>
-                          Movies & Series
-                        </Link>
-                        <Link
-                          href="/books"
-                          className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg transition-colors text-sm font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsDropdownOpen(false);
-                          }}
-                        >
-                          <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                            <BookIcon size={14} />
-                          </div>
-                          Books
-                        </Link>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="dropdown-icon"
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.5 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex items-center justify-center"
-                      >
-                        <CurrentIcon size={16} className="sm:w-[18px] sm:h-[18px]" />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <CurrentIcon size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </motion.div>
               </div>
 
               {/* Main Navigation Pills */}
               <div
-                className="flex items-center bg-surface/50 rounded-full border border-border/30 p-0.5 sm:p-1 relative shrink-0"
+                className="flex items-center bg-black/5 dark:bg-white/5 rounded-full border border-black/8 dark:border-white/8 px-0.5 sm:px-1 py-0.5 sm:py-1 relative shrink-0 backdrop-blur-md"
                 onMouseLeave={() => setHoveredLink(null)}
               >
                 <NavPill
@@ -388,7 +342,7 @@ export function Navbar() {
               )}
 
               {/* Right Actions */}
-              <div className="flex items-center pl-1 sm:pl-2 border-l border-border/50 gap-0.5 sm:gap-1 shrink-0 ml-0.5 sm:ml-1">
+              <div className="flex items-center pl-1 sm:pl-2 border-l border-black/8 dark:border-white/10 gap-0.5 sm:gap-1 shrink-0 ml-0.5 sm:ml-1">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -396,8 +350,9 @@ export function Navbar() {
                   aria-label="Toggle theme"
                   className={cn(
                     "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
-                    "border border-border/60 bg-surface/70 hover:bg-surface-hover/80 transition-colors",
-                    "text-foreground/70 hover:text-foreground shadow-sm"
+                    "border border-black/8 dark:border-white/10 bg-black/5 dark:bg-white/6",
+                    "hover:bg-black/8 dark:hover:bg-white/10 transition-colors",
+                    "text-foreground/80 hover:text-foreground"
                   )}
                 >
                   <div className="flex items-center justify-center">
@@ -406,7 +361,7 @@ export function Navbar() {
                 </motion.button>
                 <button
                   onClick={() => setIsSearching(true)}
-                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors shrink-0"
+                  className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/70 hover:text-foreground bg-black/5 hover:bg-black/8 dark:bg-white/5 dark:hover:bg-white/10 transition-colors shrink-0 border border-black/8 dark:border-white/8"
                 >
                   <Search size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
@@ -419,6 +374,54 @@ export function Navbar() {
         </AnimatePresence>
       </motion.nav>
     </div>
+
+    {/* Media Switcher Dropdown Portal */}
+    {hasMounted &&
+      createPortal(
+        <AnimatePresence>
+          {isDropdownOpen && (
+            <motion.div
+              key="media-dropdown"
+              ref={dropdownRef}
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              style={{
+                position: "fixed",
+                top: dropdownCoords.top,
+                left: dropdownCoords.left,
+                minWidth: 192,
+              }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl shadow-2xl shadow-black/20 p-1.5 z-[200] origin-top-left overflow-hidden"
+            >
+              <div className="flex flex-col gap-1">
+                <Link
+                  href="/"
+                  className="flex items-center gap-3 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-colors text-sm font-medium text-foreground/80 hover:text-foreground"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <div className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center shrink-0">
+                    <Film size={14} />
+                  </div>
+                  Movies & Series
+                </Link>
+                <Link
+                  href="/books"
+                  className="flex items-center gap-3 p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-colors text-sm font-medium text-foreground/80 hover:text-foreground"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <div className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center shrink-0">
+                    <BookIcon size={14} />
+                  </div>
+                  Books
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
     <AnimatePresence>
       {isSearching && searchQuery.trim() && (
@@ -433,7 +436,7 @@ export function Navbar() {
         >
           <div className="pointer-events-auto w-full max-w-[550px] flex flex-col gap-1.5">
             {/* Search Type Tabs */}
-            <div className="flex items-center p-0.5 sm:p-1 mt-2 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full shadow-lg">
+            <div className="flex items-center p-0.5 sm:p-1 mt-2 bg-white/60 dark:bg-black/60 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full shadow-2xl shadow-black/20">
               <SearchTabButton 
                 id="movies"
                 active={searchType === "movies"}
@@ -463,7 +466,7 @@ export function Navbar() {
               />
             </div>
 
-            <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[65vh]">
+            <div className="bg-white/60 dark:bg-black/60 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/20 flex flex-col max-h-[65vh]">
               <div className="overflow-y-auto p-2 scrollbar-hide">
                 {isSearchingMedia ? (
                   <div className="h-60 flex flex-col items-center justify-center text-muted-foreground gap-3">
@@ -472,25 +475,26 @@ export function Navbar() {
                   </div>
                 ) : searchResults.length > 0 ? (
                   <div className="grid grid-cols-1 gap-1">
-                    {searchResults.map((item) => {
-                      const isBookItem = 'author' in item;
-                      const isBookTab = searchType === "books";
-                      
-                      // Skip items that don't match the current tab type to prevent rendering errors during transitions
-                      if (isBookTab !== isBookItem) return null;
+                    {searchResults
+                      .filter((item) => {
+                        const isBookTab = searchType === "books";
+                        const isBookItem = "author" in item;
+                        return isBookTab === isBookItem;
+                      })
+                      .map((item) => {
+                        const isBookItem = "author" in item;
+                        const book = isBookItem ? (item as Book) : null;
+                        const movie = !isBookItem ? (item as Movie) : null;
 
-                      const book = isBookItem ? item as Book : null;
-                      const movie = !isBookItem ? item as Movie : null;
-                      
-                      const href = isBookItem 
-                        ? `/book/${book!.id}` 
-                        : `/${movie!.mediaType === 'tv' ? 'tv' : 'movie'}/${movie!.id}`;
-                      const title = isBookItem ? book!.title : movie!.title;
-                      const subtitle = isBookItem ? book!.author : (movie!.year || "Unknown Year");
-                      const image = isBookItem ? book!.coverImage : movie!.posterUrl;
-                      const rating = isBookItem ? book!.rating : movie!.rating;
-                      
-                      return (
+                        const href = isBookItem
+                          ? `/book/${book!.id}`
+                          : `/${movie!.mediaType === "tv" ? "tv" : "movie"}/${movie!.id}`;
+                        const title = isBookItem ? book!.title : movie!.title;
+                        const subtitle = isBookItem ? book!.author : movie!.year || "Unknown Year";
+                        const image = isBookItem ? book!.coverImage : movie!.posterUrl;
+                        const rating = isBookItem ? book!.rating : movie!.rating;
+
+                        return (
                         <Link
                           key={item.id}
                           href={href}
