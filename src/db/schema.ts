@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   emailVerified: timestamp("emailVerified", { withTimezone: true, mode: "date" }),
   image: text("image"),
   password: text("password"), // hashed password for credentials provider
+  preferredRegion: text("preferredRegion").default("US"),
   createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
   updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });

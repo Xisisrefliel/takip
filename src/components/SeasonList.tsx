@@ -17,9 +17,8 @@ export function SeasonList({ seasons }: SeasonListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   
-  // Initialize with season 1 open (or first season if season 1 doesn't exist)
-  const season1 = seasons.find(s => s.seasonNumber === 1);
-  const [expandedSeasonId, setExpandedSeasonId] = useState<number | null>(season1?.id || seasons[0]?.id || null);
+  // Start with all seasons collapsed by default
+  const [expandedSeasonId, setExpandedSeasonId] = useState<number | null>(null);
   
   // Local state for episode interactions
   const [watchedEpisodes, setWatchedEpisodes] = useState<Set<number>>(new Set());

@@ -96,7 +96,7 @@ export function DetailPoster({
   const posterUrl = "posterUrl" in item ? item.posterUrl : item.coverImage;
 
   return (
-    <div className="relative aspect-2/3 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden shadow-2xl border border-white/10 transform transition-transform duration-500 hover:rotate-y-6 hover:scale-105 group">
+    <div className="relative aspect-2/3 rounded-[16px] sm:rounded-[20px] md:rounded-[24px] overflow-hidden shadow-2xl border border-white/10 transform transition-transform duration-500 hover:rotate-y-6 hover:scale-105">
       <Image
         src={posterUrl}
         alt={item.title}

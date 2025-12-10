@@ -2,6 +2,7 @@ import { hash, compare } from "bcryptjs";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { DEFAULT_REGION } from "@/data/regions";
 
 export async function hashPassword(password: string): Promise<string> {
   return hash(password, 10);
@@ -28,6 +29,7 @@ export async function createUser(email: string, password: string) {
     email,
     password: hashedPassword,
     emailVerified: null,
+    preferredRegion: DEFAULT_REGION,
   });
 
   return { id: userId, email };

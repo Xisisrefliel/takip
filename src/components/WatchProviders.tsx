@@ -1,59 +1,98 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import { WatchProvidersData } from "@/types";
+import {
+  DEFAULT_REGION,
+  REGION_LABELS,
+  sortRegionsWithPreference,
+} from "@/data/regions";
+import { updatePreferredRegionAction } from "@/app/actions";
 
 interface WatchProvidersProps {
   providers: Record<string, WatchProvidersData> | null;
+  preferredRegion?: string | null;
+  isAuthenticated?: boolean;
 }
 
-const REGION_NAMES: Record<string, string> = {
-  US: "United States",
-  GB: "United Kingdom",
-  CA: "Canada",
-  AU: "Australia",
-  DE: "Germany",
-  FR: "France",
-  ES: "Spain",
-  IT: "Italy",
-  JP: "Japan",
-  KR: "South Korea",
-  BR: "Brazil",
-  MX: "Mexico",
-  IN: "India",
-  TR: "Turkey",
-  NL: "Netherlands",
-  SE: "Sweden",
-  NO: "Norway",
-  DK: "Denmark",
-  FI: "Finland",
-  PL: "Poland",
-  RU: "Russia",
-  PT: "Portugal",
-  AR: "Argentina",
-  CL: "Chile",
-  CO: "Colombia",
-  PE: "Peru",
-  CH: "Switzerland",
-  BE: "Belgium",
-  AT: "Austria",
-  IE: "Ireland",
-  NZ: "New Zealand",
-  ZA: "South Africa",
-};
+export function WatchProviders({
+  providers,
+  preferredRegion,
+  isAuthenticated = false,
+}: WatchProvidersProps) {
+  const [isSaving, startTransition] = useTransition();
+  const [selectedRegion, setSelectedRegion] = useState(
+    preferredRegion?.toUpperCase() || DEFAULT_REGION
+  );
+  const { update: updateSession } = useSession();
 
-export function WatchProviders({ providers }: WatchProvidersProps) {
-  const [selectedRegion, setSelectedRegion] = useState("US");
+  const regionLabel = useMemo(() => {
+    let displayNames: Intl.DisplayNames | null = null;
+
+    if (typeof Intl !== "undefined" && "DisplayNames" in Intl) {
+      try {
+        displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+      } catch {
+        // ignore and fall back to code
+      }
+    }
+
+    return (code: string) =>
+      REGION_LABELS[code.toUpperCase()] || displayNames?.of(code) || code;
+  }, []);
+
+  // Snap to a safe default only when the current selection is unavailable.
+  useEffect(() => {
+    if (!providers) return;
+    if (providers[selectedRegion]) return; // keep user choice if valid
+
+    const normalizedPreferred = preferredRegion?.toUpperCase();
+    const fallback =
+      (normalizedPreferred && providers[normalizedPreferred])
+        ? normalizedPreferred
+        : providers[DEFAULT_REGION]
+          ? DEFAULT_REGION
+          : Object.keys(providers)[0];
+
+    if (fallback && fallback !== selectedRegion) {
+      setSelectedRegion(fallback);
+    }
+  }, [preferredRegion, providers]);
 
   const availableRegions = useMemo(() => {
     if (!providers) return [];
-    return Object.keys(providers).sort((a, b) => {
-      const nameA = REGION_NAMES[a] || a;
-      const nameB = REGION_NAMES[b] || b;
-      return nameA.localeCompare(nameB);
+    return sortRegionsWithPreference(
+      Object.keys(providers),
+      selectedRegion || preferredRegion
+    );
+  }, [providers, preferredRegion, selectedRegion]);
+
+  const handleRegionChange = (regionCode: string) => {
+    const normalized = regionCode.toUpperCase();
+    const previous = selectedRegion;
+    setSelectedRegion(normalized);
+
+    if (!isAuthenticated) return;
+
+    startTransition(async () => {
+      const result = await updatePreferredRegionAction(normalized);
+      if (result?.error) {
+        setSelectedRegion(previous);
+        console.error(result.error);
+        return;
+      }
+
+       try {
+         await updateSession?.({
+           preferredRegion: normalized,
+         });
+       } catch (error) {
+         console.error("Failed to update session preference", error);
+       }
     });
-  }, [providers]);
+  };
 
   if (!providers || availableRegions.length === 0) {
     return null;
@@ -78,12 +117,12 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
           <div className="relative">
             <select
               value={currentRegion}
-              onChange={(e) => setSelectedRegion(e.target.value)}
+              onChange={(e) => handleRegionChange(e.target.value)}
               className="appearance-none bg-surface border border-border rounded-lg px-3 py-1.5 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
             >
               {availableRegions.map((region) => (
                 <option key={region} value={region}>
-                  {REGION_NAMES[region] || region}
+                  {regionLabel(region)}
                 </option>
               ))}
             </select>
@@ -119,12 +158,12 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
         <div className="relative">
           <select
             value={currentRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            className="appearance-none bg-surface border border-border rounded-lg px-3 py-1.5 pr-8 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer w-full sm:w-auto sm:min-w-[140px]"
+            onChange={(e) => handleRegionChange(e.target.value)}
+            className="appearance-none bg-surface border border-border rounded-lg px-3 py-1.5 pr-8 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer w-full sm:w-auto sm:min-w-[160px] shadow-[0_10px_40px_rgba(0,0,0,0.12)] hover:border-accent/50 transition-colors"
           >
             {availableRegions.map((region) => (
               <option key={region} value={region} className="bg-background">
-                {REGION_NAMES[region] || region}
+                {regionLabel(region)}
               </option>
             ))}
           </select>
@@ -158,10 +197,10 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
               {data.flatrate.map((provider) => (
                 <div
                   key={provider.provider_id}
-                  className="relative group"
+                  className="relative"
                   title={provider.provider_name}
                 >
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
                     <Image
                       src={provider.logo_path}
                       alt={provider.provider_name}
@@ -185,10 +224,10 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
               {data.rent.map((provider) => (
                 <div
                   key={provider.provider_id}
-                  className="relative group"
+                  className="relative"
                   title={provider.provider_name}
                 >
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
                     <Image
                       src={provider.logo_path}
                       alt={provider.provider_name}
@@ -212,10 +251,10 @@ export function WatchProviders({ providers }: WatchProvidersProps) {
               {data.buy.map((provider) => (
                 <div
                   key={provider.provider_id}
-                  className="relative group"
+                  className="relative"
                   title={provider.provider_name}
                 >
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
                     <Image
                       src={provider.logo_path}
                       alt={provider.provider_name}

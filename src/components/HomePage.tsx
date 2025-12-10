@@ -140,9 +140,8 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
       <section>
          <Carousel title="Popular Series">
             {popularSeries.map((movie) => (
-               <div key={movie.id} className="min-w-[160px] w-[160px] sm:min-w-[200px] sm:w-[200px] md:min-w-[240px] md:w-[240px] lg:min-w-[280px] lg:w-[280px] snap-start">
-                   {/* Using landscape for series */}
-                  <MovieCard movie={movie} aspectRatio="landscape" />
+               <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
+                  <MovieCard movie={movie} aspectRatio="portrait" />
                </div>
             ))}
          </Carousel>

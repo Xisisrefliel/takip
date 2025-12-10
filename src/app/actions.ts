@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema";
 import * as schema from "@/db/schema";
 import { eq, and, inArray, or, isNull } from "drizzle-orm";
+import { DEFAULT_REGION, SUPPORTED_REGION_CODES } from "@/data/regions";
 
 export async function searchBooksAction(query: string): Promise<Book[]> {
   if (!query.trim()) return [];
@@ -100,6 +101,55 @@ export async function signInAction(email: string, password: string) {
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/" });
+}
+
+export async function getPreferredRegionAction(): Promise<{
+  region: string | null;
+}> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { region: null };
+  }
+
+  try {
+    const [user] = await db
+      .select({ preferredRegion: users.preferredRegion })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+
+    return { region: user?.preferredRegion ?? DEFAULT_REGION };
+  } catch (error) {
+    console.error("Get preferred region error:", error);
+    return { region: DEFAULT_REGION };
+  }
+}
+
+export async function updatePreferredRegionAction(region: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const normalizedRegion = region.toUpperCase();
+  if (!SUPPORTED_REGION_CODES.includes(normalizedRegion)) {
+    return { error: "Unsupported region" };
+  }
+
+  try {
+    await db
+      .update(users)
+      .set({
+        preferredRegion: normalizedRegion,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, session.user.id));
+
+    return { success: true, region: normalizedRegion };
+  } catch (error) {
+    console.error("Update preferred region error:", error);
+    return { error: "Failed to save preferred region" };
+  }
 }
 
 // Media Actions
