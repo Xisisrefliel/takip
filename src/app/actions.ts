@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema";
 import * as schema from "@/db/schema";
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull, desc } from "drizzle-orm";
 import { DEFAULT_REGION, SUPPORTED_REGION_CODES } from "@/data/regions";
 
 export async function searchBooksAction(query: string): Promise<Book[]> {
@@ -521,7 +521,8 @@ export async function getUserMediaAction(
       const userMoviesData = await db
         .select()
         .from(userMovies)
-        .where(and(...conditions));
+        .where(and(...conditions))
+        .orderBy(desc(userMovies.createdAt));
       
       // Fetch full movie/TV data from TMDB
       const movies: Movie[] = (

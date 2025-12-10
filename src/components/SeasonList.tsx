@@ -100,7 +100,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
         const watched = await getWatchedEpisodesAction(allEpisodeIds);
         setWatchedEpisodes(watched);
       }
-      setIsLoadingWatched(false);
     };
 
     fetchData();
@@ -410,17 +409,29 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                             <span className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-md">
                                               <Calendar size={12} />
                                               <span className="hidden sm:inline">
-                                                {new Date(
-                                                  episode.airDate
-                                                ).toLocaleDateString()}
+                                                {new Intl.DateTimeFormat(
+                                                  "en-US",
+                                                  {
+                                                    year: "numeric",
+                                                    month: "long",
+                                                    day: "numeric",
+                                                    timeZone: "UTC",
+                                                  }
+                                                ).format(
+                                                  new Date(episode.airDate)
+                                                )}
                                               </span>
                                               <span className="sm:hidden">
-                                                {new Date(
-                                                  episode.airDate
-                                                ).toLocaleDateString("en-US", {
-                                                  month: "short",
-                                                  day: "numeric",
-                                                })}
+                                                {new Intl.DateTimeFormat(
+                                                  "en-US",
+                                                  {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    timeZone: "UTC",
+                                                  }
+                                                ).format(
+                                                  new Date(episode.airDate)
+                                                )}
                                               </span>
                                             </span>
                                           )}
@@ -970,7 +981,12 @@ function EpisodeReviewsList({
                     {review.userName || "Anonymous"}
                   </p>
                   <span className="text-[10px] text-muted-foreground">
-                    {new Date(review.createdAt).toLocaleDateString()}
+                    {new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      timeZone: "UTC",
+                    }).format(new Date(review.createdAt))}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 mb-1.5">

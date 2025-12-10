@@ -16,17 +16,20 @@ interface LastVisitedContextType {
 const LastVisitedContext = createContext<LastVisitedContextType | undefined>(undefined);
 
 export function LastVisitedProvider({ children }: { children: ReactNode }) {
-  const [lastVisited, setLastVisitedState] = useState<LastVisitedItem | null>(() => {
-    if (typeof window === "undefined") return null;
+  // Keep the initial render consistent between server and client to avoid hydration mismatches.
+  const [lastVisited, setLastVisitedState] = useState<LastVisitedItem | null>(null);
+
+  // Load saved value only after mount so SSR markup matches the first client render.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
     const saved = localStorage.getItem("lastVisited");
-    if (!saved) return null;
+    if (!saved) return;
     try {
-      return JSON.parse(saved) as LastVisitedItem;
+      setLastVisitedState(JSON.parse(saved) as LastVisitedItem);
     } catch (e) {
       console.error("Failed to parse last visited item", e);
-      return null;
     }
-  });
+  }, []);
 
   const setLastVisited = (item: LastVisitedItem) => {
     setLastVisitedState(item);

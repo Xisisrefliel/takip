@@ -237,11 +237,12 @@ export function Reviews({
                         {review.userName || "Anonymous"}
                       </p>
                       <span className="text-xs sm:text-sm text-muted-foreground font-medium">
-                        {new Date(review.createdAt).toLocaleDateString("en-US", {
+                        {new Intl.DateTimeFormat("en-US", {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
-                        })}
+                          timeZone: "UTC",
+                        }).format(new Date(review.createdAt))}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 mb-2.5">

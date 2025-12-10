@@ -41,11 +41,12 @@ const formatDate = (value?: string | null) => {
   if (!value) return undefined;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return undefined;
-  return parsed.toLocaleDateString(undefined, {
+  return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  });
+    timeZone: "UTC",
+  }).format(parsed);
 };
 
 export function ActorMovies({ movies: initialMovies, actorName, actorDetails }: ActorMoviesProps) {
@@ -161,7 +162,7 @@ export function ActorMovies({ movies: initialMovies, actorName, actorDetails }: 
             </div>
 
             <div className="flex lg:justify-end">
-              <div className="relative w-auto max-w-[240px] h-28 md:h-32 lg:h-full overflow-hidden rounded-xl border border-white/10 bg-surface/60 shadow-sm flex items-center justify-center">
+              <div className="relative w-full max-w-[240px] lg:max-w-[280px] aspect-[2/3] overflow-hidden rounded-xl border border-white/10 bg-surface/60 shadow-sm flex items-center justify-center">
                 {actorDetails?.profileUrl ? (
                   <Image
                     src={actorDetails.profileUrl}

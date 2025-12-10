@@ -69,7 +69,12 @@ function TimelineItem({ movie, align }: { movie: Movie; align: "left" | "right" 
       )}>
          <h3 className="text-xl font-bold leading-tight text-foreground">{movie.title}</h3>
          <p className="text-sm text-foreground/50 mt-1 font-medium">
-            Watched on {new Date(movie.watchedDate!).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+            Watched on{" "}
+            {new Intl.DateTimeFormat("en-US", {
+              day: "numeric",
+              month: "long",
+              timeZone: "UTC",
+            }).format(new Date(movie.watchedDate!))}
          </p>
       </div>
 
@@ -87,7 +92,11 @@ function TimelineItem({ movie, align }: { movie: Movie; align: "left" | "right" 
             <div className="md:hidden mt-3">
                 <h3 className="text-lg font-bold leading-tight">{movie.title}</h3>
                 <p className="text-xs text-foreground/60 mt-1">
-                   {new Date(movie.watchedDate!).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                  {new Intl.DateTimeFormat("en-US", {
+                    day: "numeric",
+                    month: "long",
+                    timeZone: "UTC",
+                  }).format(new Date(movie.watchedDate!))}
                 </p>
             </div>
          </div>

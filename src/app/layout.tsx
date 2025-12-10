@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Inter, Poppins } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
 import { SessionProvider } from "next-auth/react";
