@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ActorPage({ params }: PageProps) {
   const { id } = await params;
-  const { actorName, movies } = await getActorMovies(id);
+  const { actorName, actorDetails, movies } = await getActorMovies(id);
 
   if (!actorName) {
     notFound();
@@ -43,7 +43,7 @@ export default async function ActorPage({ params }: PageProps) {
       <BackButton />
       
       <div className="container mx-auto px-6 pt-24 md:pt-32">
-        <ActorMovies movies={enrichedMovies} actorName={actorName} />
+        <ActorMovies movies={enrichedMovies} actorName={actorName} actorDetails={actorDetails} />
       </div>
     </main>
   );

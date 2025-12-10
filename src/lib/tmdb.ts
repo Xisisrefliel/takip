@@ -137,6 +137,17 @@ interface TMDBResponse {
   results: TMDBMovie[];
 }
 
+export interface ActorDetails {
+  id: number;
+  name: string;
+  profileUrl?: string;
+  biography?: string;
+  birthday?: string;
+  deathday?: string | null;
+  placeOfBirth?: string;
+  knownForDepartment?: string;
+}
+
 const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
   const queryParams = new URLSearchParams({
     api_key: TMDB_API_KEY || "",
@@ -432,7 +443,9 @@ export const getDirectorMovies = async (directorId: string): Promise<{ directorN
   }
 };
 
-export const getActorMovies = async (actorId: string): Promise<{ actorName: string; movies: Movie[] }> => {
+export const getActorMovies = async (
+  actorId: string
+): Promise<{ actorName: string; actorDetails?: ActorDetails; movies: Movie[] }> => {
   try {
     const [personData, creditsData] = await Promise.all([
       fetchTMDB(`/person/${actorId}`),
@@ -443,12 +456,26 @@ export const getActorMovies = async (actorId: string): Promise<{ actorName: stri
       throw new Error("Failed to fetch actor data");
     }
 
+    const actorDetails: ActorDetails = {
+      id: personData.id,
+      name: personData.name,
+      profileUrl: personData.profile_path
+        ? `${TMDB_IMAGE_BASE_URL_W500}${personData.profile_path}`
+        : undefined,
+      biography: personData.biography,
+      birthday: personData.birthday,
+      deathday: personData.deathday,
+      placeOfBirth: personData.place_of_birth,
+      knownForDepartment: personData.known_for_department
+    };
+
     const movies = (creditsData.cast || [])
       .map((item: any) => mapTmdbToMovie({ ...item, genre_ids: item.genre_ids || [] }, 'movie'))
       .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
 
     return {
       actorName: personData.name,
+      actorDetails,
       movies
     };
   } catch (error) {
