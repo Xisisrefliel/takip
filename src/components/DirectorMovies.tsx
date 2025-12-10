@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Movie } from "@/types";
 import { MovieCard } from "@/components/MovieCard";
 import { ArrowUpDown } from "lucide-react";
@@ -14,39 +14,38 @@ type SortOption = "popularity" | "newest" | "oldest";
 
 export function DirectorMovies({ movies: initialMovies, directorName }: DirectorMoviesProps) {
   const [sortOption, setSortOption] = useState<SortOption>("popularity");
-  const [sortedMovies, setSortedMovies] = useState<Movie[]>(initialMovies);
-
-  useEffect(() => {
-    const sorted = [...initialMovies].sort((a, b) => {
+  const sortedMovies = useMemo(() => {
+    return [...initialMovies].sort((a, b) => {
       switch (sortOption) {
-        case "popularity":
-          // Polished popularity sort:
-          // 1. Prioritize items with vote counts (valid movies) over empty/junk entries.
-          // 2. If both have votes, use popularity metric.
-          // 3. If one has 0 votes but is future released, treat as potentially high interest.
-          
+        case "popularity": {
           const getWeight = (m: Movie) => {
             const hasVotes = (m.voteCount || 0) > 0;
             const isFuture = m.year > new Date().getFullYear();
             const hasPoster = m.posterUrl && !m.posterUrl.includes("placeholder");
-            
+
             if (hasVotes) return 1000 + (m.popularity || 0);
-            if (isFuture) return 500 + (m.popularity || 0); // Future movies without votes yet (hype)
-            if (hasPoster) return 100 + (m.popularity || 0); // Has poster but no votes
-            return -1000; // Junk
+            if (isFuture) return 500 + (m.popularity || 0);
+            if (hasPoster) return 100 + (m.popularity || 0);
+            return -1000;
           };
-          
+
           return getWeight(b) - getWeight(a);
+        }
         case "newest":
-          return new Date(b.releaseDate || b.year.toString()).getTime() - new Date(a.releaseDate || a.year.toString()).getTime();
+          return (
+            new Date(b.releaseDate || b.year.toString()).getTime() -
+            new Date(a.releaseDate || a.year.toString()).getTime()
+          );
         case "oldest":
-          return new Date(a.releaseDate || a.year.toString()).getTime() - new Date(b.releaseDate || b.year.toString()).getTime();
+          return (
+            new Date(a.releaseDate || a.year.toString()).getTime() -
+            new Date(b.releaseDate || b.year.toString()).getTime()
+          );
         default:
           return 0;
       }
     });
-    setSortedMovies(sorted);
-  }, [sortOption, initialMovies]);
+  }, [initialMovies, sortOption]);
 
   return (
     <div className="space-y-8">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { WatchProvidersData } from "@/types";
@@ -22,44 +22,33 @@ export function WatchProviders({
   preferredRegion,
   isAuthenticated = false,
 }: WatchProvidersProps) {
-  const [isSaving, startTransition] = useTransition();
-  const [selectedRegion, setSelectedRegion] = useState(
-    preferredRegion?.toUpperCase() || DEFAULT_REGION
-  );
-  const { update: updateSession } = useSession();
-
-  const regionLabel = useMemo(() => {
-    let displayNames: Intl.DisplayNames | null = null;
-
-    if (typeof Intl !== "undefined" && "DisplayNames" in Intl) {
-      try {
-        displayNames = new Intl.DisplayNames(["en"], { type: "region" });
-      } catch {
-        // ignore and fall back to code
-      }
+  const [, startTransition] = useTransition();
+  const safeDefaultRegion = useMemo(() => {
+    if (!providers) {
+      return preferredRegion?.toUpperCase() || DEFAULT_REGION;
     }
-
-    return (code: string) =>
-      REGION_LABELS[code.toUpperCase()] || displayNames?.of(code) || code;
-  }, []);
-
-  // Snap to a safe default only when the current selection is unavailable.
-  useEffect(() => {
-    if (!providers) return;
-    if (providers[selectedRegion]) return; // keep user choice if valid
 
     const normalizedPreferred = preferredRegion?.toUpperCase();
-    const fallback =
-      (normalizedPreferred && providers[normalizedPreferred])
-        ? normalizedPreferred
-        : providers[DEFAULT_REGION]
-          ? DEFAULT_REGION
-          : Object.keys(providers)[0];
-
-    if (fallback && fallback !== selectedRegion) {
-      setSelectedRegion(fallback);
+    if (normalizedPreferred && providers[normalizedPreferred]) {
+      return normalizedPreferred;
     }
+
+    if (providers[DEFAULT_REGION]) {
+      return DEFAULT_REGION;
+    }
+
+    const firstRegion = Object.keys(providers)[0];
+    return firstRegion || DEFAULT_REGION;
   }, [preferredRegion, providers]);
+
+  const [selectedRegion, setSelectedRegion] = useState(safeDefaultRegion);
+  const { update: updateSession } = useSession();
+
+  // Keep labels deterministic between server and client to avoid hydration drift.
+  const regionLabel = useMemo(
+    () => (code: string) => REGION_LABELS[code.toUpperCase()] || code.toUpperCase(),
+    []
+  );
 
   const availableRegions = useMemo(() => {
     if (!providers) return [];
@@ -98,9 +87,8 @@ export function WatchProviders({
     return null;
   }
 
-  const currentRegion = providers[selectedRegion]
-    ? selectedRegion
-    : availableRegions[0];
+  const currentRegion =
+    providers && providers[selectedRegion] ? selectedRegion : safeDefaultRegion;
   const data = providers[currentRegion];
 
   if (!data) return null;

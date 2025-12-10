@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo } from "react";
 import { Carousel } from "@/components/Carousel";
 import { MovieCard } from "@/components/MovieCard";
 import { motion } from "framer-motion";
@@ -14,28 +14,7 @@ interface HomePageProps {
 }
 
 export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
-  const [orderedTrending, setOrderedTrending] = useState(trendingMovies);
-  const initialOrderRef = useRef<string[]>(trendingMovies.map((movie) => movie.id));
-
-  useEffect(() => {
-    const order = initialOrderRef.current;
-    const byId = new Map(trendingMovies.map((movie) => [movie.id, movie]));
-    const merged: Movie[] = [];
-
-    order.forEach((id) => {
-      const movie = byId.get(id);
-      if (movie) merged.push(movie);
-    });
-
-    trendingMovies.forEach((movie) => {
-      if (!order.includes(movie.id)) {
-        order.push(movie.id);
-        merged.push(movie);
-      }
-    });
-
-    setOrderedTrending(merged);
-  }, [trendingMovies]);
+  const orderedTrending = useMemo(() => trendingMovies, [trendingMovies]);
 
   const heroMovie = orderedTrending[0]; 
 

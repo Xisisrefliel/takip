@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+
+
+run "bun lint" to check if there are any errors fix them.

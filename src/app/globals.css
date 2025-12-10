@@ -1,5 +1,7 @@
+/* stylelint-disable at-rule-no-unknown */
 @import "tailwindcss";
 
+/* stylelint-disable-next-line at-rule-no-unknown */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -35,40 +37,43 @@
   }
 }
 
-:root {
+:root,
+.light {
+  color-scheme: light;
   /* Airy Light Mode */
-  --background: #FAFAFA; /* Very light grey/white */
-  --foreground: #1A1A1A; /* Soft black */
-  --surface: #FFFFFF;
-  --surface-hover: #F4F4F5;
-  --border: #E4E4E7;
-  --accent: #3B82F6; /* Clear Blue - Stripe-like */
-  --accent-foreground: #FFFFFF;
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+  --surface: #ffffff;
+  --surface-hover: #f4f4f5;
+  --border: #e4e4e7;
+  --accent: #0ea5e9; /* brighter cyan for clearer affordance */
+  --accent-foreground: #ffffff;
   --radius: 24px; /* High border radius */
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
+    color-scheme: dark;
     /* Soft Dark Mode */
-    --background: black;
-    --foreground: #EDEDED;
-    --surface: #171717;
-    --surface-hover: #262626;
-    --border: #27272A;
-    --accent: #60A5FA;
-    --accent-foreground: #FFFFFF;
+    --background: #050505;
+    --foreground: #ededed;
+    --surface: #111111;
+    --surface-hover: #1c1c1f;
+    --border: #26262b;
+    --accent: #38bdf8;
+    --accent-foreground: #ffffff;
   }
 }
 
-/* Manual dark override if needed */
 .dark {
-  --background: #0A0A0A;
-  --foreground: #EDEDED;
-  --surface: #171717;
-  --surface-hover: #262626;
-  --border: #27272A;
-  --accent: #60A5FA;
-  --accent-foreground: #FFFFFF;
+  color-scheme: dark;
+  --background: #050505;
+  --foreground: #ededed;
+  --surface: #111111;
+  --surface-hover: #1c1c1f;
+  --border: #26262b;
+  --accent: #38bdf8;
+  --accent-foreground: #ffffff;
 }
 
 body {
@@ -126,4 +131,12 @@ h1, h2, h3, h4, h5, h6 {
 .group:hover .hover-border,
 .hover-border-active {
   border-color: var(--accent);
+}
+
+/* Disable motion when the theme toggles to avoid jarring flashes */
+.theme-changing *, 
+.theme-changing *::before, 
+.theme-changing *::after {
+  transition: none !important;
+  animation: none !important;
 }

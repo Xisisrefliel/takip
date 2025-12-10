@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Star, MessageSquare, Edit2 } from "lucide-react";
-import { getReviewsAction, getUserReviewAction, Review } from "@/app/actions";
+import type { Review } from "@/app/actions";
 import { ReviewForm } from "./ReviewForm";
 import Image from "next/image";
 
@@ -12,67 +12,40 @@ interface ReviewsProps {
   mediaType?: "movie" | "tv";
   episodeId?: number;
   compact?: boolean;
+  initialReviews?: Review[];
+  initialUserReview?: Review | null;
+  sessionUserId?: string | null;
 }
 
-export function Reviews({ mediaId, mediaType, episodeId, compact = false }: ReviewsProps) {
-  const [session, setSession] = useState<{ user: { id: string } } | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [userReview, setUserReview] = useState<Review | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function Reviews({
+  mediaId,
+  mediaType,
+  episodeId,
+  compact = false,
+  initialReviews = [],
+  initialUserReview = null,
+  sessionUserId: sessionUserIdProp = null,
+}: ReviewsProps) {
+  const [sessionUserId, setSessionUserId] = useState<string | null>(sessionUserIdProp);
+  const [reviews, setReviews] = useState<Review[]>(initialReviews);
+  const [userReview, setUserReview] = useState<Review | null>(initialUserReview);
+  const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingReview, setEditingReview] = useState<Review | null>(null);
 
   useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
-        setSession(data?.user ? { user: { id: data.user.id || data.user.email } } : null);
-      } catch {
-        setSession(null);
-      }
-    };
-    fetchSession();
-  }, []);
+    setReviews(initialReviews);
+    setUserReview(initialUserReview);
+    setIsLoading(false);
+  }, [initialReviews, initialUserReview]);
 
   useEffect(() => {
-    const fetchReviews = async () => {
-      setIsLoading(true);
-      const [reviewsResult, userReviewResult] = await Promise.all([
-        getReviewsAction(mediaId, mediaType, episodeId),
-        getUserReviewAction(mediaId, mediaType, episodeId),
-      ]);
-
-      if (reviewsResult.reviews) {
-        setReviews(reviewsResult.reviews);
-      }
-      if (userReviewResult.review) {
-        setUserReview(userReviewResult.review);
-      }
-      setIsLoading(false);
-    };
-
-    fetchReviews();
-  }, [mediaId, mediaType, episodeId]);
+    setSessionUserId(sessionUserIdProp);
+  }, [sessionUserIdProp]);
 
   const handleFormSubmit = () => {
     setShowForm(false);
     setEditingReview(null);
-    // Refresh reviews
-    const fetchReviews = async () => {
-      const [reviewsResult, userReviewResult] = await Promise.all([
-        getReviewsAction(mediaId, mediaType, episodeId),
-        getUserReviewAction(mediaId, mediaType, episodeId),
-      ]);
-
-      if (reviewsResult.reviews) {
-        setReviews(reviewsResult.reviews);
-      }
-      if (userReviewResult.review) {
-        setUserReview(userReviewResult.review);
-      }
-    };
-    fetchReviews();
   };
 
   const averageRating =
@@ -125,7 +98,7 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
       </div>
 
       {/* User's Review */}
-      {session && (
+      {sessionUserId && (
         <div className="space-y-4">
           {userReview && !editingReview && (
             <motion.div
@@ -229,7 +202,7 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
       {allReviews.length > 0 && (
         <div className="space-y-3 sm:space-y-4">
           {allReviews.map((review, idx) => {
-            const isUserReview = session?.user?.id === review.userId;
+            const isUserReview = sessionUserId === review.userId;
             if (isUserReview && userReview && review.id === userReview.id) {
               return null; // Already shown above
             }
@@ -297,7 +270,7 @@ export function Reviews({ mediaId, mediaType, episodeId, compact = false }: Revi
         </div>
       )}
 
-      {allReviews.length === 0 && !session && (
+      {allReviews.length === 0 && !sessionUserId && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

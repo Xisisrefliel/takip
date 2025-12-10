@@ -1,4 +1,4 @@
-import { getMediaById, getWatchProviders } from "@/lib/tmdb";
+import { getMediaById, getWatchProviders, type WatchProvidersByRegion } from "@/lib/tmdb";
 import { getBookById } from "@/lib/hardcover";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,8 +13,13 @@ import { DetailPoster } from "@/components/DetailPoster";
 import { WatchProviders } from "@/components/WatchProviders";
 import { Reviews } from "@/components/Reviews";
 import { MovieCard } from "@/components/MovieCard";
+import { MediaVisuals } from "@/components/MediaVisuals";
 import { Movie, Book } from "@/types";
-import { getUserMediaStatusAction } from "@/app/actions";
+import {
+  getUserMediaStatusAction,
+  getReviewsAction,
+  getUserReviewAction,
+} from "@/app/actions";
 import { auth } from "@/auth";
 
 interface PageProps {
@@ -60,7 +65,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
   }
 
   let item: Movie | Book | null = null;
-  let providers: any = null;
+  let providers: WatchProvidersByRegion | null = null;
 
   if (mediaType === "book") {
     item = await getBookById(id);
@@ -79,6 +84,14 @@ export default async function MediaDetailPage({ params }: PageProps) {
 
   const session = await auth();
 
+  const [{ reviews: initialReviews }, { review: initialUserReview }] =
+    mediaType === "book"
+      ? [{ reviews: [] }, { review: null }]
+      : await Promise.all([
+          getReviewsAction(id, mediaType as "movie" | "tv"),
+          getUserReviewAction(id, mediaType as "movie" | "tv"),
+        ]);
+
   // Get user media status
   const mediaStatus = await getUserMediaStatusAction(
     id,
@@ -89,7 +102,6 @@ export default async function MediaDetailPage({ params }: PageProps) {
   const backdrop = isBook(item)
     ? item.coverImage
     : item.backdropUrl || item.posterUrl;
-  const poster = isBook(item) ? item.coverImage : item.posterUrl;
   const overview = isBook(item) ? item.description : item.overview;
   const runtime = !isBook(item) ? item.runtime : null;
   const cast = !isBook(item) ? item.cast : null;
@@ -254,6 +266,9 @@ export default async function MediaDetailPage({ params }: PageProps) {
               <Reviews
                 mediaId={id}
                 mediaType={mediaType === "book" ? undefined : (mediaType as "movie" | "tv")}
+            initialReviews={initialReviews}
+            initialUserReview={initialUserReview}
+            sessionUserId={session?.user?.id ?? null}
               />
             </div>
 
@@ -309,43 +324,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
 
       {/* Images Section with blurred background (Movies/TV) */}
       {images && images.length > 0 && (
-        <section className="relative py-12 sm:py-16 lg:py-20 overflow-hidden">
-          {/* Subtle blurred background for this section */}
-          <div className="absolute inset-0 -z-10">
-            <Image
-              src={images[0]}
-              alt=""
-              fill
-              sizes="100vw"
-              className="object-cover blur-3xl opacity-10 scale-110"
-            />
-            <div className="absolute inset-0 bg-linear-to-t from-background via-background/50 to-background" />
-          </div>
-
-          <div className="container mx-auto px-4 sm:px-6">
-            <h2 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8 flex items-center gap-2">
-              <span className="w-1 h-6 sm:h-8 bg-accent rounded-full"></span>
-              Visuals
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {images.slice(0, 6).map((img, idx) => (
-                <div
-                  key={idx}
-                  className={`relative ${mediaType === "book" ? "aspect-3/4" : "aspect-video"} rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group`}
-                >
-                  <Image
-                    src={img}
-                    alt={`Scene ${idx + 1}`}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <MediaVisuals images={images} mediaType={mediaType} />
       )}
 
       {/* Recommendations - bottom of page */}

@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import type { ComponentType, MouseEvent } from "react";
 import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -150,7 +150,7 @@ function ActionButton({
 }: {
   active?: boolean;
   onClick: (e: MouseEvent) => void;
-  icon: any;
+  icon: ComponentType<{ size?: number; fill?: string; className?: string }>;
   label: string;
   className?: string;
   fill?: boolean;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -23,12 +23,6 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
   const [watched, setWatched] = useState(movie.watched ?? false);
   const [watchlist, setWatchlist] = useState(movie.watchlist ?? false);
   const [liked, setLiked] = useState(movie.liked ?? false);
-
-  useEffect(() => {
-    setWatched(movie.watched ?? false);
-    setWatchlist(movie.watchlist ?? false);
-    setLiked(movie.liked ?? false);
-  }, [movie.watched, movie.watchlist, movie.liked]);
 
   const mediaType = movie.mediaType === 'tv' ? 'tv' : 'movie';
 
@@ -188,7 +182,7 @@ function ActionButton({
 }: { 
   active?: boolean; 
   onClick: (e: React.MouseEvent) => void; 
-  icon: any; 
+  icon: ComponentType<{ size?: number; fill?: string; className?: string }>; 
   label: string;
   className?: string;
   fill?: boolean;

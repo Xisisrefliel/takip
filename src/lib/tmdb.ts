@@ -1,4 +1,4 @@
-import { Movie } from "@/types";
+import { Movie, WatchProvider, WatchProvidersData } from "@/types";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -84,6 +84,18 @@ interface TMDBVideos {
   results: TMDBVideo[];
 }
 
+interface TMDBCrewCredit extends TMDBMovie {
+  job?: string;
+}
+
+interface TMDBCastCredit extends TMDBMovie {
+  character?: string;
+}
+
+type TMDBSearchResult = TMDBMovie & { media_type?: "movie" | "tv" };
+
+export type WatchProvidersByRegion = Record<string, WatchProvidersData>;
+
 interface TMDBEpisode {
   id: number;
   name: string;
@@ -131,10 +143,6 @@ interface TMDBMovie {
   number_of_seasons?: number;
   number_of_episodes?: number;
   media_type?: string;
-}
-
-interface TMDBResponse {
-  results: TMDBMovie[];
 }
 
 export interface ActorDetails {
@@ -296,7 +304,10 @@ export const getPopularSeries = async (): Promise<Movie[]> => {
 
 export const getMovieById = async (id: string): Promise<Movie | null> => {
   try {
-    const data = await fetchTMDB(`/movie/${id}`, { append_to_response: "credits,images,recommendations,videos" });
+    const data = await fetchTMDB(`/movie/${id}`, {
+      append_to_response: "credits,images,recommendations,videos",
+      include_image_language: "en,null",
+    });
     if (!data) return null;
     const movie = mapTmdbToMovie(data, 'movie');
     const { trailerKey, trailerUrl } = pickTrailer(data.videos?.results);
@@ -315,7 +326,10 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
 
 export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
   try {
-    const data = await fetchTMDB(`/tv/${id}`, { append_to_response: "credits,images,recommendations,videos" });
+    const data = await fetchTMDB(`/tv/${id}`, {
+      append_to_response: "credits,images,recommendations,videos",
+      include_image_language: "en,null",
+    });
     if (!data) return null;
     
     const movie = mapTmdbToMovie(data, 'tv');
@@ -391,22 +405,48 @@ export const getMediaById = async (id: string, type: 'movie' | 'tv'): Promise<Mo
   }
 };
 
-export const getWatchProviders = async (id: string, mediaType: 'movie' | 'tv') => {
+export const getWatchProviders = async (
+  id: string,
+  mediaType: "movie" | "tv"
+): Promise<WatchProvidersByRegion | null> => {
   try {
     const data = await fetchTMDB(`/${mediaType}/${id}/watch/providers`);
-    const results = data?.results;
-    
+    const results = data?.results as
+      | Record<
+          string,
+          {
+            link?: string;
+            flatrate?: WatchProvider[];
+            rent?: WatchProvider[];
+            buy?: WatchProvider[];
+          }
+        >
+      | undefined;
+
     if (!results) return null;
 
-    // Process to add full image paths
-    const processed: Record<string, any> = {};
-    Object.keys(results).forEach(region => {
-      const data = results[region];
+    const processed: WatchProvidersByRegion = {};
+    Object.entries(results).forEach(([region, providerData]) => {
       processed[region] = {
-        link: data.link,
-        flatrate: data.flatrate?.map((p: any) => ({ ...p, logo_path: p.logo_path ? `${TMDB_IMAGE_BASE_URL_W500}${p.logo_path}` : null })),
-        rent: data.rent?.map((p: any) => ({ ...p, logo_path: p.logo_path ? `${TMDB_IMAGE_BASE_URL_W500}${p.logo_path}` : null })),
-        buy: data.buy?.map((p: any) => ({ ...p, logo_path: p.logo_path ? `${TMDB_IMAGE_BASE_URL_W500}${p.logo_path}` : null })),
+        link: providerData.link,
+        flatrate: providerData.flatrate?.map((provider) => ({
+          ...provider,
+          logo_path: provider.logo_path
+            ? `${TMDB_IMAGE_BASE_URL_W500}${provider.logo_path}`
+            : provider.logo_path,
+        })),
+        rent: providerData.rent?.map((provider) => ({
+          ...provider,
+          logo_path: provider.logo_path
+            ? `${TMDB_IMAGE_BASE_URL_W500}${provider.logo_path}`
+            : provider.logo_path,
+        })),
+        buy: providerData.buy?.map((provider) => ({
+          ...provider,
+          logo_path: provider.logo_path
+            ? `${TMDB_IMAGE_BASE_URL_W500}${provider.logo_path}`
+            : provider.logo_path,
+        })),
       };
     });
 
@@ -428,9 +468,13 @@ export const getDirectorMovies = async (directorId: string): Promise<{ directorN
       throw new Error("Failed to fetch director data");
     }
 
-    const movies = (creditsData.crew || [])
-      .filter((c: any) => c.job === 'Director')
-      .map((item: any) => mapTmdbToMovie({ ...item, genre_ids: item.genre_ids || [] }, 'movie'))
+    const crewCredits = Array.isArray(creditsData.crew)
+      ? (creditsData.crew as TMDBCrewCredit[])
+      : [];
+
+    const movies = crewCredits
+      .filter((credit) => credit.job === "Director")
+      .map((item) => mapTmdbToMovie({ ...item, genre_ids: item.genre_ids || [] }, "movie"))
       .sort((a: Movie, b: Movie) => (b.year || 0) - (a.year || 0));
 
     return {
@@ -469,8 +513,12 @@ export const getActorMovies = async (
       knownForDepartment: personData.known_for_department
     };
 
-    const movies = (creditsData.cast || [])
-      .map((item: any) => mapTmdbToMovie({ ...item, genre_ids: item.genre_ids || [] }, 'movie'))
+    const castCredits = Array.isArray(creditsData.cast)
+      ? (creditsData.cast as TMDBCastCredit[])
+      : [];
+
+    const movies = castCredits
+      .map((item) => mapTmdbToMovie({ ...item, genre_ids: item.genre_ids || [] }, "movie"))
       .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
 
     return {
@@ -487,10 +535,16 @@ export const getActorMovies = async (
 export const searchMoviesAndTv = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/multi", { query });
-    const results = data?.results || [];
+    const results = Array.isArray(data?.results)
+      ? (data.results as TMDBSearchResult[])
+      : [];
     return results
-      .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
-      .map((item: any) => mapTmdbToMovie(item, item.media_type))
+      .filter(
+        (item): item is TMDBSearchResult &
+          Required<Pick<TMDBSearchResult, "media_type">> =>
+          item.media_type === "movie" || item.media_type === "tv"
+      )
+      .map((item) => mapTmdbToMovie(item, item.media_type))
       .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
   } catch (error) {
     console.error("Error searching movies and tv:", error);
@@ -501,9 +555,11 @@ export const searchMoviesAndTv = async (query: string): Promise<Movie[]> => {
 export const searchMoviesOnly = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/movie", { query });
-    const results = data?.results || [];
+    const results = Array.isArray(data?.results)
+      ? (data.results as TMDBMovie[])
+      : [];
     return results
-      .map((item: any) => mapTmdbToMovie(item, 'movie'))
+      .map((item) => mapTmdbToMovie(item, "movie"))
       .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
   } catch (error) {
     console.error("Error searching movies:", error);
@@ -514,9 +570,11 @@ export const searchMoviesOnly = async (query: string): Promise<Movie[]> => {
 export const searchTvSeries = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/tv", { query });
-    const results = data?.results || [];
+    const results = Array.isArray(data?.results)
+      ? (data.results as TMDBMovie[])
+      : [];
     return results
-      .map((item: any) => mapTmdbToMovie(item, 'tv'))
+      .map((item) => mapTmdbToMovie(item, "tv"))
       .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
   } catch (error) {
     console.error("Error searching tv series:", error);

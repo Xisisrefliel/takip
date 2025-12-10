@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${poppins.variable} antialiased bg-background text-foreground font-sans transition-colors duration-300`}
+        className={`${inter.variable} ${poppins.variable} antialiased bg-background text-foreground font-sans`}
       >
         <SessionProvider>
           <MediaProvider>

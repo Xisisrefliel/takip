@@ -25,7 +25,7 @@ export function Timeline({ movies }: TimelineProps) {
       {/* Vertical Line - Minimal */}
       <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-border/50 transform md:-translate-x-1/2" />
 
-      {Object.entries(groupedMovies).map(([dateGroup, groupMovies], groupIndex) => (
+      {Object.entries(groupedMovies).map(([dateGroup, groupMovies]) => (
         <div key={dateGroup} className="mb-16 relative">
           {/* Date Marker */}
           <div className="flex md:justify-center mb-8 pl-16 md:pl-0 sticky top-24 z-10 pointer-events-none">

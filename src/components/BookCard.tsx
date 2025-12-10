@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, Plus, Heart, Check, BookOpen } from "lucide-react";
+import { Plus, Heart, Check, BookOpen } from "lucide-react";
 import { Book } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -126,17 +126,17 @@ export function BookCard({ book, className }: BookCardProps) {
   );
 }
 
-function ActionButton({ 
-  active, 
-  onClick, 
-  icon: Icon, 
-  label, 
+function ActionButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
   className,
-  fill
-}: { 
-  active?: boolean; 
-  onClick: (e: React.MouseEvent) => void; 
-  icon: any; 
+  fill,
+}: {
+  active?: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  icon: ComponentType<{ size?: number; fill?: string; className?: string }>;
   label: string;
   className?: string;
   fill?: boolean;

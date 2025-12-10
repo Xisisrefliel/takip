@@ -1,13 +1,35 @@
 "use client";
 
-import { useState, useTransition, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Season } from '@/types';
-import Image from 'next/image';
-import { ChevronDown, Check, Heart, Bookmark, Calendar, Clock, CheckCircle2, MessageSquare, Star, X, Send, Edit2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toggleEpisodeWatchedAction, markSeasonAsWatchedAction, getWatchedEpisodesAction, getUserReviewAction, getReviewsAction, createReviewAction, updateReviewAction, deleteReviewAction, Review } from '@/app/actions';
-import { useRouter } from 'next/navigation';
+import { useState, useTransition, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Season } from "@/types";
+import Image from "next/image";
+import {
+  ChevronDown,
+  Check,
+  Heart,
+  Bookmark,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  MessageSquare,
+  Star,
+  X,
+  Send,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  toggleEpisodeWatchedAction,
+  markSeasonAsWatchedAction,
+  getWatchedEpisodesAction,
+  getUserReviewAction,
+  getReviewsAction,
+  createReviewAction,
+  updateReviewAction,
+  deleteReviewAction,
+  Review,
+} from "@/app/actions";
+import { useRouter } from "next/navigation";
 
 interface SeasonListProps {
   seasons: Season[];
@@ -16,19 +38,34 @@ interface SeasonListProps {
 export function SeasonList({ seasons }: SeasonListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  
+
   // Start with all seasons collapsed by default
   const [expandedSeasonId, setExpandedSeasonId] = useState<number | null>(null);
-  
+
   // Local state for episode interactions
-  const [watchedEpisodes, setWatchedEpisodes] = useState<Set<number>>(new Set());
+  const [watchedEpisodes, setWatchedEpisodes] = useState<Set<number>>(
+    new Set()
+  );
   const [likedEpisodes, setLikedEpisodes] = useState<Set<number>>(new Set());
-  const [watchlistEpisodes, setWatchlistEpisodes] = useState<Set<number>>(new Set());
-  const [isLoadingWatched, setIsLoadingWatched] = useState(true);
-  const [expandedEpisodeReviews, setExpandedEpisodeReviews] = useState<Set<number>>(new Set());
-  const [episodeReviews, setEpisodeReviews] = useState<Map<number, { review: Review | null; averageRating: number; count: number }>>(new Map());
+  const [watchlistEpisodes, setWatchlistEpisodes] = useState<Set<number>>(
+    new Set()
+  );
+  const [expandedEpisodeReviews, setExpandedEpisodeReviews] = useState<
+    Set<number>
+  >(new Set());
+  const [episodeReviews, setEpisodeReviews] = useState<
+    Map<
+      number,
+      {
+        review: Review | null;
+        reviews: Review[];
+        averageRating: number;
+        count: number;
+        loading?: boolean;
+      }
+    >
+  >(new Map());
   const [showReviewForm, setShowReviewForm] = useState<Set<number>>(new Set());
-  const [editingReviewId, setEditingReviewId] = useState<Map<number, string>>(new Map());
   const [session, setSession] = useState<{ user: { id: string } } | null>(null);
 
   // Fetch session
@@ -37,7 +74,9 @@ export function SeasonList({ seasons }: SeasonListProps) {
       try {
         const res = await fetch("/api/auth/session");
         const data = await res.json();
-        setSession(data?.user ? { user: { id: data.user.id || data.user.email } } : null);
+        setSession(
+          data?.user ? { user: { id: data.user.id || data.user.email } } : null
+        );
       } catch {
         setSession(null);
       }
@@ -45,39 +84,21 @@ export function SeasonList({ seasons }: SeasonListProps) {
     fetchSession();
   }, []);
 
-  // Fetch watched episodes and reviews on mount
+  // Fetch watched episodes on mount
+  const hasFetched = useRef(false);
+
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
     const fetchData = async () => {
       const allEpisodeIds = seasons
-        .flatMap(season => season.episodes || [])
-        .map(episode => episode.id);
-      
+        .flatMap((season) => season.episodes || [])
+        .map((episode) => episode.id);
+
       if (allEpisodeIds.length > 0) {
         const watched = await getWatchedEpisodesAction(allEpisodeIds);
         setWatchedEpisodes(watched);
-
-        // Fetch reviews for all episodes
-        const reviewsMap = new Map<number, { review: Review | null; averageRating: number; count: number }>();
-        await Promise.all(
-          allEpisodeIds.map(async (episodeId) => {
-            const [userReviewResult, reviewsResult] = await Promise.all([
-              getUserReviewAction(undefined, undefined, episodeId),
-              getReviewsAction(undefined, undefined, episodeId),
-            ]);
-
-            const reviews = reviewsResult.reviews || [];
-            const averageRating = reviews.length > 0
-              ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-              : 0;
-
-            reviewsMap.set(episodeId, {
-              review: userReviewResult.review,
-              averageRating,
-              count: reviews.length,
-            });
-          })
-        );
-        setEpisodeReviews(reviewsMap);
       }
       setIsLoadingWatched(false);
     };
@@ -85,27 +106,67 @@ export function SeasonList({ seasons }: SeasonListProps) {
     fetchData();
   }, [seasons]);
 
+  // Lazy-load reviews for a single episode
+  const loadEpisodeReviews = async (episodeId: number) => {
+    setEpisodeReviews((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(episodeId);
+      if (existing?.loading) return prev;
+      next.set(episodeId, {
+        review: existing?.review ?? null,
+        reviews: existing?.reviews ?? [],
+        averageRating: existing?.averageRating ?? 0,
+        count: existing?.count ?? 0,
+        loading: true,
+      });
+      return next;
+    });
+
+    const [userReviewResult, reviewsResult] = await Promise.all([
+      getUserReviewAction(undefined, undefined, episodeId),
+      getReviewsAction(undefined, undefined, episodeId),
+    ]);
+
+    const reviews = reviewsResult.reviews || [];
+    const averageRating =
+      reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        : 0;
+
+    setEpisodeReviews((prev) => {
+      const next = new Map(prev);
+      next.set(episodeId, {
+        review: userReviewResult.review,
+        reviews,
+        averageRating,
+        count: reviews.length,
+        loading: false,
+      });
+      return next;
+    });
+  };
+
   if (!seasons || seasons.length === 0) return null;
 
   const toggleSeason = (e: React.MouseEvent, seasonId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    setExpandedSeasonId(current => current === seasonId ? null : seasonId);
+    setExpandedSeasonId((current) => (current === seasonId ? null : seasonId));
   };
 
   const toggleWatched = async (e: React.MouseEvent, episodeId: number) => {
     e.stopPropagation();
     const isWatched = watchedEpisodes.has(episodeId);
     const newSet = new Set(watchedEpisodes);
-    
+
     if (isWatched) {
       newSet.delete(episodeId);
     } else {
       newSet.add(episodeId);
     }
-    
+
     setWatchedEpisodes(newSet); // Optimistic update
-    
+
     startTransition(async () => {
       const result = await toggleEpisodeWatchedAction(episodeId, !isWatched);
       if (result?.error) {
@@ -125,8 +186,8 @@ export function SeasonList({ seasons }: SeasonListProps) {
 
   const toggleAction = (
     e: React.MouseEvent,
-    id: number, 
-    set: Set<number>, 
+    id: number,
+    set: Set<number>,
     setState: React.Dispatch<React.SetStateAction<Set<number>>>
   ) => {
     e.stopPropagation();
@@ -141,19 +202,19 @@ export function SeasonList({ seasons }: SeasonListProps) {
 
   const markSeasonAsWatched = async (e: React.MouseEvent, season: Season) => {
     e.stopPropagation();
-    
+
     if (!season.episodes || season.episodes.length === 0) return;
-    
-    const episodeIds = season.episodes.map(ep => ep.id);
-    
+
+    const episodeIds = season.episodes.map((ep) => ep.id);
+
     // Capture previous state for potential revert
     const previousWatched = new Set(watchedEpisodes);
-    
+
     // Optimistic update
     const newSet = new Set(watchedEpisodes);
-    episodeIds.forEach(id => newSet.add(id));
+    episodeIds.forEach((id) => newSet.add(id));
     setWatchedEpisodes(newSet);
-    
+
     startTransition(async () => {
       const result = await markSeasonAsWatchedAction(episodeIds);
       if (result?.error) {
@@ -168,19 +229,23 @@ export function SeasonList({ seasons }: SeasonListProps) {
   return (
     <div className="space-y-6 animate-slide-up">
       <h2 className="text-2xl font-bold flex items-center gap-2 mb-6">
-         <span className="w-1 h-8 bg-accent rounded-full"></span>
-         Seasons
+        <span className="w-1 h-8 bg-accent rounded-full"></span>
+        Seasons
       </h2>
 
       <div className="space-y-3">
         {seasons.map((season) => {
           const isExpanded = expandedSeasonId === season.id;
-          const seasonEpisodeIds = season.episodes?.map(ep => ep.id) || [];
-          const watchedCount = seasonEpisodeIds.filter(id => watchedEpisodes.has(id)).length;
-          const allEpisodesWatched = seasonEpisodeIds.length > 0 && watchedCount === seasonEpisodeIds.length;
-          
+          const seasonEpisodeIds = season.episodes?.map((ep) => ep.id) || [];
+          const watchedCount = seasonEpisodeIds.filter((id) =>
+            watchedEpisodes.has(id)
+          ).length;
+          const allEpisodesWatched =
+            seasonEpisodeIds.length > 0 &&
+            watchedCount === seasonEpisodeIds.length;
+
           return (
-            <motion.div 
+            <motion.div
               key={season.id}
               initial={false}
               className="border border-border/50 rounded-2xl bg-surface/40 overflow-hidden backdrop-blur-sm transition-all duration-200 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5"
@@ -197,9 +262,7 @@ export function SeasonList({ seasons }: SeasonListProps) {
                       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
                       className="shrink-0"
                     >
-                      <ChevronDown 
-                        className="w-5 h-5 text-muted-foreground group-hover:text-accent transition-colors" 
-                      />
+                      <ChevronDown className="w-5 h-5 text-muted-foreground group-hover:text-accent transition-colors" />
                     </motion.div>
                     <div className="min-w-0 flex-1">
                       <h3 className="text-base sm:text-lg font-semibold text-foreground truncate group-hover:text-accent transition-colors">
@@ -207,7 +270,8 @@ export function SeasonList({ seasons }: SeasonListProps) {
                       </h3>
                       <div className="flex items-center gap-2 sm:gap-3 mt-1 flex-wrap">
                         <span className="text-xs sm:text-sm text-muted-foreground">
-                          {season.episodeCount} {season.episodeCount === 1 ? 'Episode' : 'Episodes'}
+                          {season.episodeCount}{" "}
+                          {season.episodeCount === 1 ? "Episode" : "Episodes"}
                         </span>
                         {watchedCount > 0 && (
                           <>
@@ -230,7 +294,7 @@ export function SeasonList({ seasons }: SeasonListProps) {
                     </div>
                   </div>
                 </button>
-                
+
                 {/* Action buttons - separate from toggle */}
                 <div className="flex items-center gap-2 shrink-0">
                   {season.episodes && season.episodes.length > 0 && (
@@ -249,7 +313,9 @@ export function SeasonList({ seasons }: SeasonListProps) {
                     >
                       <CheckCircle2 size={14} />
                       <span className="hidden lg:inline">
-                        {allEpisodesWatched ? 'All Watched' : 'Mark Season as Watched'}
+                        {allEpisodesWatched
+                          ? "All Watched"
+                          : "Mark Season as Watched"}
                       </span>
                       <span className="lg:hidden">Mark All</span>
                     </motion.button>
@@ -265,22 +331,22 @@ export function SeasonList({ seasons }: SeasonListProps) {
                     animate="open"
                     exit="collapsed"
                     variants={{
-                      open: { 
-                        opacity: 1, 
+                      open: {
+                        opacity: 1,
                         height: "auto",
-                        transition: { 
+                        transition: {
                           height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
-                          opacity: { duration: 0.2, delay: 0.1 }
-                        }
+                          opacity: { duration: 0.2, delay: 0.1 },
+                        },
                       },
-                      collapsed: { 
-                        opacity: 0, 
+                      collapsed: {
+                        opacity: 0,
                         height: 0,
-                        transition: { 
+                        transition: {
                           height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
-                          opacity: { duration: 0.15 }
-                        }
-                      }
+                          opacity: { duration: 0.15 },
+                        },
+                      },
                     }}
                     className="overflow-hidden"
                   >
@@ -289,17 +355,19 @@ export function SeasonList({ seasons }: SeasonListProps) {
                         season.episodes.map((episode, idx) => {
                           const isWatched = watchedEpisodes.has(episode.id);
                           const isLiked = likedEpisodes.has(episode.id);
-                          const isInWatchlist = watchlistEpisodes.has(episode.id);
+                          const isInWatchlist = watchlistEpisodes.has(
+                            episode.id
+                          );
 
                           return (
                             <motion.div
                               key={episode.id}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              transition={{ 
+                              transition={{
                                 delay: idx * 0.03,
                                 duration: 0.2,
-                                ease: [0.4, 0, 0.2, 1]
+                                ease: [0.4, 0, 0.2, 1],
                               }}
                               className="group relative rounded-xl bg-black/10 border border-white/5 hover:bg-black/20 hover:border-white/10 transition-all duration-200"
                             >
@@ -317,29 +385,42 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                     />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-white/5">
-                                      <span className="text-muted-foreground text-xs">No Image</span>
+                                      <span className="text-muted-foreground text-xs">
+                                        No Image
+                                      </span>
                                     </div>
                                   )}
                                 </div>
-             
+
                                 {/* Info */}
                                 <div className="flex-1 min-w-0 py-1 flex flex-col justify-between gap-3">
                                   <div className="space-y-2">
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="flex-1 min-w-0">
                                         <h4 className="text-base sm:text-lg font-semibold text-foreground leading-tight">
-                                          <span className="text-accent mr-2">{episode.episodeNumber}.</span>
-                                          <span className="break-words">{episode.name}</span>
+                                          <span className="text-accent mr-2">
+                                            {episode.episodeNumber}.
+                                          </span>
+                                          <span className="break-words">
+                                            {episode.name}
+                                          </span>
                                         </h4>
                                         <div className="flex items-center gap-2 sm:gap-3 text-xs font-medium text-muted-foreground mt-2 flex-wrap">
                                           {episode.airDate && (
                                             <span className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-md">
                                               <Calendar size={12} />
                                               <span className="hidden sm:inline">
-                                                {new Date(episode.airDate).toLocaleDateString()}
+                                                {new Date(
+                                                  episode.airDate
+                                                ).toLocaleDateString()}
                                               </span>
                                               <span className="sm:hidden">
-                                                {new Date(episode.airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                {new Date(
+                                                  episode.airDate
+                                                ).toLocaleDateString("en-US", {
+                                                  month: "short",
+                                                  day: "numeric",
+                                                })}
                                               </span>
                                             </span>
                                           )}
@@ -364,29 +445,43 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                     <motion.button
                                       whileHover={{ scale: 1.05 }}
                                       whileTap={{ scale: 0.95 }}
-                                      onClick={(e) => toggleWatched(e, episode.id)}
+                                      onClick={(e) =>
+                                        toggleWatched(e, episode.id)
+                                      }
                                       disabled={isPending}
                                       className={cn(
                                         "flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all border",
-                                        isWatched 
-                                          ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" 
+                                        isWatched
+                                          ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20"
                                           : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground",
-                                        isPending && "opacity-50 cursor-not-allowed"
+                                        isPending &&
+                                          "opacity-50 cursor-not-allowed"
                                       )}
                                     >
                                       <Check size={14} />
                                       <span className="hidden sm:inline">
-                                        {isWatched ? 'Watched' : 'Mark as Watched'}
+                                        {isWatched
+                                          ? "Watched"
+                                          : "Mark as Watched"}
                                       </span>
-                                      <span className="sm:hidden">{isWatched ? 'Watched' : 'Watch'}</span>
+                                      <span className="sm:hidden">
+                                        {isWatched ? "Watched" : "Watch"}
+                                      </span>
                                     </motion.button>
-                                    
+
                                     <div className="h-4 w-px bg-white/10" />
 
                                     <motion.button
                                       whileHover={{ scale: 1.1 }}
                                       whileTap={{ scale: 0.9 }}
-                                      onClick={(e) => toggleAction(e, episode.id, likedEpisodes, setLikedEpisodes)}
+                                      onClick={(e) =>
+                                        toggleAction(
+                                          e,
+                                          episode.id,
+                                          likedEpisodes,
+                                          setLikedEpisodes
+                                        )
+                                      }
                                       className={cn(
                                         "p-1.5 rounded-md transition-all border",
                                         isLiked
@@ -395,13 +490,25 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                       )}
                                       title="Like"
                                     >
-                                      <Heart size={14} className={isLiked ? "fill-current" : ""} />
+                                      <Heart
+                                        size={14}
+                                        className={
+                                          isLiked ? "fill-current" : ""
+                                        }
+                                      />
                                     </motion.button>
 
                                     <motion.button
                                       whileHover={{ scale: 1.1 }}
                                       whileTap={{ scale: 0.9 }}
-                                      onClick={(e) => toggleAction(e, episode.id, watchlistEpisodes, setWatchlistEpisodes)}
+                                      onClick={(e) =>
+                                        toggleAction(
+                                          e,
+                                          episode.id,
+                                          watchlistEpisodes,
+                                          setWatchlistEpisodes
+                                        )
+                                      }
                                       className={cn(
                                         "p-1.5 rounded-md transition-all border",
                                         isInWatchlist
@@ -410,7 +517,12 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                       )}
                                       title="Add to Watchlist"
                                     >
-                                      <Bookmark size={14} className={isInWatchlist ? "fill-current" : ""} />
+                                      <Bookmark
+                                        size={14}
+                                        className={
+                                          isInWatchlist ? "fill-current" : ""
+                                        }
+                                      />
                                     </motion.button>
 
                                     <div className="h-4 w-px bg-white/10" />
@@ -421,19 +533,30 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                         whileTap={{ scale: 0.9 }}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          const newSet = new Set(showReviewForm);
+                                          loadEpisodeReviews(episode.id);
+                                          const newSet = new Set(
+                                            showReviewForm
+                                          );
                                           if (newSet.has(episode.id)) {
                                             newSet.delete(episode.id);
-                                            setEditingReviewId(prev => {
+                                            setEditingReviewId((prev) => {
                                               const next = new Map(prev);
                                               next.delete(episode.id);
                                               return next;
                                             });
                                           } else {
                                             newSet.add(episode.id);
-                                            const userReview = episodeReviews.get(episode.id)?.review;
+                                            const userReview =
+                                              episodeReviews.get(
+                                                episode.id
+                                              )?.review;
                                             if (userReview) {
-                                              setEditingReviewId(prev => new Map(prev).set(episode.id, userReview.id));
+                                              setEditingReviewId((prev) =>
+                                                new Map(prev).set(
+                                                  episode.id,
+                                                  userReview.id
+                                                )
+                                              );
                                             }
                                           }
                                           setShowReviewForm(newSet);
@@ -450,35 +573,42 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                       </motion.button>
                                     )}
 
-                                    {episodeReviews.get(episode.id)?.count && episodeReviews.get(episode.id)!.count > 0 && (
-                                      <>
-                                        <div className="h-4 w-px bg-white/10" />
-                                        <motion.button
-                                          whileHover={{ scale: 1.1 }}
-                                          whileTap={{ scale: 0.9 }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            const newSet = new Set(expandedEpisodeReviews);
-                                            if (newSet.has(episode.id)) {
-                                              newSet.delete(episode.id);
-                                            } else {
-                                              newSet.add(episode.id);
-                                            }
-                                            setExpandedEpisodeReviews(newSet);
-                                          }}
-                                          className={cn(
-                                            "p-1.5 rounded-md transition-all border flex items-center gap-1",
-                                            expandedEpisodeReviews.has(episode.id)
-                                              ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
-                                              : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
-                                          )}
-                                          title="View reviews"
-                                        >
-                                          <Star size={12} className="text-yellow-500 fill-yellow-500" />
-                                          <span className="text-[10px]">{episodeReviews.get(episode.id)?.count}</span>
-                                        </motion.button>
-                                      </>
-                                    )}
+                                    <>
+                                      <div className="h-4 w-px bg-white/10" />
+                                      <motion.button
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          loadEpisodeReviews(episode.id);
+                                          const newSet = new Set(
+                                            expandedEpisodeReviews
+                                          );
+                                          if (newSet.has(episode.id)) {
+                                            newSet.delete(episode.id);
+                                          } else {
+                                            newSet.add(episode.id);
+                                          }
+                                          setExpandedEpisodeReviews(newSet);
+                                        }}
+                                        className={cn(
+                                          "p-1.5 rounded-md transition-all border flex items-center gap-1",
+                                          expandedEpisodeReviews.has(episode.id)
+                                            ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
+                                            : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground"
+                                        )}
+                                        title="View reviews"
+                                      >
+                                        <Star
+                                          size={12}
+                                          className="text-yellow-500 fill-yellow-500"
+                                        />
+                                        <span className="text-[10px]">
+                                          {episodeReviews.get(episode.id)
+                                            ?.count ?? "Reviews"}
+                                        </span>
+                                      </motion.button>
+                                    </>
                                   </div>
                                 </div>
                               </div>
@@ -487,45 +617,36 @@ export function SeasonList({ seasons }: SeasonListProps) {
                               <AnimatePresence>
                                 {showReviewForm.has(episode.id) && session && (
                                   <EpisodeReviewForm
+                                    key={
+                                      episodeReviews.get(episode.id)?.review?.id ??
+                                      episode.id
+                                    }
                                     episodeId={episode.id}
-                                    existingReview={episodeReviews.get(episode.id)?.review || null}
+                                    existingReview={
+                                      episodeReviews.get(episode.id)?.review ||
+                                      null
+                                    }
                                     onSuccess={async () => {
-                                      // Refresh reviews
-                                      const [userReviewResult, reviewsResult] = await Promise.all([
-                                        getUserReviewAction(undefined, undefined, episode.id),
-                                        getReviewsAction(undefined, undefined, episode.id),
-                                      ]);
-
-                                      const reviews = reviewsResult.reviews || [];
-                                      const averageRating = reviews.length > 0
-                                        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-                                        : 0;
-
-                                      setEpisodeReviews(prev => new Map(prev).set(episode.id, {
-                                        review: userReviewResult.review,
-                                        averageRating,
-                                        count: reviews.length,
-                                      }));
-
+                                      await loadEpisodeReviews(episode.id);
                                       // Close form after successful submit
-                                      setShowReviewForm(prev => {
+                                      setShowReviewForm((prev) => {
                                         const next = new Set(prev);
                                         next.delete(episode.id);
                                         return next;
                                       });
-                                      setEditingReviewId(prev => {
+                                      setEditingReviewId((prev) => {
                                         const next = new Map(prev);
                                         next.delete(episode.id);
                                         return next;
                                       });
                                     }}
                                     onCancel={() => {
-                                      setShowReviewForm(prev => {
+                                      setShowReviewForm((prev) => {
                                         const next = new Set(prev);
                                         next.delete(episode.id);
                                         return next;
                                       });
-                                      setEditingReviewId(prev => {
+                                      setEditingReviewId((prev) => {
                                         const next = new Map(prev);
                                         next.delete(episode.id);
                                         return next;
@@ -539,10 +660,13 @@ export function SeasonList({ seasons }: SeasonListProps) {
                               <AnimatePresence>
                                 {expandedEpisodeReviews.has(episode.id) && (
                                   <EpisodeReviewsList
-                                    episodeId={episode.id}
-                                    episodeReviews={episodeReviews.get(episode.id)}
+                                    episodeReviews={episodeReviews.get(
+                                      episode.id
+                                    )}
                                     onToggle={() => {
-                                      const newSet = new Set(expandedEpisodeReviews);
+                                      const newSet = new Set(
+                                        expandedEpisodeReviews
+                                      );
                                       if (newSet.has(episode.id)) {
                                         newSet.delete(episode.id);
                                       } else {
@@ -581,22 +705,21 @@ interface EpisodeReviewFormProps {
   onCancel: () => void;
 }
 
-function EpisodeReviewForm({ episodeId, existingReview, onSuccess, onCancel }: EpisodeReviewFormProps) {
+function EpisodeReviewForm({
+  episodeId,
+  existingReview,
+  onSuccess,
+  onCancel,
+}: EpisodeReviewFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [rating, setRating] = useState(existingReview?.rating || 0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [text, setText] = useState(existingReview?.text || "");
 
-  // Update form when existingReview changes
-  useEffect(() => {
-    setRating(existingReview?.rating || 0);
-    setText(existingReview?.text || "");
-  }, [existingReview]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (rating === 0) {
       return;
     }
@@ -604,9 +727,19 @@ function EpisodeReviewForm({ episodeId, existingReview, onSuccess, onCancel }: E
     startTransition(async () => {
       let result;
       if (existingReview) {
-        result = await updateReviewAction(existingReview.id, rating, text || null);
+        result = await updateReviewAction(
+          existingReview.id,
+          rating,
+          text || null
+        );
       } else {
-        result = await createReviewAction(rating, text || null, undefined, undefined, episodeId);
+        result = await createReviewAction(
+          rating,
+          text || null,
+          undefined,
+          undefined,
+          episodeId
+        );
       }
 
       if (result?.error) {
@@ -620,7 +753,7 @@ function EpisodeReviewForm({ episodeId, existingReview, onSuccess, onCancel }: E
 
   const handleDelete = async () => {
     if (!existingReview?.id) return;
-    
+
     startTransition(async () => {
       const result = await deleteReviewAction(existingReview.id);
       if (result?.error) {
@@ -743,44 +876,26 @@ function EpisodeReviewForm({ episodeId, existingReview, onSuccess, onCancel }: E
 
 // Episode Reviews List Component
 interface EpisodeReviewsListProps {
-  episodeId: number;
-  episodeReviews?: { review: Review | null; averageRating: number; count: number };
+  episodeReviews?: {
+    review: Review | null;
+    reviews: Review[];
+    averageRating: number;
+    count: number;
+    loading?: boolean;
+  };
   onToggle: () => void;
 }
 
-function EpisodeReviewsList({ episodeId, episodeReviews, onToggle }: EpisodeReviewsListProps) {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [session, setSession] = useState<{ user: { id: string } } | null>(null);
+function EpisodeReviewsList({
+  episodeReviews,
+  onToggle,
+}: EpisodeReviewsListProps) {
+  const loading = episodeReviews?.loading;
+  const allReviews = (episodeReviews?.reviews || []).filter(
+    (r) => !episodeReviews?.review || r.id !== episodeReviews.review.id
+  );
 
-  useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
-        setSession(data?.user ? { user: { id: data.user.id || data.user.email } } : null);
-      } catch {
-        setSession(null);
-      }
-    };
-    fetchSession();
-  }, []);
-
-  useEffect(() => {
-    const fetchReviews = async () => {
-      setIsLoading(true);
-      const reviewsResult = await getReviewsAction(undefined, undefined, episodeId);
-      if (reviewsResult.reviews) {
-        setReviews(reviewsResult.reviews);
-      }
-      setIsLoading(false);
-    };
-    fetchReviews();
-  }, [episodeId]);
-
-  const allReviews = reviews.filter(r => !episodeReviews?.review || r.id !== episodeReviews.review.id);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <motion.div
         initial={{ opacity: 0, height: 0 }}
@@ -884,4 +999,3 @@ function EpisodeReviewsList({ episodeId, episodeReviews, onToggle }: EpisodeRevi
     </motion.div>
   );
 }
-

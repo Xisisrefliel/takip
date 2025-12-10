@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 interface LastVisitedItem {
   title: string;
@@ -16,19 +16,17 @@ interface LastVisitedContextType {
 const LastVisitedContext = createContext<LastVisitedContextType | undefined>(undefined);
 
 export function LastVisitedProvider({ children }: { children: ReactNode }) {
-  const [lastVisited, setLastVisitedState] = useState<LastVisitedItem | null>(null);
-
-  // Load from local storage on mount
-  useEffect(() => {
+  const [lastVisited, setLastVisitedState] = useState<LastVisitedItem | null>(() => {
+    if (typeof window === "undefined") return null;
     const saved = localStorage.getItem("lastVisited");
-    if (saved) {
-      try {
-        setLastVisitedState(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse last visited item", e);
-      }
+    if (!saved) return null;
+    try {
+      return JSON.parse(saved) as LastVisitedItem;
+    } catch (e) {
+      console.error("Failed to parse last visited item", e);
+      return null;
     }
-  }, []);
+  });
 
   const setLastVisited = (item: LastVisitedItem) => {
     setLastVisitedState(item);

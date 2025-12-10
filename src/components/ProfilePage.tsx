@@ -37,6 +37,7 @@ export function ProfilePage() {
     const fetchUserMedia = async () => {
       setIsLoading(true);
       setError(null);
+      let hasError = false;
 
       try {
         if (contentType === "books") {
@@ -48,18 +49,21 @@ export function ProfilePage() {
 
           if (watchedResult.error) {
             setError(watchedResult.error);
+            hasError = true;
           } else {
             setWatchedBooks(watchedResult.books || []);
           }
 
-          if (watchlistResult.error && !error) {
+          if (watchlistResult.error && !hasError) {
             setError(watchlistResult.error);
+            hasError = true;
           } else {
             setWatchlistBooks(watchlistResult.books || []);
           }
 
-          if (favoritesResult.error && !error) {
+          if (favoritesResult.error && !hasError) {
             setError(favoritesResult.error);
+            hasError = true;
           } else {
             setFavoritesBooks(favoritesResult.books || []);
           }
@@ -72,18 +76,21 @@ export function ProfilePage() {
 
           if (watchedResult.error) {
             setError(watchedResult.error);
+            hasError = true;
           } else {
             setWatchedMovies(watchedResult.movies || []);
           }
 
-          if (watchlistResult.error && !error) {
+          if (watchlistResult.error && !hasError) {
             setError(watchlistResult.error);
+            hasError = true;
           } else {
             setWatchlistMovies(watchlistResult.movies || []);
           }
 
-          if (favoritesResult.error && !error) {
+          if (favoritesResult.error && !hasError) {
             setError(favoritesResult.error);
+            hasError = true;
           } else {
             setFavoritesMovies(favoritesResult.movies || []);
           }
@@ -96,8 +103,7 @@ export function ProfilePage() {
       }
     };
 
-    const data = fetchUserMedia();
-    console.log(data);
+    fetchUserMedia();
   }, [contentType]);
 
   const getTabContent = () => {
@@ -121,7 +127,7 @@ export function ProfilePage() {
   const content = getTabContent().filter(item => {
     if (contentType === "books") return true;
     if (mediaFilter === "all") return true;
-    // @ts-ignore - we know item is Movie here
+    // @ts-expect-error - we know item is Movie here
     return item.mediaType === mediaFilter;
   });
 

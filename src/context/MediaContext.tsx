@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 type MediaType = "movies" | "books";
 
@@ -12,17 +12,11 @@ interface MediaContextType {
 const MediaContext = createContext<MediaContextType | undefined>(undefined);
 
 export function MediaProvider({ children }: { children: ReactNode }) {
-  const [mediaType, setMediaTypeState] = useState<MediaType>("movies");
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  // Load from local storage on mount
-  useEffect(() => {
+  const [mediaType, setMediaTypeState] = useState<MediaType>(() => {
+    if (typeof window === "undefined") return "movies";
     const saved = localStorage.getItem("mediaType");
-    if (saved === "movies" || saved === "books") {
-      setMediaTypeState(saved);
-    }
-    setIsInitialized(true);
-  }, []);
+    return saved === "movies" || saved === "books" ? saved : "movies";
+  });
 
   const setMediaType = (type: MediaType) => {
     setMediaTypeState(type);

@@ -2,11 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { signInAction } from "@/app/actions";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export function LoginForm() {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");

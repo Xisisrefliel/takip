@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Film, User, Search, X, Book as BookIcon, BookOpen, Tv, LogOut } from "lucide-react";
+import { Film, Search, X, Book as BookIcon, BookOpen, Tv, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useLastVisited } from "@/context/LastVisitedContext";
@@ -26,11 +26,44 @@ export function Navbar() {
   const [isSearchingMedia, setIsSearchingMedia] = useState(false);
   const [searchType, setSearchType] = useState<"movies" | "series" | "books">("movies");
   const [hoveredSearchTab, setHoveredSearchTab] = useState<"movies" | "series" | "books" | null>(null);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [hasMounted, setHasMounted] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const applyTheme = (next: "light" | "dark") => {
+    const root = document.documentElement;
+    root.classList.add("theme-changing");
+    root.classList.remove("light", "dark");
+    root.classList.add(next);
+    localStorage.setItem("theme", next);
+    window.setTimeout(() => {
+      root.classList.remove("theme-changing");
+    }, 80);
+  };
+
+  // Resolve initial theme from storage or system preference
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
+    const prefersDark =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    const initial = stored === "dark" || (!stored && prefersDark) ? "dark" : "light";
+    setTheme(initial);
+    applyTheme(initial);
+    setHasMounted(true);
+  }, []);
+
+  // Persist theme changes and flip document class
+  useEffect(() => {
+    if (!hasMounted) return;
+    applyTheme(theme);
+  }, [theme, hasMounted]);
 
   // Sync media type with pathname
   useEffect(() => {
@@ -356,6 +389,21 @@ export function Navbar() {
 
               {/* Right Actions */}
               <div className="flex items-center pl-1 sm:pl-2 border-l border-border/50 gap-0.5 sm:gap-1 shrink-0 ml-0.5 sm:ml-1">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  aria-label="Toggle theme"
+                  className={cn(
+                    "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
+                    "border border-border/60 bg-surface/70 hover:bg-surface-hover/80 transition-colors",
+                    "text-foreground/70 hover:text-foreground shadow-sm"
+                  )}
+                >
+                  <div className="flex items-center justify-center">
+                    {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}
+                  </div>
+                </motion.button>
                 <button
                   onClick={() => setIsSearching(true)}
                   className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/60 hover:text-foreground hover:bg-surface-hover transition-colors shrink-0"

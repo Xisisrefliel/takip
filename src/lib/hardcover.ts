@@ -7,10 +7,6 @@ interface HardcoverImage {
   url: string;
 }
 
-interface HardcoverGenre {
-  name: string;
-}
-
 interface HardcoverBookResult {
   id: number;
   title: string;
@@ -47,14 +43,14 @@ interface HardcoverSearchResponse {
       };
     };
   };
-  errors?: any[];
+  errors?: unknown[];
 }
 
 interface HardcoverBooksResponse {
   data: {
     books: HardcoverBookResult[];
   };
-  errors?: any[];
+  errors?: unknown[];
 }
 
 export interface HardcoverEdition {
@@ -74,7 +70,7 @@ interface HardcoverEditionsResponse {
   data: {
     editions: HardcoverEdition[];
   };
-  errors?: any[];
+  errors?: unknown[];
 }
 
 export async function searchBooks(query: string): Promise<Book[]> {

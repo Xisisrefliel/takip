@@ -4,13 +4,13 @@ import { searchBooks, getBookById } from "@/lib/hardcover";
 import { searchMoviesAndTv, searchMoviesOnly, searchTvSeries, getMediaById } from "@/lib/tmdb";
 import { Book, Movie } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
-import { createUser, getUserByEmail } from "@/lib/auth";
+import { createUser, getUserByEmail, hashPassword } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema";
 import * as schema from "@/db/schema";
-import { eq, and, inArray, or, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import { DEFAULT_REGION, SUPPORTED_REGION_CODES } from "@/data/regions";
 
 export async function searchBooksAction(query: string): Promise<Book[]> {
@@ -101,6 +101,66 @@ export async function signInAction(email: string, password: string) {
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/" });
+}
+
+export async function updateProfileAction({
+  name,
+  email,
+  password,
+  preferredRegion,
+}: {
+  name?: string | null;
+  email?: string | null;
+  password?: string | null;
+  preferredRegion?: string | null;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+  const updates: Partial<typeof users.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+
+  if (name !== undefined && name !== null) {
+    const trimmed = name.trim();
+    updates.name = trimmed || null;
+  }
+
+  if (email && email !== session.user.email) {
+    const existing = await getUserByEmail(email);
+    if (existing && existing.id !== userId) {
+      return { error: "Email already in use" };
+    }
+    updates.email = email;
+  }
+
+  if (password) {
+    if (password.length < 6) {
+      return { error: "Password must be at least 6 characters" };
+    }
+    updates.password = await hashPassword(password);
+  }
+
+  if (preferredRegion) {
+    const normalizedRegion = preferredRegion.toUpperCase();
+    if (!SUPPORTED_REGION_CODES.includes(normalizedRegion)) {
+      return { error: "Unsupported region" };
+    }
+    updates.preferredRegion = normalizedRegion;
+  }
+
+  try {
+    await db.update(users).set(updates).where(eq(users.id, userId));
+    revalidatePath("/settings");
+    revalidatePath("/profile");
+    return { success: true };
+  } catch (error) {
+    console.error("Update profile error:", error);
+    return { error: "Failed to update profile" };
+  }
 }
 
 export async function getPreferredRegionAction(): Promise<{
@@ -410,7 +470,7 @@ export async function getUserMediaAction(
 
   try {
     if (mediaType === "books") {
-      let conditions = [eq(userBooks.userId, userId)];
+      const conditions = [eq(userBooks.userId, userId)];
       
       if (filter === "watched") {
         conditions.push(eq(userBooks.watched, true));
@@ -448,7 +508,7 @@ export async function getUserMediaAction(
 
       return { books };
     } else {
-      let conditions = [eq(userMovies.userId, userId)];
+      const conditions = [eq(userMovies.userId, userId)];
       
       if (filter === "watched") {
         conditions.push(eq(userMovies.watched, true));
