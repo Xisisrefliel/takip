@@ -567,6 +567,30 @@ export const searchMoviesOnly = async (query: string): Promise<Movie[]> => {
   }
 };
 
+export const searchMoviesWithYear = async (query: string, year?: number): Promise<Movie[]> => {
+  try {
+    if (!query.trim()) return [];
+
+    const params: Record<string, string> = { query };
+    if (typeof year === "number" && Number.isFinite(year)) {
+      const yearStr = String(year);
+      params.year = yearStr;
+      params.primary_release_year = yearStr;
+    }
+
+    const data = await fetchTMDB("/search/movie", params);
+    const results = Array.isArray(data?.results)
+      ? (data.results as TMDBMovie[])
+      : [];
+    return results
+      .map((item) => mapTmdbToMovie(item, "movie"))
+      .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
+  } catch (error) {
+    console.error("Error searching movies with year:", error);
+    return [];
+  }
+};
+
 export const searchTvSeries = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/tv", { query });

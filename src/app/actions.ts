@@ -1,7 +1,13 @@
 "use server";
 
 import { searchBooks, getBookById } from "@/lib/hardcover";
-import { searchMoviesAndTv, searchMoviesOnly, searchTvSeries, getMediaById } from "@/lib/tmdb";
+import {
+  searchMoviesAndTv,
+  searchMoviesOnly,
+  searchMoviesWithYear,
+  searchTvSeries,
+  getMediaById,
+} from "@/lib/tmdb";
 import { Book, Movie } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
 import { createUser, getUserByEmail, hashPassword } from "@/lib/auth";
@@ -10,8 +16,115 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema";
 import * as schema from "@/db/schema";
-import { eq, and, inArray, isNull, desc } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import { DEFAULT_REGION, SUPPORTED_REGION_CODES } from "@/data/regions";
+
+export type CsvImportRow = {
+  title: string;
+  year: number;
+  watchedDate?: string | null;
+  letterboxdUri?: string | null;
+};
+
+export type CsvImportResult = {
+  status: "imported" | "updated" | "not_found" | "error";
+  title: string;
+  year: number;
+  tmdbId?: string;
+  watchedDate?: string | null;
+  letterboxdUri?: string | null;
+  reason?: string;
+};
+
+const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const popularityComparator = (a: Movie, b: Movie) =>
+  (b.popularity ?? 0) - (a.popularity ?? 0) || (b.voteCount ?? 0) - (a.voteCount ?? 0);
+
+const pickBestMatch = (results: Movie[], targetTitle: string, targetYear?: number) => {
+  if (!results.length) return null;
+
+  const normalizedTarget = normalizeTitle(targetTitle);
+  const hasTargetYear = typeof targetYear === "number" && Number.isFinite(targetYear);
+
+  const exactTitleYearMatches = hasTargetYear
+    ? results
+        .filter(
+          (movie) =>
+            movie.year === targetYear && normalizeTitle(movie.title) === normalizedTarget
+        )
+        .sort(popularityComparator)
+    : [];
+  if (exactTitleYearMatches.length > 0) return exactTitleYearMatches[0];
+
+  const scoredMatches = results
+    .map((movie) => {
+      const normalizedMovieTitle = normalizeTitle(movie.title);
+      const titleExact = normalizedMovieTitle === normalizedTarget;
+      const titleOverlap =
+        titleExact ||
+        normalizedMovieTitle.includes(normalizedTarget) ||
+        normalizedTarget.includes(normalizedMovieTitle);
+
+      if (!titleOverlap) return null;
+
+      const movieYear = movie.year;
+      const yearDiff =
+        hasTargetYear && typeof movieYear === "number" && Number.isFinite(movieYear)
+          ? Math.abs(movieYear - (targetYear as number))
+          : null;
+
+      let score = 0;
+      score += titleExact ? 60 : 35;
+
+      if (yearDiff !== null) {
+        if (yearDiff === 0) score += 40;
+        else if (yearDiff === 1) score += 25;
+        else if (yearDiff === 2) score += 10;
+        else if (yearDiff <= 4) score += 5;
+      }
+
+      score += Math.min((movie.popularity ?? 0) / 5, 20);
+      score += Math.min((movie.voteCount ?? 0) / 500, 10);
+
+      return { movie, score };
+    })
+    .flatMap((entry) => (entry ? [entry] : []))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        popularityComparator(a.movie, b.movie)
+    );
+
+  if (scoredMatches.length > 0) {
+    return scoredMatches[0].movie;
+  }
+
+  return [...results].sort(popularityComparator)[0];
+};
+
+const findBestTmdbMatch = async (title: string, year: number) => {
+  const hasYear = Number.isFinite(year);
+
+  const searchPipelines: Array<() => Promise<Movie[]>> = [];
+
+  if (hasYear) {
+    searchPipelines.push(() => searchMoviesWithYear(title, year));
+  }
+
+  searchPipelines.push(() => searchMoviesOnly(`${title} ${hasYear ? year : ""}`.trim()));
+  searchPipelines.push(() => searchMoviesOnly(title));
+
+  for (let i = 0; i < searchPipelines.length; i++) {
+    const results = await searchPipelines[i]();
+    const match = pickBestMatch(results, title, hasYear ? year : undefined);
+    if (match) {
+      return { match, usedFallback: i > 0 };
+    }
+  }
+
+  return { match: null, usedFallback: searchPipelines.length > 1 };
+};
 
 export async function searchBooksAction(query: string): Promise<Book[]> {
   if (!query.trim()) return [];
@@ -31,6 +144,111 @@ export async function searchSeriesAction(query: string): Promise<Movie[]> {
 export async function searchMultiAction(query: string): Promise<Movie[]> {
   if (!query.trim()) return [];
   return await searchMoviesAndTv(query);
+}
+
+export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvImportResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      status: "error",
+      title: row.title,
+      year: row.year,
+      letterboxdUri: row.letterboxdUri || null,
+      reason: "Not authenticated",
+    };
+  }
+
+  const title = row.title?.trim();
+  const parsedYear = Number(row.year);
+  const year = Number.isFinite(parsedYear) ? parsedYear : NaN;
+
+  if (!title || Number.isNaN(year)) {
+    return {
+      status: "error",
+      title: title || row.title || "",
+      year: Number.isNaN(year) ? 0 : year,
+      letterboxdUri: row.letterboxdUri || null,
+      reason: "Missing title or year",
+    };
+  }
+
+  try {
+    const { match, usedFallback } = await findBestTmdbMatch(title, year);
+
+    if (!match) {
+      return {
+        status: "not_found",
+        title,
+        year,
+        letterboxdUri: row.letterboxdUri || null,
+        reason: usedFallback
+          ? "No TMDB match found after title+year and title-only search"
+          : "No TMDB match found",
+      };
+    }
+
+    const now = new Date();
+    const parsedWatched = row.watchedDate ? new Date(row.watchedDate) : null;
+    const watchedDate = parsedWatched && !Number.isNaN(parsedWatched.getTime()) ? parsedWatched : now;
+
+    const existing = await db
+      .select()
+      .from(userMovies)
+      .where(
+        and(
+          eq(userMovies.userId, session.user.id),
+          eq(userMovies.movieId, match.id),
+          eq(userMovies.mediaType, "movie")
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db
+        .update(userMovies)
+        .set({
+          watched: true,
+          watchedDate,
+          updatedAt: now,
+        })
+        .where(eq(userMovies.id, existing[0].id));
+    } else {
+      await db.insert(userMovies).values({
+        id: crypto.randomUUID(),
+        userId: session.user.id,
+        movieId: match.id,
+        mediaType: "movie",
+        watched: true,
+        watchedDate,
+        liked: false,
+        watchlist: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    // Keep profile data fresh
+    revalidatePath("/profile");
+
+    return {
+      status: existing.length > 0 ? "updated" : "imported",
+      title,
+      year,
+      tmdbId: match.id,
+      watchedDate: watchedDate.toISOString(),
+      letterboxdUri: row.letterboxdUri || null,
+    };
+  } catch (error) {
+    console.error("Import watched movie error:", error);
+    return {
+      status: "error",
+      title: row.title,
+      year: row.year,
+      letterboxdUri: row.letterboxdUri || null,
+      reason: "Unexpected error while importing",
+    };
+  }
 }
 
 // Auth Actions
@@ -521,8 +739,14 @@ export async function getUserMediaAction(
       const userMoviesData = await db
         .select()
         .from(userMovies)
-        .where(and(...conditions))
-        .orderBy(desc(userMovies.createdAt));
+        .where(and(...conditions));
+
+      const toMillis = (value?: Date | string | null) => {
+        if (!value) return 0;
+        const date = value instanceof Date ? value : new Date(value);
+        const time = date.getTime();
+        return Number.isNaN(time) ? 0 : time;
+      };
       
       // Fetch full movie/TV data from TMDB
       const movies: Movie[] = (
@@ -533,20 +757,31 @@ export async function getUserMediaAction(
               userMovie.mediaType as "movie" | "tv"
             );
             if (!movie) return null;
+
+            const watchedDateMs = userMovie.watched ? toMillis(userMovie.watchedDate) : 0;
+            const updatedMs = toMillis(userMovie.updatedAt) || toMillis(userMovie.createdAt);
+            const sortMs = userMovie.watched
+              ? watchedDateMs || updatedMs
+              : updatedMs || watchedDateMs;
             
-            // Merge user-specific data
             return {
-              ...movie,
-              watched: userMovie.watched ?? false,
-              liked: userMovie.liked ?? false,
-              watchlist: userMovie.watchlist ?? false,
-              watchedDate: userMovie.watchedDate
-                ? userMovie.watchedDate.toISOString()
-                : undefined,
-            } as Movie;
+              sortMs,
+              movie: {
+                ...movie,
+                watched: userMovie.watched ?? false,
+                liked: userMovie.liked ?? false,
+                watchlist: userMovie.watchlist ?? false,
+                watchedDate: userMovie.watchedDate
+                  ? userMovie.watchedDate.toISOString()
+                  : undefined,
+              } as Movie,
+            };
           })
         )
-      ).flatMap((movie) => (movie ? [movie] : []));
+      )
+        .flatMap((entry) => (entry ? [entry] : []))
+        .sort((a, b) => b.sortMs - a.sortMs)
+        .map((entry) => entry.movie);
 
       return { movies };
     }
