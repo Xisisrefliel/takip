@@ -2,16 +2,40 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Environment Setup
+
+Create a `.env.local` file in the root directory with the following environment variables:
+
+```env
+# TMDB API Configuration (required for movie/TV data)
+# Get your free API key from: https://www.themoviedb.org/settings/api
+TMDB_API_KEY=your_tmdb_api_key_here
+
+# Hardcover API Configuration (required for book data)
+# Get your API key from: https://hardcover.app/developers
+HARDCOVER_API_KEY=your_hardcover_api_key_here
+
+# NextAuth Configuration (required for authentication)
+NEXTAUTH_SECRET=your_nextauth_secret_here
+NEXTAUTH_URL=http://localhost:3000
+
+# Database Configuration (required for data persistence)
+DATABASE_URL=your_database_url_here
+```
+
+### Running the Development Server
+
+First, install dependencies and run the database migrations:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run db:migrate
+```
+
+Then start the development server:
+
+```bash
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

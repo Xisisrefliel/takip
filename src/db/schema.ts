@@ -63,6 +63,13 @@ export const userMovies = pgTable("user_movies", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   movieId: text("movieId").notNull(),
+  title: text("title"),
+  year: integer("year"),
+  runtime: integer("runtime"),
+  posterUrl: text("posterUrl"),
+  genres: text("genres"),
+  cast: text("cast"),
+  crew: text("crew"),
   mediaType: mediaTypeEnum("mediaType").notNull(),
   watched: boolean("watched").default(false),
   watchedDate: timestamp("watchedDate", { withTimezone: true, mode: "date" }),

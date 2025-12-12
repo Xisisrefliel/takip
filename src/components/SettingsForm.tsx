@@ -21,6 +21,12 @@ type SettingsFormProps = {
   initialRegion: string;
 };
 
+type EnhancedImportRow = CsvImportRow & {
+  watchedDatePriority: number;
+  ratingPriority: number;
+  sources: Set<string>;
+};
+
 export function SettingsForm({ initialName, initialEmail, initialRegion }: SettingsFormProps) {
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
@@ -73,61 +79,217 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
       .map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'));
   };
 
-  const parseCsvText = (text: string): CsvImportRow[] => {
-    const rows: CsvImportRow[] = [];
+  const normalizeHeader = (header: string) => header.toLowerCase().replace(/\s+/g, " ").trim();
+
+  const detectFileType = (headers: string[], fileName: string) => {
+    const lowerName = fileName.toLowerCase();
+    const hasWatchedDate = headers.some((h) => h.includes("watched date"));
+    const hasRewatch = headers.some((h) => h.includes("rewatch"));
+    const hasRating = headers.some((h) => h === "rating");
+
+    if (hasWatchedDate || hasRewatch) return "diary";
+    if (lowerName.includes("ratings")) return "ratings";
+    if (lowerName.includes("watchlist")) return "watchlist";
+    if (lowerName.includes("watched")) return "watched";
+    if (hasRating) return "ratings";
+    return "generic";
+  };
+
+  const parseCsvText = (text: string, fileName: string): EnhancedImportRow[] => {
+    const rows: EnhancedImportRow[] = [];
     const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
 
     if (!lines.length) return rows;
 
-    const headers = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
-    const dateIdx = headers.findIndex((h) => h.includes("date"));
-    const nameIdx = headers.findIndex((h) => h.includes("name"));
-    const yearIdx = headers.findIndex((h) => h.includes("year"));
-    const uriIdx = headers.findIndex((h) => h.includes("letterboxd"));
+    const headersRaw = splitCsvLine(lines[0]);
+    const headers = headersRaw.map(normalizeHeader);
+    const fileType = detectFileType(headers, fileName);
 
-    const safeDateIdx = dateIdx === -1 ? 0 : dateIdx;
-    const safeNameIdx = nameIdx === -1 ? 1 : nameIdx;
-    const safeYearIdx = yearIdx === -1 ? 2 : yearIdx;
-    const safeUriIdx = uriIdx === -1 ? 3 : uriIdx;
+    const idxOf = (needle: string, fallback?: number) => {
+      const idx = headers.findIndex((h) => h.includes(needle));
+      return idx === -1 && fallback !== undefined ? fallback : idx;
+    };
+
+    const dateIdx = idxOf("watched date", idxOf("date", 0));
+    const loggedDateIdx = idxOf("date", 0);
+    const nameIdx = idxOf("name", 1);
+    const yearIdx = idxOf("year", 2);
+    const uriIdx = idxOf("letterboxd", 3);
+    const ratingIdxRaw = idxOf("rating");
+    const ratingIdxFallback = headers.findIndex((h) => h.endsWith("rating"));
+    const ratingIdx = ratingIdxRaw >= 0 ? ratingIdxRaw : ratingIdxFallback >= 0 ? ratingIdxFallback : -1;
+    const rewatchIdx = idxOf("rewatch");
+
+    const parseRating = (value?: string) => {
+      if (!value) return null;
+      const num = Number(value);
+      return Number.isNaN(num) ? null : num;
+    };
+
+    const buildRow = (cells: string[]): EnhancedImportRow | null => {
+      const title = (cells[nameIdx] || "").trim();
+      const year = Number(cells[yearIdx]);
+      if (!title || Number.isNaN(year)) return null;
+
+      const letterboxdUri = cells[uriIdx]?.trim() || "";
+
+      if (fileType === "diary") {
+        const watchedDateCell = cells[dateIdx]?.trim() || cells[loggedDateIdx]?.trim() || "";
+        const watchedDatePriority = cells[dateIdx] ? 3 : 2;
+        const ratingValue = ratingIdx >= 0 ? parseRating(cells[ratingIdx]) : null;
+        const rewatchValue =
+          typeof rewatchIdx === "number" && rewatchIdx >= 0
+            ? /^y(es)?$/i.test((cells[rewatchIdx] || "").trim())
+            : undefined;
+
+        return {
+          title,
+          year,
+          watchedDate: watchedDateCell || null,
+          watchedDatePriority,
+          rating: ratingValue,
+          ratingPriority: ratingValue === null ? -1 : 2,
+          watchlist: false,
+          watched: true,
+          rewatch: rewatchValue,
+          letterboxdUri: letterboxdUri || null,
+          source: "diary",
+          sources: new Set(["diary"]),
+        };
+      }
+
+      if (fileType === "ratings") {
+        const watchedDateCell = cells[loggedDateIdx]?.trim() || "";
+        const ratingValue = ratingIdx >= 0 ? parseRating(cells[ratingIdx]) : null;
+        return {
+          title,
+          year,
+          watchedDate: watchedDateCell || null,
+          watchedDatePriority: watchedDateCell ? 1 : 0,
+          rating: ratingValue,
+          ratingPriority: ratingValue === null ? -1 : 1,
+          watchlist: false,
+          watched: true,
+          letterboxdUri: letterboxdUri || null,
+          source: "ratings",
+          sources: new Set(["ratings"]),
+        };
+      }
+
+      if (fileType === "watchlist") {
+        return {
+          title,
+          year,
+          watchedDate: null,
+          watchedDatePriority: -1,
+          rating: null,
+          ratingPriority: -1,
+          watchlist: true,
+          watched: false,
+          letterboxdUri: letterboxdUri || null,
+          source: "watchlist",
+          sources: new Set(["watchlist"]),
+        };
+      }
+
+      const watchedDateCell = cells[loggedDateIdx]?.trim() || "";
+      return {
+        title,
+        year,
+        watchedDate: watchedDateCell || null,
+        watchedDatePriority: watchedDateCell ? 1 : 0,
+        rating: null,
+        ratingPriority: -1,
+        watchlist: false,
+        watched: true,
+        letterboxdUri: letterboxdUri || null,
+        source: fileType,
+        sources: new Set([fileType]),
+      };
+    };
 
     lines.slice(1).forEach((line) => {
       const cells = splitCsvLine(line);
-      const title = (cells[safeNameIdx] || "").trim();
-      const year = Number(cells[safeYearIdx]);
-
-      if (!title || Number.isNaN(year)) return;
-
-      const watchedDateRaw = cells[safeDateIdx]?.trim() || "";
-      const letterboxdUri = cells[safeUriIdx]?.trim() || "";
-
-      rows.push({
-        title,
-        year,
-        watchedDate: watchedDateRaw || null,
-        letterboxdUri: letterboxdUri || null,
-      });
+      const parsed = buildRow(cells);
+      if (parsed) rows.push(parsed);
     });
 
     return rows;
   };
 
+  const mergeRows = (existing: EnhancedImportRow, incoming: EnhancedImportRow): EnhancedImportRow => {
+    const sources = new Set([...(existing.sources ?? []), ...(incoming.sources ?? [])]);
+
+    const watchedDatePriority = Math.max(existing.watchedDatePriority, incoming.watchedDatePriority);
+    const watchedDate =
+      incoming.watchedDate &&
+      incoming.watchedDatePriority >= existing.watchedDatePriority
+        ? incoming.watchedDate
+        : existing.watchedDate;
+
+    const ratingPriority = Math.max(existing.ratingPriority, incoming.ratingPriority);
+    const rating =
+      incoming.rating !== null &&
+      incoming.rating !== undefined &&
+      incoming.ratingPriority >= existing.ratingPriority
+        ? incoming.rating
+        : existing.rating ?? null;
+
+    const letterboxdUri = incoming.letterboxdUri || existing.letterboxdUri || null;
+
+    return {
+      ...existing,
+      ...incoming,
+      watchedDate,
+      watchedDatePriority,
+      rating,
+      ratingPriority,
+      watched: (existing.watched ?? false) || (incoming.watched ?? false),
+      watchlist: Boolean(existing.watchlist) || Boolean(incoming.watchlist),
+      letterboxdUri,
+      sources,
+      source: Array.from(sources).join(", "),
+    };
+  };
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-    const text = await file.text();
-    const rows = parseCsvText(text);
+    const aggregated = new Map<string, EnhancedImportRow>();
 
-    setImportFileName(file.name);
-    setImportRows(rows);
+    for (const file of Array.from(files)) {
+      const text = await file.text();
+      const rows = parseCsvText(text, file.name);
+      rows.forEach((row) => {
+        const key = `${row.title.toLowerCase()}-${row.year}`;
+        const existing = aggregated.get(key);
+        aggregated.set(key, existing ? mergeRows(existing, row) : row);
+      });
+    }
+
+    const mergedRows: CsvImportRow[] = Array.from(aggregated.values()).map((row) => ({
+      title: row.title,
+      year: row.year,
+      watchedDate: row.watchedDate || null,
+      letterboxdUri: row.letterboxdUri || null,
+      rating: row.rating ?? null,
+      watchlist: row.watchlist ?? false,
+      watched: row.watched ?? false,
+      rewatch: row.rewatch,
+      source: row.source,
+    }));
+
+    setImportFileName(files.length === 1 ? files[0].name : `${files.length} files`);
+    setImportRows(mergedRows);
     setImportLog([]);
     setImportStatusMessage(
-      rows.length
-        ? `Ready to import ${rows.length} movies from CSV`
-        : "No rows detected in this CSV"
+      mergedRows.length
+        ? `Ready to import ${mergedRows.length} unique movies from ${files.length} file${files.length > 1 ? "s" : ""}`
+        : "No rows detected in these files"
     );
     setImportProgress({
-      total: rows.length,
+      total: mergedRows.length,
       done: 0,
       success: 0,
       errors: 0,
@@ -204,7 +366,20 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
       {/* Identity Section */}
       <section className="space-y-4">
         <h3 className="text-sm font-medium text-foreground">Profile</h3>
-        <div className="space-y-4">
+        <div
+          className="space-y-4"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            textAlign: "left",
+            verticalAlign: "middle",
+            borderColor: "transparent",
+            borderImage: "none",
+            borderStyle: "none",
+          }}
+        >
           <div className="grid gap-1.5">
             <label className="text-xs font-medium text-foreground/60 ml-1">
               Display Name
@@ -294,16 +469,16 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
       </section>
 
       {/* Data Import Section */}
-      <section className="space-y-4 rounded-2xl border border-border/40 bg-gradient-to-br from-foreground/5 via-foreground/0 to-emerald-400/10 p-4 sm:p-6 shadow-[0_20px_70px_-40px_rgba(16,185,129,0.45)]">
+      <section className="space-y-4 rounded-2xl border border-border/40 bg-background/60 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h3 className="text-sm font-medium text-foreground">Letterboxd CSV import</h3>
             <p className="text-xs text-foreground/60 leading-relaxed">
-              Drop your export (Date, Name, Year, Letterboxd URI). We will search TMDB by title +
-              year and mark them watched.
+              Drop Diary, Ratings, Watched, or Watchlist CSVs. We merge them, prefer the Diary
+              watched date when present, and sync watched status, ratings, and watchlists.
             </p>
           </div>
-          <span className="rounded-full bg-foreground/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/70">
+          <span className="rounded-full border border-border/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/70">
             Beta
           </span>
         </div>
@@ -313,6 +488,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
             <input
               type="file"
               accept=".csv,text/csv"
+              multiple
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               onChange={handleFileChange}
               disabled={isImporting}
@@ -346,27 +522,27 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
         </div>
 
         {importProgress.total > 0 && (
-          <div className="space-y-3 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4">
+          <div className="space-y-3 rounded-xl border border-border/40 bg-background/70 p-4">
             <div className="flex items-center justify-between text-xs text-foreground/70">
               <span>Progress</span>
               <span>
                 {importProgress.done}/{importProgress.total} • {progressPercent}%
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+            <div className="h-2 overflow-hidden rounded-full bg-border/50">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400 transition-[width] duration-300"
+                className="h-full rounded-full bg-foreground/70 transition-[width] duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
             <div className="grid gap-2 text-[11px] sm:grid-cols-3">
-              <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-emerald-500">
+              <div className="rounded-lg border border-border/50 px-3 py-2 text-foreground/80">
                 Imported {importProgress.success}
               </div>
-              <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-amber-500">
+              <div className="rounded-lg border border-border/50 px-3 py-2 text-foreground/80">
                 Not found {importProgress.skipped}
               </div>
-              <div className="rounded-lg bg-rose-500/10 px-3 py-2 text-rose-500">
+              <div className="rounded-lg border border-border/50 px-3 py-2 text-foreground/80">
                 Errors {importProgress.errors}
               </div>
             </div>
@@ -374,7 +550,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
         )}
 
         {Boolean(importLog.length) && (
-          <div className="max-h-56 space-y-2 overflow-auto rounded-xl border border-foreground/10 bg-background/60 p-3">
+          <div className="max-h-56 space-y-2 overflow-auto rounded-xl border border-border/40 bg-transparent p-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full">
             {importLog.map((entry, idx) => (
               <div
                 key={`${entry.tmdbId ?? entry.title}-${idx}`}
@@ -386,15 +562,16 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
                     <span className="text-foreground/50">({entry.year || "?"})</span>
                   </p>
                   {entry.reason && <p className="truncate text-foreground/50">{entry.reason}</p>}
+                  {entry.note && <p className="truncate text-foreground/50">{entry.note}</p>}
                 </div>
                 <span
                   className={cn(
-                    "whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide",
+                    "whitespace-nowrap rounded-full border border-border/50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground/70",
                     entry.status === "imported" || entry.status === "updated"
-                      ? "bg-emerald-500/15 text-emerald-500"
+                      ? ""
                       : entry.status === "not_found"
-                        ? "bg-amber-500/15 text-amber-500"
-                        : "bg-rose-500/15 text-rose-500"
+                        ? ""
+                        : ""
                   )}
                 >
                   {entry.status}

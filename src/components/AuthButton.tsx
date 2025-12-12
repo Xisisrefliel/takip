@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, BarChart3 } from "lucide-react";
 import { signOutAction } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -146,6 +146,15 @@ export function AuthButton() {
                     >
                       <User size={15} />
                       <span>Profile</span>
+                    </Link>
+
+                    <Link
+                      href="/stats"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                    >
+                      <BarChart3 size={15} />
+                      <span>Stats</span>
                     </Link>
 
                     <Link

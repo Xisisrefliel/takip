@@ -242,6 +242,11 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
 
   const { trailerKey, trailerUrl } = pickTrailer(item.videos?.results);
 
+  const safeVoteAverage =
+    typeof item.vote_average === "number" && Number.isFinite(item.vote_average)
+      ? Number(item.vote_average.toFixed(1))
+      : null;
+
   return {
     id: item.id.toString(),
     title,
@@ -253,7 +258,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     backdropUrl: backdropPath
       ? `${TMDB_IMAGE_BASE_URL_ORIGINAL}${backdropPath}`
       : undefined,
-    rating: Number(item.vote_average.toFixed(1)),
+    rating: safeVoteAverage,
     voteCount: item.vote_count,
     popularity: item.popularity,
     genre: genreList.slice(0, 3),

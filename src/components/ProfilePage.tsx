@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMedia } from "@/context/MediaContext";
 import { MovieCard } from "@/components/MovieCard";
 import { BookCard } from "@/components/BookCard";
@@ -129,6 +129,20 @@ export function ProfilePage() {
       : (tabContent as Movie[]).filter((item) =>
           mediaFilter === "all" ? true : item.mediaType === mediaFilter
         );
+
+  const PAGE_SIZE = 60;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    // reset pagination when tab/filter/contentType changes
+    setVisibleCount(PAGE_SIZE);
+  }, [activeTab, mediaFilter, contentType]);
+
+  const visibleContent = useMemo(
+    () => content.slice(0, visibleCount),
+    [content, visibleCount]
+  );
+
+  const enableAnimations = visibleContent.length <= 120;
 
   return (
     <div className="min-h-screen pb-20 pt-8 sm:pt-12">
@@ -305,17 +319,17 @@ export function ProfilePage() {
         ) : (
           <>
             <motion.div
-              layout
+              layout={enableAnimations}
               className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6"
             >
-                {content.map((item) => (
+                {visibleContent.map((item) => (
                   <motion.div
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
-                    style={{ willChange: "transform, opacity" }}
+                    layout={enableAnimations}
+                    initial={enableAnimations ? { opacity: 0, scale: 0.9 } : false}
+                    animate={enableAnimations ? { opacity: 1, scale: 1 } : false}
+                    exit={enableAnimations ? { opacity: 0, scale: 0.9 } : false}
+                    transition={enableAnimations ? { duration: 0.2 } : undefined}
+                    style={{ willChange: enableAnimations ? "transform, opacity" : undefined }}
                     key={item.id}
                   >
                     {contentType === "movies" ? (
@@ -326,6 +340,17 @@ export function ProfilePage() {
                   </motion.div>
                 ))}
             </motion.div>
+
+            {visibleCount < content.length && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, content.length))}
+                  className="px-4 py-2 text-sm font-semibold rounded-full border border-border/60 bg-background hover:bg-background/70 transition"
+                >
+                  Load more ({Math.max(content.length - visibleCount, 0)} left)
+                </button>
+              </div>
+            )}
 
             {content.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/30 px-4">
