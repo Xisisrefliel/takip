@@ -248,14 +248,14 @@ function RecentGrid({
           : null;
         const dateLabel = watchedDate
           ? watchedDate.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })
+            month: "short",
+            day: "numeric",
+          })
           : "No date";
         return (
           <div
             key={`${item.id}-${item.watchedDate ?? idx}`}
-            className="snap-start min-w-[180px] w-[180px] sm:min-w-[210px] sm:w-[210px] md:min-w-[240px] md:w-[240px]"
+            className="snap-start min-w-[180px] w-[180px] sm:min-w-[210px] sm:w-[210px] md:min-w-60 md:w-60"
           >
             <div className="relative overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-white/5 shadow-lg shadow-black/5">
               <div className="aspect-2/3 w-full">
