@@ -19,7 +19,7 @@ function PeopleGrid({ data }: Props) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: idx * 0.05 }}
-          className="flex items-center gap-5 rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl px-5 py-5"
+          className="flex items-center gap-5 rounded-xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 px-5 py-5"
         >
           <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-black/10 dark:border-white/10">
             {person.profilePath ? (
@@ -29,6 +29,7 @@ function PeopleGrid({ data }: Props) {
                 width={96}
                 height={96}
                 className="h-full w-full object-cover"
+                sizes="96px"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-black/5 dark:bg-white/5">

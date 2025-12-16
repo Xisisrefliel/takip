@@ -19,7 +19,7 @@ export function StatsCard({ title, subtitle, icon, children, className }: Props)
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
       className={cn(
-  "flex h-full w-full flex-col gap-6 rounded-2xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 p-6 sm:p-8",
+        "flex h-full w-full flex-col gap-6 rounded-2xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 p-6 sm:p-8",
         className
       )}
     >

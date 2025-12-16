@@ -19,7 +19,7 @@ const shades = [
   "#8a8a8a",
 ];
 
-const renderTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+const renderTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload as GenreStat;
   return (
@@ -63,7 +63,7 @@ export function GenreChart({ data }: Props) {
         {trimmed.map((g, idx) => (
           <span
             key={g.name}
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl px-2.5 py-1"
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-2.5 py-1"
           >
             <span className="h-2 w-2 rounded-full bg-foreground/60 shrink-0" style={{ opacity: 1 - (idx * 0.1) }} />
             <span className="whitespace-nowrap">{g.name} ({g.count})</span>

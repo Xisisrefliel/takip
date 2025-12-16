@@ -89,84 +89,90 @@ export default async function StatsPage() {
               )}
             </div>
 
-            <div className="mt-12 grid grid-cols-1 gap-10 xl:grid-cols-3 h-fit">
+            <div className="mt-12 columns-1 xl:columns-2 gap-6">
               {stats.filmsByYear && stats.filmsByYear.length > 0 && (
-                <StatsCard
-                  title="Films by year"
-                  subtitle="Peaks, droughts, and new eras"
-                  icon={<BarChart3 className="h-4 w-4" />}
-                  className="w-full xl:col-span-2"
-                >
-                  <FilmsByYearChart data={stats.filmsByYear} />
-                </StatsCard>
+                <div className="break-inside-avoid mb-6 [column-span:all]">
+                  <StatsCard
+                    title="Films by year"
+                    subtitle="Peaks, droughts, and new eras"
+                    icon={<BarChart3 className="h-4 w-4" />}
+                  >
+                    <FilmsByYearChart data={stats.filmsByYear} />
+                  </StatsCard>
+                </div>
               )}
 
               {stats.genres && stats.genres.length > 0 && (
-                <StatsCard
-                  title="Genre gravity"
-                  subtitle="Where you keep orbiting"
-                  icon={<Globe2 className="h-4 w-4" />}
-                  className="w-full h-fit"
-                >
-                  <GenreChart data={stats.genres} />
-                </StatsCard>
+                <div className="break-inside-avoid mb-6">
+                  <StatsCard
+                    title="Genre gravity"
+                    subtitle="Where you keep orbiting"
+                    icon={<Globe2 className="h-4 w-4" />}
+                    className="h-fit"
+                  >
+                    <GenreChart data={stats.genres} />
+                  </StatsCard>
+                </div>
               )}
-            </div>
 
-            <div className="mt-12 grid grid-cols-1 gap-10 xl:grid-cols-2">
               {stats.ratings && stats.ratings.length > 0 && (
-                <StatsCard
-                  title="Rating fingerprint"
-                  subtitle="How generous are you?"
-                  icon={<Gauge className="h-4 w-4" />}
-                >
-                  <RatingDistribution data={stats.ratings} />
-                </StatsCard>
+                <div className="break-inside-avoid mb-6">
+                  <StatsCard
+                    title="Rating fingerprint"
+                    subtitle="How generous are you?"
+                    icon={<Gauge className="h-4 w-4" />}
+                  >
+                    <RatingDistribution data={stats.ratings} />
+                  </StatsCard>
+                </div>
               )}
-            </div>
 
-            <div className="mt-12 grid grid-cols-2 grid-rows-1 gap-8">
               {stats.actors && stats.actors.length > 0 && (
-                <StatsCard
-                  title="Most watched cast"
-                  subtitle="Faces that recur in your watch history"
-                  icon={<Users className="h-4 w-4" />}
-                >
-                  <TopActorsGrid data={stats.actors} />
-                </StatsCard>
+                <div className="break-inside-avoid mb-6">
+                  <StatsCard
+                    title="Most watched cast"
+                    subtitle="Faces that recur in your watch history"
+                    icon={<Users className="h-4 w-4" />}
+                  >
+                    <TopActorsGrid data={stats.actors} />
+                  </StatsCard>
+                </div>
               )}
 
               {stats.directors && stats.directors.length > 0 && (
-                <StatsCard
-                  title="Directors you gravitate toward"
-                  subtitle="Creative signatures you chase"
-                  icon={<Layers className="h-4 w-4" />}
-                >
-                  <TopDirectorsGrid data={stats.directors} />
-                </StatsCard>
+                <div className="break-inside-avoid mb-6">
+                  <StatsCard
+                    title="Directors you gravitate toward"
+                    subtitle="Creative signatures you chase"
+                    icon={<Layers className="h-4 w-4" />}
+                  >
+                    <TopDirectorsGrid data={stats.directors} />
+                  </StatsCard>
+                </div>
               )}
-            </div>
 
-            <div className="mt-12 grid grid-cols-1 gap-10 xl:grid-cols-3">
               {stats.decades && stats.decades.length > 0 && (
-                <StatsCard
-                  title="Decade affinity"
-                  subtitle="Where your taste clusters"
-                  icon={<Sparkles className="h-4 w-4" />}
-                  className="w-full xl:col-span-2 h-fit"
-                >
-                  <DecadeChips data={stats.decades} />
-                </StatsCard>
+                <div className="break-inside-avoid mb-6">
+                  <StatsCard
+                    title="Decade affinity"
+                    subtitle="Where your taste clusters"
+                    icon={<Sparkles className="h-4 w-4" />}
+                    className="h-fit"
+                  >
+                    <DecadeChips data={stats.decades} />
+                  </StatsCard>
+                </div>
               )}
 
-              <StatsCard
-                title="Energy lately"
-                subtitle="Snapshot of your recent pace"
-                icon={<FlameKindling className="h-4 w-4" />}
-                className="w-full"
-              >
-                <PulseCard stats={stats} />
-              </StatsCard>
+              <div className="break-inside-avoid mb-6">
+                <StatsCard
+                  title="Energy lately"
+                  subtitle="Snapshot of your recent pace"
+                  icon={<FlameKindling className="h-4 w-4" />}
+                >
+                  <PulseCard stats={stats} />
+                </StatsCard>
+              </div>
             </div>
           </>
         )}
@@ -190,9 +196,6 @@ function Hero({
           <p className="text-xs uppercase tracking-[0.35em] text-foreground/50">
             Cinematic fingerprint
           </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-            Your stats, but cinematic
-          </h1>
           <p className="max-w-xl text-base text-foreground/60 leading-relaxed">
             Live graphs, TMDB posters, and cast pulls that shimmer in a layout
             that adapts to what data you have.
@@ -298,7 +301,7 @@ function DecadeChips({
       {data.map((decade) => (
         <span
           key={decade.decade}
-          className="inline-flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl px-4 py-2 text-xs text-foreground/70"
+          className="inline-flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-2 text-xs text-foreground/70"
         >
           <span className="h-2 w-2 rounded-full bg-foreground/40" />
           {decade.decade} · {decade.count}
@@ -317,11 +320,11 @@ function PulseCard({
   const lastSeven = stats.recent?.slice(0, 7).length ?? 0;
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl p-5">
+      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 px-5 py-5">
         <p className="text-xs text-foreground/50 mb-2">Entries pulled</p>
         <p className="text-3xl font-semibold text-foreground">{recentCount}</p>
       </div>
-      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl p-5">
+      <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 px-5 py-5">
         <p className="text-xs text-foreground/50 mb-2">Past 7 items</p>
         <p className="text-3xl font-semibold text-foreground">{lastSeven}</p>
       </div>
@@ -331,7 +334,7 @@ function PulseCard({
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-foreground/60">
+    <span className="rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-foreground/60">
       {children}
     </span>
   );
