@@ -245,7 +245,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
   const safeVoteAverage =
     typeof item.vote_average === "number" && Number.isFinite(item.vote_average)
       ? Number(item.vote_average.toFixed(1))
-      : null;
+      : undefined;
 
   return {
     id: item.id.toString(),
@@ -320,8 +320,18 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
     movie.trailerUrl = trailerUrl;
     movie.recommendations = (data.recommendations?.results || [])
       .filter((rec: TMDBMovie) => rec.id !== data.id)
-      .map((item: TMDBMovie) => mapTmdbToMovie(item, 'movie'))
+      .map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"))
       .slice(0, 16);
+
+    if (data.belongs_to_collection && typeof data.belongs_to_collection.id === "number") {
+      movie.collection = {
+        id: data.belongs_to_collection.id,
+        name: data.belongs_to_collection.name,
+      };
+      const collectionMovies = await getCollectionById(String(data.belongs_to_collection.id));
+      movie.collectionMovies = collectionMovies.filter(m => m.id !== id);
+    }
+
     return movie;
   } catch (error) {
     console.error(`Error fetching movie ${id}:`, error);
@@ -607,6 +617,50 @@ export const searchTvSeries = async (query: string): Promise<Movie[]> => {
       .sort((a: Movie, b: Movie) => (b.popularity || 0) - (a.popularity || 0));
   } catch (error) {
     console.error("Error searching tv series:", error);
+    return [];
+  }
+};
+
+export const getCollectionById = async (collectionId: string): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB(`/collection/${collectionId}`);
+    if (!data?.parts) return [];
+
+    const collectionMovies: Movie[] = [];
+
+    for (const part of data.parts) {
+      if (typeof part.id !== "number") continue;
+
+      const movie: Movie = {
+        id: String(part.id),
+        title: part.title || "Unknown Title",
+        year: part.release_date ? new Date(part.release_date).getFullYear() : 0,
+        releaseDate: part.release_date || undefined,
+        posterUrl: part.poster_path
+          ? `${TMDB_IMAGE_BASE_URL_W500}${part.poster_path}`
+          : "/placeholder.jpg",
+        backdropUrl: part.backdrop_path
+          ? `${TMDB_IMAGE_BASE_URL_ORIGINAL}${part.backdrop_path}`
+          : undefined,
+        rating: typeof part.vote_average === "number" ? Number(part.vote_average.toFixed(1)) : undefined,
+        overview: part.overview || undefined,
+        popularity: part.popularity || undefined,
+        genre: [],
+        mediaType: "movie",
+      };
+
+      if (part.genre_ids && Array.isArray(part.genre_ids)) {
+        movie.genre = part.genre_ids.map((id: number) => GENRES[id]).filter(Boolean);
+      }
+
+      collectionMovies.push(movie);
+    }
+
+    return collectionMovies
+      .sort((a, b) => ((a.year ?? 0) - (b.year ?? 0)))
+      .filter(m => (m.year ?? 0) > 0);
+  } catch (error) {
+    console.error(`Error fetching collection ${collectionId}:`, error);
     return [];
   }
 };

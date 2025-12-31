@@ -51,6 +51,9 @@ export function DetailPoster({
         setWatched(!newValue); // Revert on error
       } else {
         router.refresh();
+        if (newValue) {
+          window.dispatchEvent(new CustomEvent('media-watched', { detail: { mediaId: item.id } }));
+        }
       }
     });
   };

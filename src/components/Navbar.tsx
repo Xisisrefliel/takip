@@ -66,7 +66,7 @@ export function Navbar() {
       setMediaType("books");
       setSearchType("books");
     } else if (pathname.startsWith("/tv/")) {
-      setMediaType("movies"); // Keep generic context as movies for now
+      setMediaType("movies");
       setSearchType("series");
     } else if (
       pathname === "/" ||

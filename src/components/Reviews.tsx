@@ -43,7 +43,23 @@ export function Reviews({
     setSessionUserId(sessionUserIdProp);
   }, [sessionUserIdProp]);
 
+  useEffect(() => {
+    const handleMediaWatched = () => {
+      setShowForm(true);
+    };
+
+    window.addEventListener('media-watched', handleMediaWatched);
+    return () => {
+      window.removeEventListener('media-watched', handleMediaWatched);
+    };
+  }, []);
+
   const handleFormSubmit = () => {
+    setShowForm(false);
+    setEditingReview(null);
+  };
+
+  const handleFormCancel = () => {
     setShowForm(false);
     setEditingReview(null);
   };
@@ -169,10 +185,7 @@ export function Reviews({
               mediaType={mediaType}
               episodeId={episodeId}
               existingReview={editingReview || undefined}
-              onCancel={() => {
-                setShowForm(false);
-                setEditingReview(null);
-              }}
+              onCancel={handleFormCancel}
               onSuccess={handleFormSubmit}
               compact={compact}
             />

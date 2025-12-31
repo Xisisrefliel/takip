@@ -6,6 +6,7 @@ import {
   primaryKey,
   boolean,
   timestamp,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 const mediaTypeEnum = pgEnum("media_type", ["movie", "tv"]);
@@ -119,6 +120,20 @@ export const reviews = pgTable("reviews", {
   rating: integer("rating").notNull(), // 1-5 stars
   text: text("text"), // optional review text
   createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
+});
+
+export const userStats = pgTable("user_stats", {
+  userId: text("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  totals: jsonb("totals"),
+  filmsByYear: jsonb("filmsByYear"),
+  genres: jsonb("genres"),
+  decades: jsonb("decades"),
+  ratings: jsonb("ratings"),
+  actors: jsonb("actors"),
+  directors: jsonb("directors"),
+  favorites: jsonb("favorites"),
+  recent: jsonb("recent"),
   updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });
 

@@ -18,6 +18,7 @@ import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema
 import * as schema from "@/db/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { DEFAULT_REGION, SUPPORTED_REGION_CODES } from "@/data/regions";
+import { invalidateUserStats } from "@/lib/stats-cache";
 
 export type CsvImportRow = {
   title: string;
@@ -294,6 +295,8 @@ export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvIm
         runtime: toNullableNumber(match.runtime),
         posterUrl: match.posterUrl || null,
         genres: match.genre?.length ? JSON.stringify(match.genre) : null,
+        cast: match.cast?.length ? JSON.stringify(match.cast) : null,
+        crew: match.crew?.length ? JSON.stringify(match.crew) : null,
       } satisfies UserMovieMetadata);
 
     const existing = await db
@@ -389,6 +392,7 @@ export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvIm
 
     // Keep profile data fresh
     revalidatePath("/profile");
+    invalidateUserStats(session.user.id);
 
     return {
       status: existing.length > 0 ? "updated" : "imported",
@@ -677,6 +681,7 @@ export async function toggleWatchedAction(
     // Revalidate pages that display movies
     revalidatePath("/");
     revalidatePath("/profile");
+    invalidateUserStats(userId);
 
     return { success: true };
   } catch (error) {
@@ -764,6 +769,7 @@ export async function toggleWatchlistAction(
     // Revalidate pages that display movies
     revalidatePath("/");
     revalidatePath("/profile");
+    invalidateUserStats(userId);
 
     return { success: true };
   } catch (error) {
@@ -851,6 +857,7 @@ export async function toggleLikedAction(
     // Revalidate pages that display movies
     revalidatePath("/");
     revalidatePath("/profile");
+    invalidateUserStats(userId);
 
     return { success: true };
   } catch (error) {
@@ -946,7 +953,7 @@ export async function getUserMediaAction(
           year: userMovie.year || 2024,
           posterUrl: userMovie.posterUrl || "/placeholder.jpg",
           backdropUrl: userMovie.posterUrl ? undefined : undefined,
-          rating: null,
+          rating: 0,
           voteCount: 0,
           popularity: 0,
           genre: userMovie.genres ? JSON.parse(userMovie.genres) : [],
@@ -1040,14 +1047,16 @@ export async function toggleEpisodeWatchedAction(
 
 export async function getUserMediaStatusAction(
   mediaId: string,
-  mediaType: "movie" | "tv" | "book"
+  mediaType: "movie" | "tv" | "book",
+  userId?: string
 ): Promise<{ watched: boolean; liked: boolean; watchlist: boolean }> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { watched: false, liked: false, watchlist: false };
+  if (!userId) {
+    const session = await auth();
+    userId = session?.user?.id;
+    if (!userId) {
+      return { watched: false, liked: false, watchlist: false };
+    }
   }
-
-  const userId = session.user.id;
 
   try {
     if (mediaType === "book") {
@@ -1361,6 +1370,7 @@ export async function createReviewAction(
     }
 
     revalidatePath("/");
+    invalidateUserStats(userId);
     return { success: true };
   } catch (error) {
     console.error("Create review error:", error);
@@ -1407,6 +1417,7 @@ export async function updateReviewAction(
       .where(eq(reviews.id, reviewId));
 
     revalidatePath("/");
+    invalidateUserStats(userId);
     return { success: true };
   } catch (error) {
     console.error("Update review error:", error);
@@ -1437,6 +1448,7 @@ export async function deleteReviewAction(reviewId: string) {
     await db.delete(reviews).where(eq(reviews.id, reviewId));
 
     revalidatePath("/");
+    invalidateUserStats(userId);
     return { success: true };
   } catch (error) {
     console.error("Delete review error:", error);

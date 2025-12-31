@@ -1,4 +1,8 @@
-import { getMediaById, getWatchProviders, type WatchProvidersByRegion } from "@/lib/tmdb";
+import {
+  getMediaById,
+  getWatchProviders,
+  type WatchProvidersByRegion,
+} from "@/lib/tmdb";
 import { getBookById } from "@/lib/hardcover";
 import Image from "next/image";
 import Link from "next/link";
@@ -95,7 +99,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
   // Get user media status
   const mediaStatus = await getUserMediaStatusAction(
     id,
-    mediaType === "book" ? "book" : (mediaType as "movie" | "tv")
+    mediaType === "book" ? "book" : (mediaType as "movie" | "tv"),
   );
 
   // Normalize fields for display
@@ -110,6 +114,9 @@ export default async function MediaDetailPage({ params }: PageProps) {
     !isBook(item) && item.mediaType === "tv" ? item.seasons : null;
   const recommendations =
     !isBook(item) && item.recommendations ? item.recommendations : [];
+  const collectionMovies =
+    !isBook(item) && item.collectionMovies ? item.collectionMovies : [];
+  const collectionName = !isBook(item) && item.collection ? item.collection.name : null;
 
   return (
     <main className="min-h-screen bg-background text-foreground relative pb-20">
@@ -138,7 +145,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
       <div className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-24 md:pt-32 pb-12">
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-12 items-start">
           {/* Poster Column */}
-          <div className="w-full max-w-[240px] mx-auto md:mx-0 md:w-[280px] lg:w-[350px] shrink-0 perspective-1000 space-y-4">
+          <div className="w-full max-w-60 mx-auto md:mx-0 md:w-[280px] lg:w-[350px] shrink-0 perspective-1000 space-y-4">
             <DetailPoster
               item={item}
               initialWatched={mediaStatus.watched}
@@ -265,13 +272,16 @@ export default async function MediaDetailPage({ params }: PageProps) {
             <div className="pt-8 border-t border-border">
               <Reviews
                 mediaId={id}
-                mediaType={mediaType === "book" ? undefined : (mediaType as "movie" | "tv")}
-            initialReviews={initialReviews}
-            initialUserReview={initialUserReview}
-            sessionUserId={session?.user?.id ?? null}
+                mediaType={
+                  mediaType === "book"
+                    ? undefined
+                    : (mediaType as "movie" | "tv")
+                }
+                initialReviews={initialReviews}
+                initialUserReview={initialUserReview}
+                sessionUserId={session?.user?.id ?? null}
               />
             </div>
-
           </div>
         </div>
       </div>
@@ -325,6 +335,21 @@ export default async function MediaDetailPage({ params }: PageProps) {
       {/* Images Section with blurred background (Movies/TV) */}
       {images && images.length > 0 && (
         <MediaVisuals images={images} mediaType={mediaType} />
+      )}
+
+      {/* Collection/Franchise Section */}
+      {!isBook(item) && collectionMovies.length > 0 && collectionName && (
+        <div className="container mx-auto px-4 sm:px-6 pb-8 sm:pb-12">
+          <Carousel title={`More in ${collectionName}`}>
+            {collectionMovies.map((movie) => (
+              <MovieCard
+                key={movie.id}
+                movie={movie}
+                className="shrink-0 w-36 sm:w-44 md:w-52 lg:w-56 snap-start"
+              />
+            ))}
+          </Carousel>
+        </div>
       )}
 
       {/* Recommendations - bottom of page */}

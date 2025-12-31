@@ -64,6 +64,8 @@ export interface Movie {
   numberOfSeasons?: number;
   numberOfEpisodes?: number;
   recommendations?: Movie[];
+  collection?: { id: number; name: string };
+  collectionMovies?: Movie[];
 }
 
 export interface WatchProvider {
