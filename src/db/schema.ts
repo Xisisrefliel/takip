@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 
 const mediaTypeEnum = pgEnum("media_type", ["movie", "tv"]);
@@ -78,7 +79,12 @@ export const userMovies = pgTable("user_movies", {
   watchlist: boolean("watchlist").default(false),
   createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
   updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (table) => [
+  index("idx_user_movies_user_watched").on(table.userId, table.watched),
+  index("idx_user_movies_user_watchlist").on(table.userId, table.watchlist),
+  index("idx_user_movies_user_liked").on(table.userId, table.liked),
+  index("idx_user_movies_user_id").on(table.userId),
+]);
 
 export const userBooks = pgTable("user_books", {
   id: text("id").primaryKey(),
@@ -92,7 +98,12 @@ export const userBooks = pgTable("user_books", {
   watchlist: boolean("watchlist").default(false),
   createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
   updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (table) => [
+  index("idx_user_books_user_watched").on(table.userId, table.watched),
+  index("idx_user_books_user_watchlist").on(table.userId, table.watchlist),
+  index("idx_user_books_user_liked").on(table.userId, table.liked),
+  index("idx_user_books_user_id").on(table.userId),
+]);
 
 export const userEpisodes = pgTable("user_episodes", {
   id: text("id").primaryKey(),
@@ -104,7 +115,10 @@ export const userEpisodes = pgTable("user_episodes", {
   watchedDate: timestamp("watchedDate", { withTimezone: true, mode: "date" }),
   createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
   updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (table) => [
+  index("idx_user_episodes_user_watched").on(table.userId, table.watched),
+  index("idx_user_episodes_user_id").on(table.userId),
+]);
 
 export const reviews = pgTable("reviews", {
   id: text("id").primaryKey(),
@@ -121,7 +135,9 @@ export const reviews = pgTable("reviews", {
   text: text("text"), // optional review text
   createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" }).defaultNow(),
   updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (table) => [
+  index("idx_reviews_user_id").on(table.userId),
+]);
 
 export const userStats = pgTable("user_stats", {
   userId: text("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),

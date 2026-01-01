@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMedia } from "@/context/MediaContext";
 import { MovieCard } from "@/components/MovieCard";
 import { BookCard } from "@/components/BookCard";
@@ -14,7 +14,40 @@ type Tab = "watched" | "watchlist" | "favorites";
 type MediaTypeFilter = "all" | "movie" | "tv";
 type ContentType = "movies" | "books";
 
-export function ProfilePage() {
+interface ProfilePageProps {
+  initialContentType?: ContentType;
+  initialMovies?: {
+    watched: Movie[];
+    watchlist: Movie[];
+    favorites: Movie[];
+  };
+  initialBooks?: {
+    watched: Book[];
+    watchlist: Book[];
+    favorites: Book[];
+  };
+}
+
+const SKELETON_COUNT = 12;
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+      {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+        <div key={i} className="animate-pulse">
+          <div className="aspect-2/3 bg-surface rounded-xl mb-2" />
+          <div className="h-3 bg-surface rounded w-3/4" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ProfilePage({ 
+  initialContentType = "movies", 
+  initialMovies,
+  initialBooks 
+}: ProfilePageProps) {
   const { mediaType: contentType, setMediaType: setContentType } = useMedia();
   const [activeTab, setActiveTab] = useState<Tab>("watched");
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
@@ -22,91 +55,73 @@ export function ProfilePage() {
   const [hoveredFilter, setHoveredFilter] = useState<MediaTypeFilter | null>(null);
   const [hoveredContentType, setHoveredContentType] = useState<ContentType | null>(null);
   
-  const [watchedMovies, setWatchedMovies] = useState<Movie[]>([]);
-  const [watchlistMovies, setWatchlistMovies] = useState<Movie[]>([]);
-  const [favoritesMovies, setFavoritesMovies] = useState<Movie[]>([]);
-  const [watchedBooks, setWatchedBooks] = useState<Book[]>([]);
-  const [watchlistBooks, setWatchlistBooks] = useState<Book[]>([]);
-  const [favoritesBooks, setFavoritesBooks] = useState<Book[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [watchedMovies, setWatchedMovies] = useState<Movie[]>(initialMovies?.watched || []);
+  const [watchlistMovies, setWatchlistMovies] = useState<Movie[]>(initialMovies?.watchlist || []);
+  const [favoritesMovies, setFavoritesMovies] = useState<Movie[]>(initialMovies?.favorites || []);
+  const [watchedBooks, setWatchedBooks] = useState<Book[]>(initialBooks?.watched || []);
+  const [watchlistBooks, setWatchlistBooks] = useState<Book[]>(initialBooks?.watchlist || []);
+  const [favoritesBooks, setFavoritesBooks] = useState<Book[]>(initialBooks?.favorites || []);
+  
+  const [isLoading, setIsLoading] = useState(!initialMovies && !initialBooks);
   const [error, setError] = useState<string | null>(null);
+  const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set([
+    `movies-watched`,
+    `movies-watchlist`,
+    `movies-favorites`,
+    `books-watched`,
+    `books-watchlist`,
+    `books-favorites`,
+  ].filter(key => {
+    if (initialContentType === "movies" && initialMovies) {
+      return key.startsWith("movies-");
+    }
+    if (initialContentType === "books" && initialBooks) {
+      return key.startsWith("books-");
+    }
+    return false;
+  })));
+
+  const fetchTabData = useCallback(async (type: ContentType, tab: Tab) => {
+    const key = `${type}-${tab}`;
+    if (loadedTabs.has(key)) return;
+    
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await getUserMediaAction(type, tab);
+      
+      if (result.error) {
+        setError(result.error);
+      } else if (type === "books" && result.books) {
+        if (tab === "watched") setWatchedBooks(result.books);
+        else if (tab === "watchlist") setWatchlistBooks(result.books);
+        else if (tab === "favorites") setFavoritesBooks(result.books);
+      } else if (result.movies) {
+        if (tab === "watched") setWatchedMovies(result.movies);
+        else if (tab === "watchlist") setWatchlistMovies(result.movies);
+        else if (tab === "favorites") setFavoritesMovies(result.movies);
+      }
+      
+      setLoadedTabs(prev => new Set([...prev, key]));
+    } catch (err) {
+      setError("Failed to load data");
+      console.error("Error fetching data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loadedTabs]);
 
   useEffect(() => {
-    const fetchUserMedia = async () => {
-      setIsLoading(true);
-      setError(null);
-      let hasError = false;
+    const currentKey = `${contentType}-${activeTab}`;
+    if (!loadedTabs.has(currentKey)) {
+      fetchTabData(contentType, activeTab);
+    }
+  }, [contentType, activeTab, fetchTabData, loadedTabs]);
 
-      try {
-        if (contentType === "books") {
-          const [watchedResult, watchlistResult, favoritesResult] = await Promise.all([
-            getUserMediaAction("books", "watched"),
-            getUserMediaAction("books", "watchlist"),
-            getUserMediaAction("books", "favorites"),
-          ]);
-
-          if (watchedResult.error) {
-            setError(watchedResult.error);
-            hasError = true;
-          } else {
-            setWatchedBooks(watchedResult.books || []);
-          }
-
-          if (watchlistResult.error && !hasError) {
-            setError(watchlistResult.error);
-            hasError = true;
-          } else {
-            setWatchlistBooks(watchlistResult.books || []);
-          }
-
-          if (favoritesResult.error && !hasError) {
-            setError(favoritesResult.error);
-            hasError = true;
-          } else {
-            setFavoritesBooks(favoritesResult.books || []);
-          }
-        } else {
-          const [watchedResult, watchlistResult, favoritesResult] = await Promise.all([
-            getUserMediaAction("movies", "watched"),
-            getUserMediaAction("movies", "watchlist"),
-            getUserMediaAction("movies", "favorites"),
-          ]);
-
-          if (watchedResult.error) {
-            setError(watchedResult.error);
-            hasError = true;
-          } else {
-            setWatchedMovies(watchedResult.movies || []);
-          }
-
-          if (watchlistResult.error && !hasError) {
-            setError(watchlistResult.error);
-            hasError = true;
-          } else {
-            setWatchlistMovies(watchlistResult.movies || []);
-          }
-
-          if (favoritesResult.error && !hasError) {
-            setError(favoritesResult.error);
-            hasError = true;
-          } else {
-            setFavoritesMovies(favoritesResult.movies || []);
-          }
-        }
-      } catch (err) {
-        setError("Failed to load your library");
-        console.error("Error fetching user media:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserMedia();
-  }, [contentType]);
-
-  const getTabContent = () => {
+  const getTabContent = useCallback(() => {
     if (contentType === "books") {
-       switch (activeTab) {
+      switch (activeTab) {
         case "watched": return watchedBooks;
         case "watchlist": return watchlistBooks;
         case "favorites": return favoritesBooks;
@@ -120,20 +135,21 @@ export function ProfilePage() {
       case "favorites": return favoritesMovies;
       default: return watchedMovies;
     }
-  };
+  }, [contentType, activeTab, watchedBooks, watchlistBooks, favoritesBooks, watchedMovies, watchlistMovies, favoritesMovies]);
 
   const tabContent = getTabContent();
-  const content =
-    contentType === "books"
-      ? (tabContent as Book[])
-      : (tabContent as Movie[]).filter((item) =>
-          mediaFilter === "all" ? true : item.mediaType === mediaFilter
-        );
+  const content = useMemo(() => {
+    const items = tabContent as (Movie | Book)[];
+    if (contentType === "books") return items;
+    return (items as Movie[]).filter((item) =>
+      mediaFilter === "all" ? true : item.mediaType === mediaFilter
+    );
+  }, [tabContent, contentType, mediaFilter]);
 
   const PAGE_SIZE = 60;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  
   useEffect(() => {
-    // reset pagination when tab/filter/contentType changes
     setVisibleCount(PAGE_SIZE);
   }, [activeTab, mediaFilter, contentType]);
 
@@ -143,12 +159,12 @@ export function ProfilePage() {
   );
 
   const enableAnimations = visibleContent.length <= 120;
+  const isTabLoading = isLoading || !loadedTabs.has(`${contentType}-${activeTab}`);
 
   return (
     <div className="min-h-screen pb-20 pt-8 sm:pt-12">
       <div className="mx-auto px-4 sm:px-6 md:px-8">
         
-        {/* Profile Header */}
         <div className="flex flex-col items-center mb-8 sm:mb-12">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
@@ -196,116 +212,108 @@ export function ProfilePage() {
           </motion.div>
         </div>
 
-        {/* Controls Container */}
         <div className="flex flex-col gap-4 sm:gap-6 mb-8 sm:mb-12">
-           {/* Content Type Switch */}
-           <div className="flex justify-center">
-             <div 
-                className="flex p-0.5 sm:p-1 bg-surface shadow-sm rounded-full border border-border/50 relative"
-                onMouseLeave={() => setHoveredContentType(null)}
-              >
-                <ContentTypeButton
-                  id="movies"
-                  active={contentType === "movies"}
-                  onClick={() => setContentType("movies")}
-                  label="Movies & TV"
-                  icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
-                  hovered={hoveredContentType}
-                  setHovered={setHoveredContentType}
-                />
-                <ContentTypeButton
-                  id="books"
-                  active={contentType === "books"}
-                  onClick={() => setContentType("books")}
-                  label="Books"
-                  icon={<BookOpen size={12} className="sm:w-[14px] sm:h-[14px]" />}
-                  hovered={hoveredContentType}
-                  setHovered={setHoveredContentType}
-                />
-             </div>
-           </div>
+          <div className="flex justify-center">
+            <div 
+              className="flex p-0.5 sm:p-1 bg-surface shadow-sm rounded-full border border-border/50 relative"
+              onMouseLeave={() => setHoveredContentType(null)}
+            >
+              <ContentTypeButton
+                id="movies"
+                active={contentType === "movies"}
+                onClick={() => setContentType("movies")}
+                label="Movies & TV"
+                icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                hovered={hoveredContentType}
+                setHovered={setHoveredContentType}
+              />
+              <ContentTypeButton
+                id="books"
+                active={contentType === "books"}
+                onClick={() => setContentType("books")}
+                label="Books"
+                icon={<BookOpen size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                hovered={hoveredContentType}
+                setHovered={setHoveredContentType}
+              />
+            </div>
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-          {/* Tabs */}
-          <div 
-            className="flex p-0.5 sm:p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative w-fit justify-center"
-            onMouseLeave={() => setHoveredTab(null)}
-          >
-            <TabButton 
-              id="watched"
-              active={activeTab === "watched"} 
-              onClick={() => setActiveTab("watched")}
-              label={contentType === "books" ? "Read" : "Watched"}
-              hoveredTab={hoveredTab}
-              setHoveredTab={setHoveredTab}
-            />
-            <TabButton 
-              id="watchlist"
-              active={activeTab === "watchlist"} 
-              onClick={() => setActiveTab("watchlist")}
-              label={contentType === "books" ? "Read Later" : "Watchlist"}
-              hoveredTab={hoveredTab}
-              setHoveredTab={setHoveredTab}
-            />
-            <TabButton 
-              id="favorites"
-              active={activeTab === "favorites"} 
-              onClick={() => setActiveTab("favorites")}
-              label="Favorites"
-              hoveredTab={hoveredTab}
-              setHoveredTab={setHoveredTab}
-            />
-          </div>
+            <div 
+              className="flex p-0.5 sm:p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative w-fit justify-center"
+              onMouseLeave={() => setHoveredTab(null)}
+            >
+              <TabButton 
+                id="watched"
+                active={activeTab === "watched"} 
+                onClick={() => setActiveTab("watched")}
+                label={contentType === "books" ? "Read" : "Watched"}
+                hoveredTab={hoveredTab}
+                setHoveredTab={setHoveredTab}
+              />
+              <TabButton 
+                id="watchlist"
+                active={activeTab === "watchlist"} 
+                onClick={() => setActiveTab("watchlist")}
+                label={contentType === "books" ? "Read Later" : "Watchlist"}
+                hoveredTab={hoveredTab}
+                setHoveredTab={setHoveredTab}
+              />
+              <TabButton 
+                id="favorites"
+                active={activeTab === "favorites"} 
+                onClick={() => setActiveTab("favorites")}
+                label="Favorites"
+                hoveredTab={hoveredTab}
+                setHoveredTab={setHoveredTab}
+              />
+            </div>
 
-          {/* Media Filter - Only show for movies */}
-          <AnimatePresence mode="popLayout">
-            {contentType === "movies" && (
-              <motion.div 
-                initial={{ opacity: 0, width: 0, scale: 0.8 }}
-                animate={{ opacity: 1, width: "auto", scale: 1 }}
-                exit={{ opacity: 0, width: 0, scale: 0.8 }}
-                className="flex items-center p-0.5 sm:p-1 bg-surface/50 rounded-full border border-border/30 relative overflow-hidden w-full sm:w-auto justify-center"
-                onMouseLeave={() => setHoveredFilter(null)}
-              >
-                <MediaFilterButton 
-                  id="movie"
-                  active={mediaFilter === "movie"} 
-                  onClick={() => setMediaFilter("movie")}
-                  icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
-                  label="Movies"
-                  hoveredFilter={hoveredFilter}
-                  setHoveredFilter={setHoveredFilter}
-                />
-                <MediaFilterButton 
-                  id="all"
-                  active={mediaFilter === "all"} 
-                  onClick={() => setMediaFilter("all")}
-                  icon={<Layers size={12} className="sm:w-[14px] sm:h-[14px]" />}
-                  label="All"
-                  hoveredFilter={hoveredFilter}
-                  setHoveredFilter={setHoveredFilter}
-                />
-                <MediaFilterButton 
-                  id="tv"
-                  active={mediaFilter === "tv"} 
-                  onClick={() => setMediaFilter("tv")}
-                  icon={<Tv size={12} className="sm:w-[14px] sm:h-[14px]" />}
-                  label="Series"
-                  hoveredFilter={hoveredFilter}
-                  setHoveredFilter={setHoveredFilter}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            <AnimatePresence mode="popLayout">
+              {contentType === "movies" && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center p-0.5 sm:p-1 bg-surface/50 rounded-full border border-border/30 relative w-full sm:w-auto justify-center"
+                  onMouseLeave={() => setHoveredFilter(null)}
+                >
+                  <MediaFilterButton 
+                    id="movie"
+                    active={mediaFilter === "movie"} 
+                    onClick={() => setMediaFilter("movie")}
+                    icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    label="Movies"
+                    hoveredFilter={hoveredFilter}
+                    setHoveredFilter={setHoveredFilter}
+                  />
+                  <MediaFilterButton 
+                    id="all"
+                    active={mediaFilter === "all"} 
+                    onClick={() => setMediaFilter("all")}
+                    icon={<Layers size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    label="All"
+                    hoveredFilter={hoveredFilter}
+                    setHoveredFilter={setHoveredFilter}
+                  />
+                  <MediaFilterButton 
+                    id="tv"
+                    active={mediaFilter === "tv"} 
+                    onClick={() => setMediaFilter("tv")}
+                    icon={<Tv size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    label="Series"
+                    hoveredFilter={hoveredFilter}
+                    setHoveredFilter={setHoveredFilter}
+                  />
+</motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        {/* Content Grid */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-16 sm:py-24">
-            <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mb-3 sm:mb-4" />
-            <p className="text-sm sm:text-base text-foreground/50 font-medium">Loading your library...</p>
-          </div>
+        {isTabLoading ? (
+          <SkeletonGrid />
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/50 px-4">
             <LayoutGrid
@@ -318,28 +326,17 @@ export function ProfilePage() {
           </div>
         ) : (
           <>
-            <motion.div
-              layout={enableAnimations}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6"
-            >
-                {visibleContent.map((item) => (
-                  <motion.div
-                    layout={enableAnimations}
-                    initial={enableAnimations ? { opacity: 0, scale: 0.9 } : false}
-                    animate={enableAnimations ? { opacity: 1, scale: 1 } : false}
-                    exit={enableAnimations ? { opacity: 0, scale: 0.9 } : false}
-                    transition={enableAnimations ? { duration: 0.2 } : undefined}
-                    style={{ willChange: enableAnimations ? "transform, opacity" : undefined }}
-                    key={item.id}
-                  >
-                    {contentType === "movies" ? (
-                       <MovieCard movie={item as Movie} aspectRatio="portrait" />
-                    ) : (
-                       <BookCard book={item as Book} />
-                    )}
-                  </motion.div>
-                ))}
-            </motion.div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+              {visibleContent.map((item) => (
+                <div key={item.id}>
+                  {contentType === "movies" ? (
+                    <MovieCard movie={item as Movie} aspectRatio="portrait" />
+                  ) : (
+                    <BookCard book={item as Book} />
+                  )}
+                </div>
+              ))}
+</div>
 
             {visibleCount < content.length && (
               <div className="flex justify-center mt-8">
@@ -353,25 +350,24 @@ export function ProfilePage() {
             )}
 
             {content.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/30 px-4">
-                    <LayoutGrid
-                      size={40}
-                      strokeWidth={1}
-                      className="sm:w-12 sm:h-12 mb-3 sm:mb-4 opacity-50"
-                    />
-                    <p className="font-medium text-base sm:text-lg mb-1 sm:mb-2 text-center">No items found</p>
-                    <p className="text-xs sm:text-sm text-foreground/40 text-center">
-                      {activeTab === "watched" 
-                        ? `Start ${contentType === "books" ? "reading" : "watching"} to build your library!`
-                        : activeTab === "watchlist"
-                        ? `Add items to your ${contentType === "books" ? "reading list" : "watchlist"} to see them here.`
-                        : "Mark items as favorites to see them here."}
-                    </p>
-                </div>
+              <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-foreground/30 px-4">
+                <LayoutGrid
+                  size={40}
+                  strokeWidth={1}
+                  className="sm:w-12 sm:h-12 mb-3 sm:mb-4 opacity-50"
+                />
+                <p className="font-medium text-base sm:text-lg mb-1 sm:mb-2 text-center">No items found</p>
+                <p className="text-xs sm:text-sm text-foreground/40 text-center">
+                  {activeTab === "watched" 
+                    ? `Start ${contentType === "books" ? "reading" : "watching"} to build your library!`
+                    : activeTab === "watchlist"
+                    ? `Add items to your ${contentType === "books" ? "reading list" : "watchlist"} to see them here.`
+                    : "Mark items as favorites to see them here."}
+                </p>
+              </div>
             )}
           </>
         )}
-
       </div>
     </div>
   );
@@ -403,25 +399,21 @@ function TabButton({
     >
       {active && (
         <motion.div
-          layoutId="activeTab"
           className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
-          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-          style={{ willChange: "transform, opacity" }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
         />
       )}
-      <AnimatePresence>
-        {hoveredTab === id && !active && (
-          <motion.div
-            layoutId="hoverTab"
-            className="absolute inset-0 bg-surface-hover rounded-full z-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            style={{ willChange: "transform, opacity" }}
-          />
-        )}
-      </AnimatePresence>
+      {hoveredTab === id && !active && (
+        <motion.div
+          className="absolute inset-0 bg-surface-hover rounded-full z-0"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        />
+      )}
       <span className="relative z-10 mix-blend-normal">{label}</span>
     </button>
   );
@@ -457,25 +449,21 @@ function ContentTypeButton({
     >
       {active && (
         <motion.div
-          layoutId="activeContentType"
           className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
-          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-          style={{ willChange: "transform, opacity" }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
         />
       )}
-      <AnimatePresence>
-        {hovered === id && !active && (
-          <motion.div
-            layoutId="hoverContentType"
-            className="absolute inset-0 bg-surface-hover rounded-full z-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            style={{ willChange: "transform, opacity" }}
-          />
-        )}
-      </AnimatePresence>
+      {hovered === id && !active && (
+        <motion.div
+          className="absolute inset-0 bg-surface-hover rounded-full z-0"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        />
+      )}
       <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
         {icon}
         <span>{label}</span>
@@ -514,25 +502,21 @@ function MediaFilterButton({
     >
       {active && (
         <motion.div
-          layoutId="activeFilter"
           className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
-          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-          style={{ willChange: "transform, opacity" }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
         />
       )}
-      <AnimatePresence>
-        {hoveredFilter === id && !active && (
-          <motion.div
-            layoutId="hoverFilter"
-            className="absolute inset-0 bg-surface-hover rounded-full z-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            style={{ willChange: "transform, opacity" }}
-          />
-        )}
-      </AnimatePresence>
+      {hoveredFilter === id && !active && (
+        <motion.div
+          className="absolute inset-0 bg-surface-hover rounded-full z-0"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        />
+      )}
       <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
         {icon}
         <span>{label}</span>

@@ -65,14 +65,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.preferredRegion =
           (user as { preferredRegion?: string | null }).preferredRegion ??
           DEFAULT_REGION;
-      } else if (token.id && !token.preferredRegion) {
-        const [dbUser] = await db
-          .select({ preferredRegion: schema.users.preferredRegion })
-          .from(schema.users)
-          .where(eq(schema.users.id, token.id as string))
-          .limit(1);
-
-        token.preferredRegion = dbUser?.preferredRegion ?? DEFAULT_REGION;
       }
       return token;
     },
