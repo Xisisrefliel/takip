@@ -10,9 +10,12 @@ import { Movie, Book } from "@/types";
 import {
   getReviewsAction,
   getUserReviewAction,
+  type Review,
 } from "@/app/actions";
 import { auth } from "@/auth";
 import { MediaDetailClient } from "@/components/MediaDetailClient";
+
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{
@@ -59,30 +62,49 @@ export default async function MediaDetailPage({ params }: PageProps) {
   let item: Movie | Book | null = null;
   let providers: WatchProvidersByRegion | null = null;
 
-  if (mediaType === "book") {
-    item = await getBookById(id);
-  } else {
-    const [fetchedItem, fetchedProviders] = await Promise.all([
-      getMediaById(id, mediaType as "movie" | "tv"),
-      getWatchProviders(id, mediaType as "movie" | "tv"),
-    ]);
-    item = fetchedItem;
-    providers = fetchedProviders;
+  try {
+    if (mediaType === "book") {
+      item = await getBookById(id);
+    } else {
+      const [fetchedItem, fetchedProviders] = await Promise.all([
+        getMediaById(id, mediaType as "movie" | "tv"),
+        getWatchProviders(id, mediaType as "movie" | "tv"),
+      ]);
+      item = fetchedItem;
+      providers = fetchedProviders;
+    }
+  } catch (e) {
+    console.error("Error fetching media:", e);
+    notFound();
   }
 
   if (!item) {
     notFound();
   }
 
-  const session = await auth();
+  let session;
+  try {
+    session = await auth();
+  } catch (e) {
+    console.error("Auth error:", e);
+    session = null;
+  }
 
-  const [{ reviews: initialReviews }, { review: initialUserReview }] =
-    mediaType === "book"
-      ? [{ reviews: [] }, { review: null }]
-      : await Promise.all([
-          getReviewsAction(id, mediaType as "movie" | "tv"),
-          getUserReviewAction(id, mediaType as "movie" | "tv"),
-        ]);
+  let initialReviews: Review[] = [];
+  let initialUserReview: Review | null = null;
+
+  if (mediaType !== "book") {
+    try {
+      const [reviewsResult, userReviewResult] = await Promise.all([
+        getReviewsAction(id, mediaType as "movie" | "tv"),
+        getUserReviewAction(id, mediaType as "movie" | "tv"),
+      ]);
+      initialReviews = reviewsResult.reviews;
+      initialUserReview = userReviewResult.review;
+    } catch (e) {
+      console.error("Error fetching reviews:", e);
+    }
+  }
 
   return (
     <MediaDetailClient
@@ -93,7 +115,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
       initialReviews={initialReviews}
       initialUserReview={initialUserReview}
       sessionUserId={session?.user?.id ?? null}
-      user={session?.user}
+      user={session?.user ?? null}
     />
   );
 }

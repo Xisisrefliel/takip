@@ -3,21 +3,18 @@ import {
   FlameKindling,
   Gauge,
   Globe2,
-  Heart,
   Layers,
   Sparkles,
-  TimerReset,
   Users,
 } from "lucide-react";
-import Image from "next/image";
-import { Carousel } from "@/components/Carousel";
 import { getStatsData } from "./actions";
 import { StatsCard } from "./components/StatsCard";
 import { FilmsByYearChart } from "./components/FilmsByYearChart";
 import { GenreChart } from "./components/GenreChart";
 import { RatingDistribution } from "./components/RatingDistribution";
-import { FavoritesGrid } from "./components/FavoritesGrid";
 import { TopActorsGrid, TopDirectorsGrid } from "./components/TopPeopleGrid";
+
+export const dynamic = 'force-dynamic';
 
 export default async function StatsPage() {
   const stats = await getStatsData();
@@ -228,64 +225,6 @@ function MiniStat({
       <p className="text-4xl font-semibold text-foreground mb-2">{value}</p>
       <p className="text-xs text-foreground/50">{hint}</p>
     </div>
-  );
-}
-
-function RecentGrid({
-  data,
-}: {
-  data?: Awaited<ReturnType<typeof getStatsData>>["recent"];
-}) {
-  if (!data || data.length === 0)
-    return (
-      <p className="text-sm text-foreground/60">No recent diary entries.</p>
-    );
-
-  const highlights = data.slice(0, 6);
-
-  return (
-    <Carousel hideHeader className="h-full py-0">
-      {highlights.map((item, idx) => {
-        const watchedDate = item.watchedDate
-          ? new Date(item.watchedDate)
-          : null;
-        const dateLabel = watchedDate
-          ? watchedDate.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })
-          : "No date";
-        return (
-          <div
-            key={`${item.id}-${item.watchedDate ?? idx}`}
-            className="snap-start min-w-[180px] w-[180px] sm:min-w-[210px] sm:w-[210px] md:min-w-60 md:w-60"
-          >
-            <div className="relative overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-white/5 shadow-lg shadow-black/5">
-              <div className="aspect-2/3 w-full">
-                {item.posterUrl ? (
-                  <Image
-                    src={item.posterUrl}
-                    alt={item.title}
-                    width={400}
-                    height={600}
-                    className="h-full w-full object-cover transition duration-500 hover:scale-[1.03]"
-                    sizes="(max-width: 768px) 45vw, (max-width: 1280px) 25vw, 18vw"
-                    priority={idx < 2}
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-black/5 dark:bg-white/5 px-3 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">
-                    {item.title}
-                  </div>
-                )}
-              </div>
-              <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-full bg-linear-to-r from-black/80 via-black/50 to-transparent px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white">
-                {dateLabel}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </Carousel>
   );
 }
 

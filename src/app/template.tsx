@@ -5,11 +5,10 @@ import { motion } from "framer-motion";
 export default function Template({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.98 }}
-      transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.5 }}
-      style={{ willChange: "transform, opacity" }} // Hardware accelerate
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ease: "easeOut", duration: 0.25 }}
+      style={{ willChange: "transform, opacity" }}
     >
       {children}
     </motion.div>

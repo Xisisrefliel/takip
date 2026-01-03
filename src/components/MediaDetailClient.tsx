@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, Info, Play } from "lucide-react";
+import { Star, Play } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Movie, Book, WatchProvidersData } from "@/types";
@@ -18,6 +18,7 @@ import { TrailerModal } from "@/components/TrailerModal";
 import { LastVisitedUpdater } from "@/components/LastVisitedUpdater";
 import { BackButton } from "@/components/BackButton";
 import { MediaVisuals } from "@/components/MediaVisuals";
+import { CastAndCrew } from "@/components/CastAndCrew";
 
 interface MediaDetailClientProps {
   item: Movie | Book;
@@ -49,7 +50,6 @@ export function MediaDetailClient({
     : item.backdropUrl || item.posterUrl;
   const overview = isBook(item) ? item.description : item.overview;
   const runtime = !isBook(item) ? item.runtime : null;
-  const cast = !isBook(item) ? item.cast : null;
   const images = "images" in item ? item.images : null;
   const seasons =
     !isBook(item) && item.mediaType === "tv" ? item.seasons : null;
@@ -78,14 +78,15 @@ export function MediaDetailClient({
       />
       <BackButton />
 
-      <div className="fixed inset-0 h-[70vh] w-full -z-10 overflow-hidden">
+      <div className="fixed inset-0 h-[70vh] w-full -z-10 overflow-hidden" style={{ contain: 'strict' }}>
         <Image
           src={backdrop || "/placeholder.jpg"}
           alt=""
           fill
           priority
           sizes="100vw"
-          className="object-cover opacity-40 blur-2xl scale-110"
+          className="object-cover opacity-40 blur-xl"
+          style={{ willChange: 'transform' }}
         />
         <div className="absolute inset-0 bg-linear-to-b from-black/30 via-background/80 to-background" />
       </div>
@@ -240,42 +241,8 @@ export function MediaDetailClient({
         </div>
       )}
 
-      {cast && cast.length > 0 && (
-        <div className="container mx-auto px-4 sm:px-6">
-          <Carousel title="Cast & Crew">
-            {cast.map((person) => (
-              <Link
-                key={person.id}
-                href={`/actor/${person.id}`}
-                className="shrink-0 w-28 sm:w-32 md:w-40 space-y-2 sm:space-y-3 snap-start group"
-              >
-                <div className="relative aspect-2/3 rounded-xl overflow-hidden bg-surface shadow-sm hover-border">
-                  {person.profilePath ? (
-                    <Image
-                      src={person.profilePath}
-                      alt={person.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      sizes="(max-width: 640px) 112px, (max-width: 768px) 128px, 160px"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-white/5 text-muted-foreground">
-                      <Info size={20} className="sm:w-6 sm:h-6" />
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1 px-1">
-                  <p className="text-xs sm:text-sm font-medium leading-tight truncate group-hover:text-accent transition-colors">
-                    {person.name}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                    {person.character}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </Carousel>
-        </div>
+      {!isBook(item) && (item.cast || item.productionCompanies || item.crewByDepartment || item.releaseDates) && (
+        <CastAndCrew movie={item as Movie} />
       )}
 
       {images && images.length > 0 && (

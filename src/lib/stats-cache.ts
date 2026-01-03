@@ -11,7 +11,7 @@ export type Totals = {
 
 export type YearStat = { year: number; count: number; runtimeMinutes: number };
 export type GenreStat = { name: string; count: number };
-export type FavoriteStat = { id: string; title: string; posterUrl?: string | null; year?: number | null; updatedAt?: Date };
+export type FavoriteStat = { id: string; title: string; posterUrl?: string | null; year?: number | null; rating?: number | null; updatedAt?: Date };
 export type RecentStat = { id: string; title: string; posterUrl?: string | null; watchedDate?: string; year?: number | null };
 export type DecadeStat = { decade: string; count: number };
 export type PeopleStat = { id: number; name: string; count: number; profilePath?: string };

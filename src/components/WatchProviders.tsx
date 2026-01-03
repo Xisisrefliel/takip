@@ -189,13 +189,15 @@ export function WatchProviders({
                   title={provider.provider_name}
                 >
                   <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
-                    <Image
-                      src={provider.logo_path}
-                      alt={provider.provider_name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 40px, 48px"
-                    />
+                    {provider.logo_path && (
+                      <Image
+                        src={provider.logo_path}
+                        alt={provider.provider_name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 40px, 48px"
+                      />
+                    )}
                   </div>
                 </div>
               ))}
@@ -216,13 +218,15 @@ export function WatchProviders({
                   title={provider.provider_name}
                 >
                   <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
-                    <Image
-                      src={provider.logo_path}
-                      alt={provider.provider_name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 40px, 48px"
-                    />
+                    {provider.logo_path && (
+                      <Image
+                        src={provider.logo_path}
+                        alt={provider.provider_name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 40px, 48px"
+                      />
+                    )}
                   </div>
                 </div>
               ))}
@@ -243,13 +247,15 @@ export function WatchProviders({
                   title={provider.provider_name}
                 >
                   <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
-                    <Image
-                      src={provider.logo_path}
-                      alt={provider.provider_name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 40px, 48px"
-                    />
+                    {provider.logo_path && (
+                      <Image
+                        src={provider.logo_path}
+                        alt={provider.provider_name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 40px, 48px"
+                      />
+                    )}
                   </div>
                 </div>
               ))}

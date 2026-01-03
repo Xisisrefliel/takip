@@ -1,13 +1,13 @@
 "use client";
 
 import { RatingStat } from "../actions";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, TooltipProps } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Props = {
   data?: RatingStat[];
 };
 
-const renderTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+const renderTooltip = ({ active, payload }: { active?: boolean; payload?: readonly { payload: RatingStat }[] }) => {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload as RatingStat;
   return (

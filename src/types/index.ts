@@ -3,6 +3,7 @@ export interface CastMember {
   name: string;
   character: string;
   profilePath?: string;
+  order?: number;
 }
 
 export interface CrewMember {
@@ -10,6 +11,27 @@ export interface CrewMember {
   name: string;
   job: string;
   profilePath?: string;
+  department?: string;
+}
+
+export interface ProductionCompany {
+  id: number;
+  name: string;
+  logoPath?: string;
+  originCountry: string;
+}
+
+export interface ReleaseInfo {
+  certification?: string;
+  releaseDate: string;
+  type: number;
+  note?: string;
+}
+
+export interface CountryRelease {
+  iso: string;
+  name: string;
+  releases: ReleaseInfo[];
 }
 
 export interface Episode {
@@ -49,7 +71,7 @@ export interface Movie {
   overview?: string;
   trailerKey?: string;
   trailerUrl?: string;
-  runtime?: number; // minutes
+  runtime?: number;
   tagline?: string;
   status?: string;
   mediaType: 'movie' | 'tv';
@@ -58,7 +80,9 @@ export interface Movie {
   watchlist?: boolean;
   watchedDate?: string;
   cast?: CastMember[];
+  allCast?: CastMember[];
   crew?: CrewMember[];
+  crewByDepartment?: Record<string, CrewMember[]>;
   images?: string[];
   seasons?: Season[];
   numberOfSeasons?: number;
@@ -67,6 +91,9 @@ export interface Movie {
   similar?: Movie[];
   collection?: { id: number; name: string };
   collectionMovies?: Movie[];
+  productionCompanies?: ProductionCompany[];
+  productionCountries?: { iso: string; name: string }[];
+  releaseDates?: CountryRelease[];
 }
 
 export interface WatchProvider {

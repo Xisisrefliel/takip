@@ -36,11 +36,8 @@ export function Navbar() {
     const stored = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const initialTheme = stored === "dark" || (!stored && prefersDark) ? "dark" : "light";
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(initialTheme);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     document.documentElement.classList.add(initialTheme);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMounted(true);
   }, []);
 
@@ -59,22 +56,16 @@ export function Navbar() {
 
   useEffect(() => {
     if (pathname.startsWith("/books") || pathname.startsWith("/book/")) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMediaType("books");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchType("books");
     } else if (pathname.startsWith("/tv/")) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMediaType("movies");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchType("series");
     } else if (
       pathname === "/" ||
       pathname.startsWith("/movie/")
     ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMediaType("movies");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchType("movies");
     }
   }, [pathname, setMediaType]);
@@ -260,6 +251,7 @@ export function Navbar() {
                     active={activeTab === "discover"}
                     hoveredLink={hoveredLink}
                     setHoveredLink={setHoveredLink}
+                    prefetch
                   >
                     Discover
                   </NavPill>
@@ -268,6 +260,7 @@ export function Navbar() {
                     active={activeTab === "library"}
                     hoveredLink={hoveredLink}
                     setHoveredLink={setHoveredLink}
+                    prefetch
                   >
                     Library
                   </NavPill>
@@ -297,6 +290,7 @@ export function Navbar() {
                             : "text-foreground/60"
                         )}
                         onMouseEnter={() => setHoveredLink(lastVisited.href)}
+                        prefetch
                       >
                         <span className="max-w-[80px] sm:max-w-[120px] md:max-w-[150px] truncate">
                           {isDetailPage && lastVisited?.href !== pathname
@@ -421,18 +415,21 @@ function NavPill({
   children,
   hoveredLink,
   setHoveredLink,
+  prefetch = false,
 }: {
   href: string;
   active: boolean;
   children: React.ReactNode;
   hoveredLink: string | null;
   setHoveredLink: (href: string | null) => void;
+  prefetch?: boolean;
 }) {
   return (
     <Link
       draggable="false"
       href={href}
       onMouseEnter={() => setHoveredLink(href)}
+      prefetch={prefetch}
       className={cn(
         "relative px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"

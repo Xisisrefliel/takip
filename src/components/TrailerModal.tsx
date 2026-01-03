@@ -39,7 +39,7 @@ export function TrailerModal({ trailerKey, isOpen, onClose, title }: TrailerModa
 
   return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-black/98 backdrop-blur-sm flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -47,7 +47,7 @@ export function TrailerModal({ trailerKey, isOpen, onClose, title }: TrailerModa
           className="absolute inset-0"
           onClick={onClose}
         />
-        
+
         <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10">
           <button
             onClick={onClose}

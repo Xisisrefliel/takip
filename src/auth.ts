@@ -5,7 +5,6 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { getUserByEmail, verifyPassword } from "@/lib/auth";
 import { DEFAULT_REGION } from "@/data/regions";
-import { eq } from "drizzle-orm";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: DrizzleAdapter(db, {

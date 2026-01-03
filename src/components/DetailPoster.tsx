@@ -2,7 +2,7 @@
 
 import type { ComponentType, MouseEvent } from "react";
 import { useState, useTransition } from "react";
-import { motion } from "framer-motion";
+
 import Image from "next/image";
 import { Eye, ClockPlus, ClockCheck, Heart, Check } from "lucide-react";
 import { Movie, Book } from "@/types";
@@ -160,13 +160,11 @@ function ActionButton({
   disabled?: boolean;
 }) {
   return (
-    <motion.button
-      whileHover={disabled ? {} : { scale: 1.1 }}
-      whileTap={disabled ? {} : { scale: 0.9 }}
+    <button
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center backdrop-blur-sm transition-all shadow-xl border hover:shadow-2xl",
+        "w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors shadow-lg border hover:scale-105 active:scale-95",
         active
           ? "bg-white text-black border-white/40 hover:bg-white hover:text-black"
           : "bg-black/60 text-white border-white/20 hover:bg-black/70 hover:text-white hover:border-white/30",
@@ -180,6 +178,6 @@ function ActionButton({
         size={18}
         {...(fill ? { fill: "currentColor" } : {})}
       />
-    </motion.button>
+    </button>
   );
 }

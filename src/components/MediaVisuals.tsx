@@ -140,57 +140,57 @@ export function MediaVisuals({ images, mediaType }: MediaVisualsProps) {
 
       {canUsePortal && selectedIndex !== null && currentFullsize
         ? createPortal(
-            <div
-              ref={overlayRef}
-              className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center"
-              onClick={handleOverlayClick}
+          <div
+            ref={overlayRef}
+            className="fixed inset-0 z-50 bg-black/98 backdrop-blur-sm flex items-center justify-center"
+            onClick={handleOverlayClick}
+          >
+            <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 flex gap-2">
+              <button
+                onClick={() => setSelectedIndex(null)}
+                className="rounded-full border border-white/20 bg-white/10 p-3 text-white transition hover:bg-white/20 hover:-translate-y-0.5"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrev();
+              }}
+              className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-10 rounded-full border border-white/20 bg-black/40 p-3 text-white transition hover:bg-white/20 hover:scale-110"
             >
-              <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 flex gap-2">
-                <button
-                  onClick={() => setSelectedIndex(null)}
-                  className="rounded-full border border-white/20 bg-white/10 p-3 text-white transition hover:bg-white/20 hover:-translate-y-0.5"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+              <ChevronLeft size={24} />
+            </button>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  goToPrev();
-                }}
-                className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-10 rounded-full border border-white/20 bg-black/40 p-3 text-white transition hover:bg-white/20 hover:scale-110"
-              >
-                <ChevronLeft size={24} />
-              </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNext();
+              }}
+              className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-10 rounded-full border border-white/20 bg-black/40 p-3 text-white transition hover:bg-white/20 hover:scale-110"
+            >
+              <ChevronRight size={24} />
+            </button>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  goToNext();
-                }}
-                className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-10 rounded-full border border-white/20 bg-black/40 p-3 text-white transition hover:bg-white/20 hover:scale-110"
-              >
-                <ChevronRight size={24} />
-              </button>
+            <div ref={imageContainerRef} className="relative w-full h-full max-w-[95vw] max-h-[90vh] p-4 sm:p-8">
+              <Image
+                src={currentFullsize}
+                alt={`Visual ${selectedIndex + 1} of ${images.length}`}
+                fill
+                className="object-contain"
+                priority
+                sizes="95vw"
+              />
+            </div>
 
-              <div ref={imageContainerRef} className="relative w-full h-full max-w-[95vw] max-h-[90vh] p-4 sm:p-8">
-                <Image
-                  src={currentFullsize}
-                  alt={`Visual ${selectedIndex + 1} of ${images.length}`}
-                  fill
-                  className="object-contain"
-                  priority
-                  sizes="95vw"
-                />
-              </div>
-
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm font-medium text-white backdrop-blur">
-                {selectedIndex + 1} / {images.length}
-              </div>
-            </div>,
-            document.body
-          )
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm font-medium text-white backdrop-blur">
+              {selectedIndex + 1} / {images.length}
+            </div>
+          </div>,
+          document.body
+        )
         : null}
     </>
   );

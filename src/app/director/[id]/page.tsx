@@ -1,14 +1,23 @@
-import { getDirectorMovies } from "@/lib/tmdb";
+import { getDirectorMovies, getTrendingDirectors } from "@/lib/tmdb";
 import { BackButton } from "@/components/BackButton";
 import { DirectorMovies } from "@/components/DirectorMovies";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { enrichMoviesWithUserStatus } from "@/app/actions";
 
+export const revalidate = 3600;
+
 interface PageProps {
   params: Promise<{
     id: string;
   }>;
+}
+
+export async function generateStaticParams() {
+  const directors = await getTrendingDirectors();
+  return directors.map((director) => ({
+    id: String(director.id),
+  }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

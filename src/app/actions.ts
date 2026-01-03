@@ -8,7 +8,7 @@ import {
   searchTvSeries,
   getMediaById,
 } from "@/lib/tmdb";
-import { Book, Movie } from "@/types";
+import { Book, Movie, Season } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
 import { createUser, getUserByEmail, hashPassword } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -1606,3 +1606,64 @@ export async function getUserReviewAction(
     return { review: null, error: "Failed to fetch review" };
   }
 }
+
+export async function loadRemainingSeasonsAction(seriesId: string, loadedSeasonCount: number): Promise<{ seasons: Season[] | null; error?: string }> {
+  try {
+    const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+    const TMDB_API_KEY = process.env.TMDB_API_KEY;
+    const TMDB_IMAGE_BASE_URL_W500 = "https://image.tmdb.org/t/p/w500";
+
+    const queryParams = new URLSearchParams({
+      api_key: TMDB_API_KEY || "",
+      language: "en-US",
+    });
+    const url = `${TMDB_BASE_URL}/tv/${seriesId}?${queryParams.toString()}`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const allSeasonsData = await res.json();
+    
+    if (!allSeasonsData?.seasons) {
+      return { seasons: null, error: "No seasons found" };
+    }
+
+    const remainingSeasons = allSeasonsData.seasons.slice(loadedSeasonCount, loadedSeasonCount + 10);
+    
+    const seasonsWithEpisodes = await Promise.all(
+      remainingSeasons.map(async (season: { season_number: number; id: number; name: string; overview: string; poster_path: string | null; episode_count: number; air_date: string }) => {
+        try {
+          const seasonUrl = `${TMDB_BASE_URL}/tv/${seriesId}/season/${season.season_number}?${queryParams.toString()}`;
+          const seasonRes = await fetch(seasonUrl, { next: { revalidate: 3600 } });
+          const seasonDetail = await seasonRes.json();
+          
+          return {
+            id: season.id,
+            name: season.name,
+            overview: season.overview,
+            posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+            seasonNumber: season.season_number,
+            episodeCount: season.episode_count,
+            airDate: season.air_date,
+            episodes: seasonDetail?.episodes?.map((ep: { id: number; name: string; overview: string; air_date: string; episode_number: number; season_number: number; still_path: string | null; vote_average: number; runtime?: number }) => ({
+              id: ep.id,
+              name: ep.name,
+              overview: ep.overview,
+              airDate: ep.air_date,
+              episodeNumber: ep.episode_number,
+              seasonNumber: ep.season_number,
+              stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+              voteAverage: ep.vote_average,
+              runtime: ep.runtime
+            })) || []
+          } as Season;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return { seasons: seasonsWithEpisodes.filter((s): s is Season => s !== null) };
+  } catch (error) {
+    console.error("Error loading remaining seasons:", error);
+    return { seasons: null, error: "Failed to load seasons" };
+  }
+}
+

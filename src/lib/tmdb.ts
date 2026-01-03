@@ -5,6 +5,7 @@ const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL_ORIGINAL = "https://image.tmdb.org/t/p/original";
 const TMDB_IMAGE_BASE_URL_W500 = "https://image.tmdb.org/t/p/w500";
 const TMDB_IMAGE_BASE_URL_W1280 = "https://image.tmdb.org/t/p/w1280";
+const TMDB_IMAGE_BASE_URL_W185 = "https://image.tmdb.org/t/p/w185";
 
 if (!TMDB_API_KEY) {
   console.warn("TMDB_API_KEY is not defined in environment variables.");
@@ -39,6 +40,117 @@ const GENRES: Record<number, string> = {
   41: "Family",
 };
 
+const COUNTRY_NAMES: Record<string, string> = {
+  US: "United States",
+  GB: "United Kingdom",
+  DE: "Germany",
+  FR: "France",
+  JP: "Japan",
+  CN: "China",
+  KR: "South Korea",
+  IN: "India",
+  IT: "Italy",
+  ES: "Spain",
+  CA: "Canada",
+  AU: "Australia",
+  BR: "Brazil",
+  MX: "Mexico",
+  RU: "Russia",
+  HK: "Hong Kong",
+  NL: "Netherlands",
+  SE: "Sweden",
+  NO: "Norway",
+  DK: "Denmark",
+  FI: "Finland",
+  PL: "Poland",
+  CZ: "Czech Republic",
+  HU: "Hungary",
+  GR: "Greece",
+  PT: "Portugal",
+  BE: "Belgium",
+  AT: "Austria",
+  CH: "Switzerland",
+  IE: "Ireland",
+  NZ: "New Zealand",
+  SG: "Singapore",
+  TH: "Thailand",
+  PH: "Philippines",
+  ID: "Indonesia",
+  MY: "Malaysia",
+  VN: "Vietnam",
+  TW: "Taiwan",
+  AR: "Argentina",
+  CL: "Chile",
+  CO: "Colombia",
+  PE: "Peru",
+  VE: "Venezuela",
+  ZA: "South Africa",
+  EG: "Egypt",
+  NG: "Nigeria",
+  IL: "Israel",
+  AE: "United Arab Emirates",
+  SA: "Saudi Arabia",
+  TR: "Turkey",
+  UA: "Ukraine",
+  RO: "Romania",
+  BG: "Bulgaria",
+  SK: "Slovakia",
+  HR: "Croatia",
+  SI: "Slovenia",
+  RS: "Serbia",
+  LT: "Lithuania",
+  LV: "Latvia",
+  EE: "Estonia",
+  IS: "Iceland",
+  CY: "Cyprus",
+  LU: "Luxembourg",
+  MT: "Malta",
+  KW: "Kuwait",
+  QA: "Qatar",
+  BH: "Bahrain",
+  OM: "Oman",
+  LB: "Lebanon",
+  JO: "Jordan",
+  SY: "Syria",
+  IQ: "Iraq",
+  AF: "Afghanistan",
+  PK: "Pakistan",
+  BD: "Bangladesh",
+  LK: "Sri Lanka",
+  NP: "Nepal",
+  MM: "Myanmar",
+  KH: "Cambodia",
+  LA: "Laos",
+  MN: "Mongolia",
+  UZ: "Uzbekistan",
+  KZ: "Kazakhstan",
+  GE: "Georgia",
+  AM: "Armenia",
+  AZ: "Azerbaijan",
+  BY: "Belarus",
+  MD: "Moldova",
+  AL: "Albania",
+  MK: "North Macedonia",
+  ME: "Montenegro",
+  BA: "Bosnia and Herzegovina",
+  XW: "Kosovo",
+};
+
+function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
+  return array.reduce((result, item) => {
+    const groupKey = String(item[key]);
+    if (!result[groupKey]) {
+      result[groupKey] = [];
+    }
+    result[groupKey].push(item);
+    return result;
+  }, {} as Record<string, T[]>);
+}
+
+function getCountryName(code: string): string {
+  return COUNTRY_NAMES[code] || code;
+}
+
 interface TMDBGenre {
   id: number;
   name: string;
@@ -49,6 +161,7 @@ interface TMDBCast {
   name: string;
   character: string;
   profile_path: string | null;
+  order?: number;
 }
 
 interface TMDBCrew {
@@ -56,11 +169,36 @@ interface TMDBCrew {
   name: string;
   job: string;
   profile_path: string | null;
+  department?: string;
 }
 
 interface TMDBCredits {
   cast: TMDBCast[];
   crew: TMDBCrew[];
+}
+
+interface TMDBReleaseInfo {
+  certification: string;
+  release_date: string;
+  type: number;
+  note?: string;
+}
+
+interface TMDBReleaseCountry {
+  iso_3166_1: string;
+  release_dates: TMDBReleaseInfo[];
+}
+
+interface TMDBProductionCompany {
+  id: number;
+  name: string;
+  logo_path: string | null;
+  origin_country: string;
+}
+
+interface TMDBProductionCountry {
+  iso_3166_1: string;
+  name: string;
 }
 
 interface TMDBImage {
@@ -121,9 +259,9 @@ interface TMDBSeasonSummary {
 interface TMDBMovie {
   id: number;
   title?: string;
-  name?: string; // For TV shows
+  name?: string;
   release_date?: string;
-  first_air_date?: string; // For TV shows
+  first_air_date?: string;
   poster_path: string;
   backdrop_path: string;
   vote_average: number;
@@ -143,6 +281,9 @@ interface TMDBMovie {
   number_of_seasons?: number;
   number_of_episodes?: number;
   media_type?: string;
+  production_companies?: TMDBProductionCompany[];
+  production_countries?: TMDBProductionCountry[];
+  release_dates?: { results: TMDBReleaseCountry[] };
 }
 
 export interface ActorDetails {
@@ -204,7 +345,6 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
   const date = item.release_date || item.first_air_date || "";
   const year = date ? new Date(date).getFullYear() : 0;
 
-  // Handle genres from either genre_ids (list) or genres (detail)
   let genreList: string[] = [];
   if (item.genres) {
     genreList = item.genres.map((g) => g.name);
@@ -214,26 +354,51 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
 
   const runtime = item.runtime || (item.episode_run_time && item.episode_run_time[0]) || 0;
 
-  // Map Cast
-  const cast = item.credits?.cast?.slice(0, 10).map(c => ({
+  const allCast = item.credits?.cast?.map(c => ({
     id: c.id,
     name: c.name,
     character: c.character,
-    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined
+    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined,
+    order: c.order
   })) || [];
 
-  // Map Crew (Director/Creator usually)
-  const crew = item.credits?.crew?.filter(c => c.job === 'Director' || c.job === 'Executive Producer').slice(0, 5).map(c => ({
+  const cast = allCast.slice(0, 15);
+
+  const crew = item.credits?.crew?.map(c => ({
     id: c.id,
     name: c.name,
     job: c.job,
-    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined
+    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined,
+    department: c.department
   })) || [];
 
-  // Map Images
+  const crewByDepartment = groupBy(crew, 'department');
+
+  const productionCompanies = item.production_companies?.map(c => ({
+    id: c.id,
+    name: c.name,
+    logoPath: c.logo_path ? `${TMDB_IMAGE_BASE_URL_W185}${c.logo_path}` : undefined,
+    originCountry: c.origin_country
+  })) || [];
+
+  const productionCountries = item.production_countries?.map(c => ({
+    iso: c.iso_3166_1,
+    name: c.name
+  })) || [];
+
+  const releaseDates = item.release_dates?.results?.map(r => ({
+    iso: r.iso_3166_1,
+    name: getCountryName(r.iso_3166_1),
+    releases: r.release_dates.map(d => ({
+      certification: d.certification || undefined,
+      releaseDate: d.release_date,
+      type: d.type,
+      note: d.note
+    }))
+  })) || [];
+
   const images = item.images?.backdrops?.slice(0, 20).map(img => `${TMDB_IMAGE_BASE_URL_W1280}${img.file_path}`) || [];
 
-  // Get highest rated backdrop if available
   let backdropPath = item.backdrop_path;
   if (item.images?.backdrops && item.images.backdrops.length > 0) {
     const sortedBackdrops = [...item.images.backdrops].sort((a, b) => b.vote_average - a.vote_average);
@@ -273,10 +438,15 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     liked: false,
     watchlist: false,
     cast,
+    allCast,
     crew,
+    crewByDepartment,
     images,
     numberOfSeasons: item.number_of_seasons,
-    numberOfEpisodes: item.number_of_episodes
+    numberOfEpisodes: item.number_of_episodes,
+    productionCompanies,
+    productionCountries,
+    releaseDates
   };
 };
 
@@ -310,7 +480,7 @@ export const getPopularSeries = async (): Promise<Movie[]> => {
 export const getMovieById = async (id: string): Promise<Movie | null> => {
   try {
     const data = await fetchTMDB(`/movie/${id}`, {
-      append_to_response: "credits,images,recommendations,videos",
+      append_to_response: "credits,images,recommendations,videos,release_dates",
       include_image_language: "en,null",
     });
     if (!data) return null;
@@ -342,7 +512,7 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
   }
 };
 
-export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
+export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = false): Promise<Movie | null> => {
   try {
     const data = await fetchTMDB(`/tv/${id}`, {
       append_to_response: "credits,images,recommendations,videos",
@@ -359,52 +529,54 @@ export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
       .map((item: TMDBMovie) => mapTmdbToMovie(item, 'tv'))
       .slice(0, 16);
 
-    // Fetch episodes for each season
-    if (data.seasons) {
-        // Filter out Season 0 (Specials) if preferred, but keeping it is fine.
-        // We will fetch up to 20 seasons to avoid throttling.
-        const seasonsToFetch = data.seasons.slice(0, 20);
-        
-        const seasonsWithEpisodes = await Promise.all(
-            seasonsToFetch.map(async (season: TMDBSeasonSummary) => {
-                try {
-                    const seasonDetail = await fetchTMDB(`/tv/${id}/season/${season.season_number}`);
-                    return {
-                        id: season.id,
-                        name: season.name,
-                        overview: season.overview,
-                        posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
-                        seasonNumber: season.season_number,
-                        episodeCount: season.episode_count,
-                        airDate: season.air_date,
-                        episodes: seasonDetail?.episodes?.map((ep: TMDBEpisode) => ({
-                            id: ep.id,
-                            name: ep.name,
-                            overview: ep.overview,
-                            airDate: ep.air_date,
-                            episodeNumber: ep.episode_number,
-                            seasonNumber: ep.season_number,
-                            stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
-                            voteAverage: ep.vote_average,
-                            runtime: ep.runtime
-                        })) || []
-                    };
-                } catch (e) {
-                    console.error(`Failed to fetch season ${season.season_number} for series ${id}`, e);
-                     return {
-                        id: season.id,
-                        name: season.name,
-                        overview: season.overview,
-                        posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
-                        seasonNumber: season.season_number,
-                        episodeCount: season.episode_count,
-                        airDate: season.air_date,
-                        episodes: []
-                    };
-                }
-            })
-        );
-        movie.seasons = seasonsWithEpisodes;
+    // Lazy-load seasons: only fetch first 3 by default, all if fetchAllSeasons is true
+    if (data.seasons && data.seasons.length > 0) {
+      const seasonsToFetch = fetchAllSeasons 
+        ? data.seasons.slice(0, 20)
+        : data.seasons.slice(0, 3);
+      
+      const seasonsWithEpisodes = await Promise.all(
+        seasonsToFetch.map(async (season: TMDBSeasonSummary) => {
+          try {
+            const seasonDetail = await fetchTMDB(`/tv/${id}/season/${season.season_number}`);
+            return {
+                id: season.id,
+                name: season.name,
+                overview: season.overview,
+                posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+                seasonNumber: season.season_number,
+                episodeCount: season.episode_count,
+                airDate: season.air_date,
+                episodes: seasonDetail?.episodes?.map((ep: TMDBEpisode) => ({
+                    id: ep.id,
+                    name: ep.name,
+                    overview: ep.overview,
+                    airDate: ep.air_date,
+                    episodeNumber: ep.episode_number,
+                    seasonNumber: ep.season_number,
+                    stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+                    voteAverage: ep.vote_average,
+                    runtime: ep.runtime
+                })) || []
+            };
+          } catch (e) {
+            console.error(`Failed to fetch season ${season.season_number} for series ${id}`, e);
+            return {
+                id: season.id,
+                name: season.name,
+                overview: season.overview,
+                posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+                seasonNumber: season.season_number,
+                episodeCount: season.episode_count,
+                airDate: season.air_date,
+                episodes: []
+            };
+          }
+        })
+      );
+      movie.seasons = seasonsWithEpisodes;
+      // Store total season count for lazy loading indicator
+      movie.numberOfSeasons = data.number_of_seasons || data.seasons.length;
     }
 
     const similar = await getSimilarMovies(id, 'tv');
@@ -418,11 +590,43 @@ export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
 };
 
 // Helper to fetch based on type
-export const getMediaById = async (id: string, type: 'movie' | 'tv'): Promise<Movie | null> => {
+export const getMediaById = async (id: string, type: 'movie' | 'tv', fetchAllSeasons?: boolean): Promise<Movie | null> => {
   if (type === 'movie') {
     return getMovieById(id);
   } else {
-    return getTvSeriesById(id);
+    return getTvSeriesById(id, fetchAllSeasons);
+  }
+};
+
+// Fetch a single season on demand for lazy loading
+export const getSeasonByNumber = async (seriesId: string, seasonNumber: number) => {
+  try {
+    const seasonDetail = await fetchTMDB(`/tv/${seriesId}/season/${seasonNumber}`);
+    if (!seasonDetail?.episodes) return null;
+
+    return {
+      id: seasonDetail.id,
+      name: seasonDetail.name || `Season ${seasonNumber}`,
+      overview: seasonDetail.overview || "",
+      posterPath: seasonDetail.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${seasonDetail.poster_path}` : undefined,
+      seasonNumber,
+      episodeCount: seasonDetail.episodes.length,
+      airDate: seasonDetail.air_date,
+      episodes: seasonDetail.episodes.map((ep: TMDBEpisode) => ({
+        id: ep.id,
+        name: ep.name,
+        overview: ep.overview,
+        airDate: ep.air_date,
+        episodeNumber: ep.episode_number,
+        seasonNumber: ep.season_number,
+        stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+        voteAverage: ep.vote_average,
+        runtime: ep.runtime
+      }))
+    };
+  } catch (error) {
+    console.error(`Error fetching season ${seasonNumber} for series ${seriesId}:`, error);
+    return null;
   }
 };
 
@@ -682,6 +886,53 @@ export const getSimilarMovies = async (id: string, mediaType: 'movie' | 'tv'): P
       .slice(0, 12);
   } catch (error) {
     console.error(`Error fetching similar ${mediaType} ${id}:`, error);
+    return [];
+  }
+};
+
+export const getTrendingActors = async (): Promise<{ id: number; name: string }[]> => {
+  try {
+    const data = await fetchTMDB("/trending/person/week");
+    const results = Array.isArray(data?.results) ? data.results : [];
+    return results
+      .filter((person: { id?: number; known_for_department?: string }) => 
+        person.id && person.known_for_department === "Acting"
+      )
+      .map((person: { id: number; name: string }) => ({
+        id: person.id,
+        name: person.name,
+      }))
+      .slice(0, 20);
+  } catch (error) {
+    console.error("Error fetching trending actors:", error);
+    return [];
+  }
+};
+
+export const getTrendingDirectors = async (): Promise<{ id: number; name: string }[]> => {
+  try {
+    const data = await fetchTMDB("/trending/movie/week");
+    const results = Array.isArray(data?.results) ? data.results : [];
+    
+    const directorMap = new Map<number, { id: number; name: string }>();
+    
+    for (const item of results) {
+      if (item.id && item.credits?.crew) {
+        const directors = item.credits.crew.filter((c: { job: string }) => c.job === "Director");
+        for (const director of directors) {
+          if (director.id && !directorMap.has(director.id)) {
+            directorMap.set(director.id, {
+              id: director.id,
+              name: director.name,
+            });
+          }
+        }
+      }
+    }
+    
+    return Array.from(directorMap.values()).slice(0, 20);
+  } catch (error) {
+    console.error("Error fetching trending directors:", error);
     return [];
   }
 };

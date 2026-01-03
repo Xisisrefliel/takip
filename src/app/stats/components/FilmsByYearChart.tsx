@@ -9,16 +9,20 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-  TooltipProps,
 } from "recharts";
 
 type Props = {
   data?: YearStat[];
 };
 
-const renderTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+type CustomTooltipProps = {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload: YearStat }>;
+};
+
+const renderTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
-  const item = payload[0].payload as YearStat;
+  const item = payload[0].payload;
   return (
     <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl px-4 py-3 text-xs shadow-xl">
       <div className="font-semibold text-foreground">{item.year}</div>

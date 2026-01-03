@@ -2,6 +2,8 @@ import { getTrendingMovies, getPopularSeries } from "@/lib/tmdb";
 import { HomePage } from "@/components/HomePage";
 import { enrichMoviesWithUserStatus } from "@/app/actions";
 
+export const dynamic = 'force-dynamic';
+
 export default async function Page() {
   const [trendingMovies, popularSeries] = await Promise.all([
     getTrendingMovies(),
