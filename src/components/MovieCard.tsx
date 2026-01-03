@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useTransition, type ComponentType } from "react";
-import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { Eye, ClockPlus,ClockCheck, Heart, Check } from "lucide-react";
+import { Eye, ClockPlus, ClockCheck, Heart, Check } from "lucide-react";
 import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
 import { toggleWatchedAction, toggleWatchlistAction, toggleLikedAction } from "@/app/actions";
@@ -73,24 +72,24 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
 
   return (
     <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)}>
-      <div 
+      <div
         className={cn("group flex flex-col gap-3")}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Card Container */}
-        <motion.div
+        <div
           className={cn(
             "relative rounded-[16px] hover-border",
             isHovered && "hover-border-active"
           )}
         >
-      <div
-        className={cn(
-          "relative overflow-hidden rounded-[16px] bg-surface shadow-sm",
-          aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
-        )}
-      >
+          <div
+            className={cn(
+              "relative overflow-hidden rounded-[16px] bg-surface shadow-sm",
+              aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video"
+            )}
+          >
 
             {/* Image */}
             <Image
@@ -103,51 +102,47 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
             />
 
             {/* Overlay Actions - Minimal */}
-            <motion.div
-                className="absolute inset-0 flex items-end justify-center gap-2 pb-3 z-20"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isHovered ? 1 : 0 }}
-                transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                style={{ willChange: "opacity" }}
+            <div
+              className={`absolute inset-0 flex items-end justify-center gap-2 pb-3 z-20 transition-opacity duration-150 ease-out ${isHovered ? 'opacity-100' : 'opacity-0'}`}
             >
-                <ActionButton
-                  active={watched}
-                  onClick={handleWatched}
-                  icon={watched ? Check : Eye}
-                  label="Watched"
-                  disabled={isPending}
-                />
-                <ActionButton
-                  active={liked}
-                  onClick={handleLiked}
-                  icon={Heart}
-                  label="Like"
-                  fill={liked}
-                  className={liked ? "text-red-500 bg-white" : ""}
-                  disabled={isPending}
-                />
-                <ActionButton
-                  active={watchlist}
-                  onClick={handleWatchlist}
-                  icon={watchlist ? ClockCheck : ClockPlus}
-                  label="Watchlist"
-                  disabled={isPending}
-                />
-            </motion.div>
+              <ActionButton
+                active={watched}
+                onClick={handleWatched}
+                icon={watched ? Check : Eye}
+                label="Watched"
+                disabled={isPending}
+              />
+              <ActionButton
+                active={liked}
+                onClick={handleLiked}
+                icon={Heart}
+                label="Like"
+                fill={liked}
+                className={liked ? "text-red-500 bg-white" : ""}
+                disabled={isPending}
+              />
+              <ActionButton
+                active={watchlist}
+                onClick={handleWatchlist}
+                icon={watchlist ? ClockCheck : ClockPlus}
+                label="Watchlist"
+                disabled={isPending}
+              />
+            </div>
 
             {/* Status Badges (Top Right) */}
             {!isHovered && (
-               <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none z-20">
-                  {watched && (
-                      <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
-                  )}
-                  {liked && (
-                      <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-red-500/50" />
-                  )}
-               </div>
+              <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none z-20">
+                {watched && (
+                  <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
+                )}
+                {liked && (
+                  <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-red-500/50" />
+                )}
+              </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {/* Info Below */}
         <div className="px-1 space-y-0.5">
@@ -171,31 +166,29 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
   );
 }
 
-function ActionButton({ 
-  active, 
-  onClick, 
-  icon: Icon, 
-  label, 
+function ActionButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
   className,
   fill,
   disabled = false
-}: { 
-  active?: boolean; 
-  onClick: (e: React.MouseEvent) => void; 
-  icon: ComponentType<{ size?: number; fill?: string; className?: string }>; 
+}: {
+  active?: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  icon: ComponentType<{ size?: number; fill?: string; className?: string }>;
   label: string;
   className?: string;
   fill?: boolean;
   disabled?: boolean;
 }) {
   return (
-    <motion.button
-      whileHover={disabled ? {} : { scale: 1.1 }}
-      whileTap={disabled ? {} : { scale: 0.9 }}
+    <button
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm transition-all shadow-xl border hover:shadow-2xl",
+        "w-9 h-9 rounded-full flex items-center justify-center transition-colors shadow-lg border",
         active
           ? "bg-white text-black border-white/40 hover:bg-white hover:text-black"
           : "bg-black/60 text-white border-white/20 hover:bg-black/70 hover:text-white hover:border-white/30",
@@ -204,10 +197,10 @@ function ActionButton({
       )}
       title={label}
     >
-      <Icon 
-        size={16} 
+      <Icon
+        size={16}
         {...(fill ? { fill: "currentColor" } : {})}
       />
-    </motion.button>
+    </button>
   );
 }
