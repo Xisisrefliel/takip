@@ -1,13 +1,12 @@
 "use client";
 
 import { GenreStat } from "../actions";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, TooltipProps } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 type Props = {
   data?: GenreStat[];
 };
 
-// Grayscale shades that work in both light and dark modes
 const shades = [
   "#1a1a1a",
   "#2a2a2a",
@@ -19,9 +18,14 @@ const shades = [
   "#8a8a8a",
 ];
 
-const renderTooltip = ({ active, payload }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload: GenreStat }>;
+}
+
+const renderTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
-  const item = payload[0].payload as GenreStat;
+  const item = payload[0].payload;
   return (
     <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-black/90 backdrop-blur-2xl px-4 py-3 text-xs shadow-xl">
       <div className="font-semibold text-foreground">{item.name}</div>

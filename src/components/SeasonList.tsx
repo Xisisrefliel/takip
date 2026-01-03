@@ -548,28 +548,11 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                           const newSet = new Set(
                                             showReviewForm
                                           );
-                                          if (newSet.has(episode.id)) {
-                                            newSet.delete(episode.id);
-                                            setEditingReviewId((prev) => {
-                                              const next = new Map(prev);
-                                              next.delete(episode.id);
-                                              return next;
-                                            });
-                                          } else {
-                                            newSet.add(episode.id);
-                                            const userReview =
-                                              episodeReviews.get(
-                                                episode.id
-                                              )?.review;
-                                            if (userReview) {
-                                              setEditingReviewId((prev) =>
-                                                new Map(prev).set(
-                                                  episode.id,
-                                                  userReview.id
-                                                )
-                                              );
+                                           if (newSet.has(episode.id)) {
+                                              newSet.delete(episode.id);
+                                            } else {
+                                              newSet.add(episode.id);
                                             }
-                                          }
                                           setShowReviewForm(newSet);
                                         }}
                                         className={cn(
@@ -639,14 +622,8 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                     }
                                     onSuccess={async () => {
                                       await loadEpisodeReviews(episode.id);
-                                      // Close form after successful submit
                                       setShowReviewForm((prev) => {
                                         const next = new Set(prev);
-                                        next.delete(episode.id);
-                                        return next;
-                                      });
-                                      setEditingReviewId((prev) => {
-                                        const next = new Map(prev);
                                         next.delete(episode.id);
                                         return next;
                                       });
@@ -654,11 +631,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                     onCancel={() => {
                                       setShowReviewForm((prev) => {
                                         const next = new Set(prev);
-                                        next.delete(episode.id);
-                                        return next;
-                                      });
-                                      setEditingReviewId((prev) => {
-                                        const next = new Map(prev);
                                         next.delete(episode.id);
                                         return next;
                                       });

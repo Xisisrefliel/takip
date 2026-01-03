@@ -32,52 +32,52 @@ export function Navbar() {
   const dropdownButtonRef = useRef<HTMLDivElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const applyTheme = (next: "light" | "dark") => {
-    const root = document.documentElement;
-    root.classList.add("theme-changing");
-    root.classList.remove("light", "dark");
-    root.classList.add(next);
-    localStorage.setItem("theme", next);
-    window.setTimeout(() => {
-      root.classList.remove("theme-changing");
-    }, 80);
-  };
-
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
-    const prefersDark =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-    const initial = stored === "dark" || (!stored && prefersDark) ? "dark" : "light";
-    setTheme(initial);
-    applyTheme(initial);
+    const stored = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initialTheme = stored === "dark" || (!stored && prefersDark) ? "dark" : "light";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(initialTheme);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    document.documentElement.classList.add(initialTheme);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!hasMounted) return;
-    applyTheme(theme);
-  }, [theme, hasMounted]);
+  const applyTheme = (next: "light" | "dark") => {
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(next);
+    localStorage.setItem("theme", next);
+  };
+
+  const handleToggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    applyTheme(newTheme);
+  };
 
   useEffect(() => {
     if (pathname.startsWith("/books") || pathname.startsWith("/book/")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMediaType("books");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchType("books");
     } else if (pathname.startsWith("/tv/")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMediaType("movies");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchType("series");
     } else if (
       pathname === "/" ||
       pathname.startsWith("/movie/")
     ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMediaType("movies");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchType("movies");
     }
   }, [pathname, setMediaType]);
-
-
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -238,7 +238,6 @@ export function Navbar() {
                 }}
                 className="flex items-center gap-0.5 sm:gap-1 md:gap-2 min-w-0 flex-1"
               >
-                {/* Media Switcher */}
                 <div className="relative mr-0.5 sm:mr-1 shrink-0">
                   <motion.div
                     ref={dropdownButtonRef}
@@ -252,7 +251,6 @@ export function Navbar() {
                   </motion.div>
                 </div>
 
-                {/* Main Navigation Pills */}
                 <div
                   className="flex items-center bg-black/5 dark:bg-white/5 rounded-full border border-black/8 dark:border-white/8 px-0.5 sm:px-1 py-0.5 sm:py-1 relative shrink-0 backdrop-blur-md"
                   onMouseLeave={() => setHoveredLink(null)}
@@ -275,7 +273,6 @@ export function Navbar() {
                   </NavPill>
                 </div>
 
-                {/* Separator & Last Visited */}
                 {lastVisited && (
                   <>
                     <div className="h-4 sm:h-5 w-px bg-border/50 mx-0.5 sm:mx-1 shrink-0 hidden sm:block" />
@@ -311,12 +308,11 @@ export function Navbar() {
                   </>
                 )}
 
-                {/* Right Actions */}
                 <div className="flex items-center pl-1 sm:pl-2 border-l border-black/8 dark:border-white/10 gap-0.5 sm:gap-1 shrink-0 ml-0.5 sm:ml-1">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    onClick={handleToggleTheme}
                     aria-label="Toggle theme"
                     className={cn(
                       "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
@@ -326,7 +322,7 @@ export function Navbar() {
                     )}
                   >
                     <div className="flex items-center justify-center">
-                      {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}
+                      {hasMounted && theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}
                     </div>
                   </motion.button>
                   <button
@@ -345,7 +341,6 @@ export function Navbar() {
         </motion.nav>
       </div>
 
-      {/* Media Switcher Dropdown Portal */}
       {hasMounted &&
         createPortal(
           <AnimatePresence>

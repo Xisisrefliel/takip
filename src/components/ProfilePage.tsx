@@ -158,7 +158,7 @@ export function ProfilePage({
     [content, visibleCount]
   );
 
-  const enableAnimations = visibleContent.length <= 120;
+  
   const isTabLoading = isLoading || !loadedTabs.has(`${contentType}-${activeTab}`);
 
   return (
@@ -193,19 +193,19 @@ export function ProfilePage({
             className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium text-foreground/50 px-4"
           >
             <span className="flex items-center gap-1">
-              <Clock size={12} className="sm:w-[14px] sm:h-[14px]" /> 
+              <Clock size={12} className="sm:w-3.5 sm:h-3.5" /> 
               {isLoading ? "..." : contentType === "movies" ? watchedMovies.length : watchedBooks.length} 
               {contentType === "books" ? " Read" : " Watched"}
             </span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
             <span className="flex items-center gap-1">
-              <Bookmark size={12} className="sm:w-[14px] sm:h-[14px]" /> 
+              <Bookmark size={12} className="sm:w-3.5 sm:h-3.5" /> 
               {isLoading ? "..." : contentType === "movies" ? watchlistMovies.length : watchlistBooks.length} 
               {" Queue"}
             </span>
             <span className="w-1 h-1 rounded-full bg-foreground/20" />
             <span className="flex items-center gap-1">
-              <Heart size={12} className="sm:w-[14px] sm:h-[14px]" /> 
+              <Heart size={12} className="sm:w-3.5 sm:h-3.5" /> 
               {isLoading ? "..." : contentType === "movies" ? favoritesMovies.length : favoritesBooks.length} 
               {" Loved"}
             </span>
@@ -223,7 +223,7 @@ export function ProfilePage({
                 active={contentType === "movies"}
                 onClick={() => setContentType("movies")}
                 label="Movies & TV"
-                icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                icon={<Film size={12} className="sm:w-3.5 sm:h-3.5" />}
                 hovered={hoveredContentType}
                 setHovered={setHoveredContentType}
               />
@@ -232,7 +232,7 @@ export function ProfilePage({
                 active={contentType === "books"}
                 onClick={() => setContentType("books")}
                 label="Books"
-                icon={<BookOpen size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                icon={<BookOpen size={12} className="sm:w-3.5 sm:h-3.5" />}
                 hovered={hoveredContentType}
                 setHovered={setHoveredContentType}
               />
@@ -283,7 +283,7 @@ export function ProfilePage({
                     id="movie"
                     active={mediaFilter === "movie"} 
                     onClick={() => setMediaFilter("movie")}
-                    icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    icon={<Film size={12} className="sm:w-3.5 sm:h-3.5" />}
                     label="Movies"
                     hoveredFilter={hoveredFilter}
                     setHoveredFilter={setHoveredFilter}
@@ -292,7 +292,7 @@ export function ProfilePage({
                     id="all"
                     active={mediaFilter === "all"} 
                     onClick={() => setMediaFilter("all")}
-                    icon={<Layers size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    icon={<Layers size={12} className="sm:w-3.5 sm:h-3.5" />}
                     label="All"
                     hoveredFilter={hoveredFilter}
                     setHoveredFilter={setHoveredFilter}
@@ -301,7 +301,7 @@ export function ProfilePage({
                     id="tv"
                     active={mediaFilter === "tv"} 
                     onClick={() => setMediaFilter("tv")}
-                    icon={<Tv size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    icon={<Tv size={12} className="sm:w-3.5 sm:h-3.5" />}
                     label="Series"
                     hoveredFilter={hoveredFilter}
                     setHoveredFilter={setHoveredFilter}

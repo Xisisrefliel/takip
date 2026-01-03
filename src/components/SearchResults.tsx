@@ -62,7 +62,7 @@ export function SearchResults({
                     active={activeTab === "movies"}
                     onClick={() => onTabChange("movies")}
                     label="Movies"
-                    icon={<Film size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    icon={<Film size={12} className="sm:w-3.5 sm:h-3.5" />}
                     hovered={hoveredTab}
                     setHovered={setHoveredTab}
                 />
@@ -71,7 +71,7 @@ export function SearchResults({
                     active={activeTab === "series"}
                     onClick={() => onTabChange("series")}
                     label="TV Series"
-                    icon={<Tv size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    icon={<Tv size={12} className="sm:w-3.5 sm:h-3.5" />}
                     hovered={hoveredTab}
                     setHovered={setHoveredTab}
                 />
@@ -80,7 +80,7 @@ export function SearchResults({
                     active={activeTab === "books"}
                     onClick={() => onTabChange("books")}
                     label="Books"
-                    icon={<BookOpen size={12} className="sm:w-[14px] sm:h-[14px]" />}
+                    icon={<BookOpen size={12} className="sm:w-3.5 sm:h-3.5" />}
                     hovered={hoveredTab}
                     setHovered={setHoveredTab}
                 />
@@ -90,8 +90,8 @@ export function SearchResults({
                 <div className="overflow-y-auto p-2 scrollbar-hide">
                     {isSearching ? (
                         <div className="h-60 flex flex-col items-center justify-center text-muted-foreground gap-3">
-                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                            <span className="text-xs font-medium text-white/40">Searching library...</span>
+                            <div className="w-5 h-5 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+                            <span className="text-xs font-medium text-foreground/60">Searching library...</span>
                         </div>
                     ) : results.length > 0 ? (
                         <div className="grid grid-cols-1 gap-1">
@@ -119,9 +119,9 @@ export function SearchResults({
                                             key={item.id}
                                             href={href}
                                             onClick={onClose}
-                                            className="flex items-center gap-4 p-2.5 hover:bg-white/5 rounded-xl transition-all duration-200 group active:scale-[0.99]"
+                                            className="flex items-center gap-4 p-2.5 hover:bg-foreground/5 rounded-xl transition-all duration-200 group active:scale-[0.99]"
                                         >
-                                            <div className="relative w-12 h-[72px] shrink-0 rounded-sm overflow-hidden shadow-lg bg-white/5 ring-1 ring-white/10 group-hover:ring-white/20 transition-all">
+                                            <div className="relative w-12 h-[72px] shrink-0 rounded-sm overflow-hidden shadow-lg bg-foreground/5 ring-1 ring-foreground/10 group-hover:ring-foreground/20 transition-all">
                                                 <Image
                                                     src={image}
                                                     alt={title}
@@ -132,20 +132,20 @@ export function SearchResults({
                                             </div>
                                             <div className="flex flex-col min-w-0 gap-0.5 flex-1">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[15px] font-medium text-white/90 truncate group-hover:text-white transition-colors">
+                                                    <span className="text-[15px] font-medium text-foreground/90 truncate group-hover:text-foreground transition-colors">
                                                         {title}
                                                     </span>
                                                     {rating && rating > 0 && (
-                                                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/10 text-white/60">
+                                                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-foreground/10 text-foreground/60">
                                                             {rating.toFixed(1)}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <span className="text-[13px] text-white/40 truncate group-hover:text-white/60 transition-colors">
+                                                <span className="text-[13px] text-foreground/40 truncate group-hover:text-foreground/60 transition-colors">
                                                     {subtitle}
                                                 </span>
                                                 {!isBookItem && movie?.overview && (
-                                                    <span className="text-[11px] text-white/30 truncate mt-1">
+                                                    <span className="text-[11px] text-foreground/30 truncate mt-1">
                                                         {movie.overview}
                                                     </span>
                                                 )}
@@ -156,11 +156,11 @@ export function SearchResults({
                         </div>
                     ) : (
                         <div className="h-60 flex flex-col items-center justify-center text-center p-8">
-                            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-white/20">
+                            <div className="w-12 h-12 rounded-full bg-foreground/5 flex items-center justify-center mb-3 text-foreground/20">
                                 <Search size={20} />
                             </div>
-                            <p className="text-sm text-white/40 font-medium">No results found</p>
-                            <p className="text-xs text-white/20 mt-1">Try searching for something else</p>
+                            <p className="text-sm text-foreground/40 font-medium">No results found</p>
+                            <p className="text-xs text-foreground/20 mt-1">Try searching for something else</p>
                         </div>
                     )}
                 </div>

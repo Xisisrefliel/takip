@@ -231,7 +231,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
   })) || [];
 
   // Map Images
-  const images = item.images?.backdrops?.slice(0, 10).map(img => `${TMDB_IMAGE_BASE_URL_W1280}${img.file_path}`) || [];
+  const images = item.images?.backdrops?.slice(0, 20).map(img => `${TMDB_IMAGE_BASE_URL_W1280}${img.file_path}`) || [];
 
   // Get highest rated backdrop if available
   let backdropPath = item.backdrop_path;
@@ -332,6 +332,9 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
       movie.collectionMovies = collectionMovies.filter(m => m.id !== id);
     }
 
+    const similar = await getSimilarMovies(id, 'movie');
+    movie.similar = similar;
+
     return movie;
   } catch (error) {
     console.error(`Error fetching movie ${id}:`, error);
@@ -403,6 +406,9 @@ export const getTvSeriesById = async (id: string): Promise<Movie | null> => {
         );
         movie.seasons = seasonsWithEpisodes;
     }
+
+    const similar = await getSimilarMovies(id, 'tv');
+    movie.similar = similar;
 
     return movie;
   } catch (error) {
@@ -661,6 +667,21 @@ export const getCollectionById = async (collectionId: string): Promise<Movie[]> 
       .filter(m => (m.year ?? 0) > 0);
   } catch (error) {
     console.error(`Error fetching collection ${collectionId}:`, error);
+    return [];
+  }
+};
+
+export const getSimilarMovies = async (id: string, mediaType: 'movie' | 'tv'): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB(`/${mediaType}/${id}/similar`);
+    const results = Array.isArray(data?.results)
+      ? (data.results as TMDBMovie[])
+      : [];
+    return results
+      .map((item) => mapTmdbToMovie(item, mediaType))
+      .slice(0, 12);
+  } catch (error) {
+    console.error(`Error fetching similar ${mediaType} ${id}:`, error);
     return [];
   }
 };
