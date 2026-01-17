@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface CarouselProps {
   title?: string;
+  headerLeft?: React.ReactNode; // Custom left side content (replaces title if provided)
   children: React.ReactNode;
   className?: string;
   hideHeader?: boolean;
@@ -14,6 +15,7 @@ interface CarouselProps {
 
 export function Carousel({
   title,
+  headerLeft,
   children,
   className,
   hideHeader = false,
@@ -50,7 +52,9 @@ export function Carousel({
     <div className={cn("py-6 sm:py-8 w-full", className)}>
       {!hideHeader && (
         <div className="flex items-center justify-between mb-4 sm:mb-6 px-2">
-          {title ? (
+          {headerLeft ? (
+            headerLeft
+          ) : title ? (
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-foreground">
               {title}
             </h2>

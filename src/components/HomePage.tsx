@@ -124,7 +124,7 @@ export function HomePage({
       {/* Personalized Recommendations - only show for authenticated users */}
       {isAuthenticated && recommendedMovies && recommendedMovies.length > 0 && (
         <section>
-          <Carousel>
+          <Carousel title="Recommended For You">
             {recommendedMovies.map((movie) => (
               <div
                 key={movie.id}

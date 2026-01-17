@@ -7,6 +7,7 @@ import {
   searchMoviesWithYear,
   searchTvSeries,
   getMediaById,
+  getEnhancedMovieData,
 } from "@/lib/tmdb";
 import { Book, Movie, Season } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
@@ -144,6 +145,9 @@ type UserMovieMetadata = {
   genres: string | null;
   cast: string | null;
   crew: string | null;
+  keywords: string | null;
+  collectionId: number | null;
+  collectionName: string | null;
 };
 
 const toNullableNumber = (value: unknown) =>
@@ -179,6 +183,26 @@ const fetchUserMovieMetadata = async (
   const castJson = media.cast && media.cast.length > 0 ? JSON.stringify(media.cast) : null;
   const crewJson = media.crew && media.crew.length > 0 ? JSON.stringify(media.crew) : null;
 
+  // Fetch enhanced data (keywords, collection) for movies only
+  let keywordsJson: string | null = null;
+  let collectionId: number | null = null;
+  let collectionName: string | null = null;
+
+  if (mediaType === "movie") {
+    try {
+      const enhancedData = await getEnhancedMovieData(mediaId);
+      if (enhancedData.keywords.length > 0) {
+        keywordsJson = JSON.stringify(enhancedData.keywords);
+      }
+      if (enhancedData.collection) {
+        collectionId = enhancedData.collection.id;
+        collectionName = enhancedData.collection.name;
+      }
+    } catch (error) {
+      console.error("Error fetching enhanced movie data:", error);
+    }
+  }
+
   return {
     title: media.title || null,
     year: toNullableNumber(media.year),
@@ -187,6 +211,9 @@ const fetchUserMovieMetadata = async (
     genres: genresJson,
     cast: castJson,
     crew: crewJson,
+    keywords: keywordsJson,
+    collectionId,
+    collectionName,
   };
 };
 
@@ -203,6 +230,9 @@ const buildMetadataPatch = (
     genres: metadata.genres ?? existing?.genres ?? null,
     cast: metadata.cast ?? existing?.cast ?? null,
     crew: metadata.crew ?? existing?.crew ?? null,
+    keywords: metadata.keywords ?? existing?.keywords ?? null,
+    collectionId: metadata.collectionId ?? existing?.collectionId ?? null,
+    collectionName: metadata.collectionName ?? existing?.collectionName ?? null,
   };
 };
 

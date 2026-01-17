@@ -8,6 +8,7 @@ import { Sparkles, Brain, Flame, Heart, Zap, Lightbulb, Film } from "lucide-reac
 interface MoodSelectorProps {
   initialMood?: string;
   onMoodChange: (mood: string) => void;
+  availableMoods?: string[]; // Only show these moods (if provided)
   className?: string;
 }
 
@@ -26,18 +27,24 @@ type MoodId = typeof MOODS[number]["id"];
 export function MoodSelector({
   initialMood,
   onMoodChange,
+  availableMoods,
   className,
 }: MoodSelectorProps) {
   const [selectedMood, setSelectedMood] = useState<MoodId | null>(null);
   const [hoveredMood, setHoveredMood] = useState<MoodId | null>(null);
 
+  // Filter moods based on availableMoods prop
+  const visibleMoods = availableMoods
+    ? MOODS.filter((m) => availableMoods.includes(m.id))
+    : MOODS;
+
   useEffect(() => {
-    if (initialMood && MOODS.some((m) => m.id === initialMood)) {
+    if (initialMood && visibleMoods.some((m) => m.id === initialMood)) {
       setSelectedMood(initialMood as MoodId);
-    } else {
-      setSelectedMood(MOODS[0].id);
+    } else if (visibleMoods.length > 0) {
+      setSelectedMood(visibleMoods[0].id);
     }
-  }, [initialMood]);
+  }, [initialMood, visibleMoods]);
 
   const handleMoodSelect = useCallback(
     (moodId: MoodId) => {
@@ -47,12 +54,12 @@ export function MoodSelector({
     [onMoodChange]
   );
 
-  if (selectedMood === null) {
+  if (selectedMood === null || visibleMoods.length === 0) {
     return (
       <div className={cn("flex gap-2 overflow-x-auto pb-2", className)}>
-        {MOODS.map((mood) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <div
-            key={mood.id}
+            key={i}
             className="h-10 w-24 bg-surface animate-pulse rounded-full"
           />
         ))}
@@ -63,7 +70,7 @@ export function MoodSelector({
   return (
     <div className={cn("flex flex-wrap gap-2 sm:gap-3", className)}>
       <AnimatePresence mode="popLayout">
-        {MOODS.map((mood) => {
+        {visibleMoods.map((mood) => {
           const Icon = mood.icon;
           const isSelected = selectedMood === mood.id;
           const isHovered = hoveredMood === mood.id;

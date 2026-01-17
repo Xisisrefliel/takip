@@ -1,37 +1,19 @@
 import { db } from "@/db";
 import { userMovies, reviews } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { Movie } from "@/types";
 import {
-  getMediaById,
-  searchMoviesOnly,
+  getMovieRecommendations,
+  discoverMoviesByGenres,
+  discoverMoviesByKeywords,
   getTrendingMovies,
-  discoverMovies,
-  discoverTv,
+  GENRE_IDS,
+  THEME_KEYWORD_IDS,
 } from "./tmdb";
 
-const TMDB_IMAGE_BASE_URL_W500 = "https://image.tmdb.org/t/p/w500";
-
-const GENRES: Record<number, string> = {
-  28: "Action",
-  12: "Adventure",
-  16: "Animation",
-  35: "Comedy",
-  80: "Crime",
-  99: "Documentary",
-  18: "Drama",
-  10762: "Family",
-  14: "Fantasy",
-  36: "History",
-  27: "Horror",
-  10402: "Music",
-  9648: "Mystery",
-  10749: "Romance",
-  878: "Science Fiction",
-  53: "Thriller",
-  10752: "War",
-  37: "Western",
-};
+// ==========================================
+// Types and Constants
+// ==========================================
 
 export const MOOD_MAP: Record<string, string[]> = {
   "uplifting": ["Comedy", "Animation", "Family", "Music"],
@@ -40,35 +22,45 @@ export const MOOD_MAP: Record<string, string[]> = {
   "feel-good": ["Romance", "Comedy", "Music"],
   "adrenaline": ["Action", "Adventure", "Thriller"],
   "thought-provoking": ["Documentary", "Drama", "Science Fiction"],
-  "classic": ["Film-Noir", "Drama", "Mystery"],
+  "classic": ["Drama", "Mystery"],
 };
 
 export type MoodKey = keyof typeof MOOD_MAP;
 
 const MIN_VOTE_COUNT = 50;
-const MIN_RATING_THRESHOLD = 5.5;
+const MIN_RATING = 5.5;
+const RECENCY_DECAY_DAYS = 180; // Half-life for recency weighting
+const MAX_RECOMMENDATIONS_PER_SOURCE = 30;
 
 interface UserPreferences {
-  favoriteGenres: Record<string, number>;
-  favoriteDirectors: Record<string, number>;
-  favoriteActors: Record<string, number>;
-  preferredDecades: Record<string, number>;
+  favoriteGenres: Map<string, number>;
+  favoriteDirectors: Map<string, number>;
+  favoriteActors: Map<string, number>;
+  favoriteKeywords: Map<string, number>;
+  preferredDecades: Map<string, number>;
+  seenCollections: Set<number>;
+  averageRuntime: number;
+  runtimeRange: { min: number; max: number };
   averageRating: number;
   ratingStyle: "generous" | "moderate" | "critical";
-  highlyRatedMovies: Set<string>;
+  topLikedMovieIds: string[];
+  watchlistMovieIds: string[];
+  watchlistCollectionIds: Set<number>;
 }
 
-interface RecommendationScore {
+interface ScoredMovie {
   movie: Movie;
   score: number;
   reasons: string[];
-  qualityScore: number;
+  sources: Set<string>;
 }
 
+// ==========================================
+// Utility Functions
+// ==========================================
+
 function parseJsonSafely<T>(data: unknown, fallback: T): T {
-  if (data === null || data === undefined) {
-    return fallback;
-  }
+  if (data === null || data === undefined) return fallback;
   if (typeof data === "string") {
     try {
       return JSON.parse(data) as T;
@@ -79,84 +71,202 @@ function parseJsonSafely<T>(data: unknown, fallback: T): T {
   return data as T;
 }
 
+/**
+ * Calculate recency weight using exponential decay
+ * More recent interactions have higher weight
+ */
+function calculateRecencyWeight(date: Date | null): number {
+  if (!date) return 0.5; // Default weight for items without date
+  const daysSince = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
+  // Exponential decay with half-life of RECENCY_DECAY_DAYS
+  return Math.exp(-0.693 * daysSince / RECENCY_DECAY_DAYS);
+}
+
+/**
+ * Get current season for seasonal recommendations
+ */
+function getCurrentSeason(): "spring" | "summer" | "fall" | "winter" {
+  const month = new Date().getMonth();
+  if (month >= 2 && month <= 4) return "spring";
+  if (month >= 5 && month <= 7) return "summer";
+  if (month >= 8 && month <= 10) return "fall";
+  return "winter";
+}
+
+/**
+ * Check if current date is near a holiday
+ */
+function getCurrentHoliday(): string | null {
+  const now = new Date();
+  const month = now.getMonth();
+  const day = now.getDate();
+
+  // Christmas season (Dec 1 - Dec 31)
+  if (month === 11) return "christmas";
+  // Halloween season (Oct 15 - Oct 31)
+  if (month === 9 && day >= 15) return "halloween";
+  // Valentine's (Feb 1 - Feb 14)
+  if (month === 1 && day <= 14) return "valentines";
+
+  return null;
+}
+
+function isQualityContent(movie: Movie): boolean {
+  if (movie.voteCount !== undefined && movie.voteCount < MIN_VOTE_COUNT) return false;
+  if (movie.rating !== undefined && movie.rating < MIN_RATING) return false;
+  return true;
+}
+
+// ==========================================
+// User Preferences Analysis
+// ==========================================
+
 export async function getUserPreferences(userId: string): Promise<UserPreferences> {
+  // Fetch user's movie data with all fields
   const userMoviesData = await db
     .select()
     .from(userMovies)
-    .where(eq(userMovies.userId, userId));
+    .where(eq(userMovies.userId, userId))
+    .orderBy(desc(userMovies.watchedDate));
+
   const userReviews = await db
     .select()
     .from(reviews)
     .where(eq(reviews.userId, userId));
 
   const preferences: UserPreferences = {
-    favoriteGenres: {},
-    favoriteDirectors: {},
-    favoriteActors: {},
-    preferredDecades: {},
-    averageRating: 0,
+    favoriteGenres: new Map(),
+    favoriteDirectors: new Map(),
+    favoriteActors: new Map(),
+    favoriteKeywords: new Map(),
+    preferredDecades: new Map(),
+    seenCollections: new Set(),
+    averageRuntime: 120,
+    runtimeRange: { min: 80, max: 180 },
+    averageRating: 3,
     ratingStyle: "moderate",
-    highlyRatedMovies: new Set(),
+    topLikedMovieIds: [],
+    watchlistMovieIds: [],
+    watchlistCollectionIds: new Set(),
   };
 
+  let totalRuntime = 0;
+  let runtimeCount = 0;
+  const runtimes: number[] = [];
   let totalRating = 0;
   let ratedCount = 0;
-  let ratingsSum = 0;
-  let ratingsCount = 0;
 
+  // Process each movie with recency weighting
   for (const movie of userMoviesData) {
-    if (movie.liked) {
-      const genres = parseJsonSafely<string[]>(movie.genres, []);
-      for (const genre of genres) {
-        preferences.favoriteGenres[genre] = (preferences.favoriteGenres[genre] || 0) + 3;
+    const recencyWeight = calculateRecencyWeight(movie.watchedDate);
+    const isLiked = movie.liked;
+    const isWatched = movie.watched;
+    const isWatchlist = movie.watchlist;
+
+    // Track collections
+    if (movie.collectionId) {
+      if (isWatched) {
+        preferences.seenCollections.add(movie.collectionId);
       }
-      const crew = parseJsonSafely<Array<{ name: string; job: string }>>(movie.crew, []);
-      for (const member of crew) {
-        if (member.job === "Director") {
-          preferences.favoriteDirectors[member.name] = (preferences.favoriteDirectors[member.name] || 0) + 3;
-        }
-      }
-      const cast = parseJsonSafely<Array<{ name: string }>>(movie.cast, []);
-      for (const actor of cast.slice(0, 5)) {
-        preferences.favoriteActors[actor.name] = (preferences.favoriteActors[actor.name] || 0) + 1;
-      }
-      if (movie.year) {
-        const decade = Math.floor(movie.year / 10) * 10;
-        const decadeStr = `${decade}s`;
-        preferences.preferredDecades[decadeStr] = (preferences.preferredDecades[decadeStr] || 0) + 1;
+      if (isWatchlist) {
+        preferences.watchlistCollectionIds.add(movie.collectionId);
       }
     }
-    if (movie.watched) {
-      const genres = parseJsonSafely<string[]>(movie.genres, []);
-      for (const genre of genres) {
-        preferences.favoriteGenres[genre] = (preferences.favoriteGenres[genre] || 0) + 1;
+
+    // Track watchlist
+    if (isWatchlist && !isWatched) {
+      preferences.watchlistMovieIds.push(movie.movieId);
+    }
+
+    // Track top liked movies (for similar movie recommendations)
+    if (isLiked) {
+      preferences.topLikedMovieIds.push(movie.movieId);
+    }
+
+    // Process genres with recency weighting
+    const genres = parseJsonSafely<string[]>(movie.genres, []);
+    for (const genre of genres) {
+      const currentScore = preferences.favoriteGenres.get(genre) || 0;
+      const weight = isLiked ? 3 * recencyWeight : isWatched ? 1 * recencyWeight : 0;
+      preferences.favoriteGenres.set(genre, currentScore + weight);
+    }
+
+    // Process directors with recency weighting
+    const crew = parseJsonSafely<Array<{ name: string; job: string }>>(movie.crew, []);
+    for (const member of crew) {
+      if (member.job === "Director" && isLiked) {
+        const currentScore = preferences.favoriteDirectors.get(member.name) || 0;
+        preferences.favoriteDirectors.set(member.name, currentScore + 3 * recencyWeight);
       }
+    }
+
+    // Process actors with recency weighting
+    const cast = parseJsonSafely<Array<{ name: string }>>(movie.cast, []);
+    for (const actor of cast.slice(0, 5)) {
+      if (isLiked) {
+        const currentScore = preferences.favoriteActors.get(actor.name) || 0;
+        preferences.favoriteActors.set(actor.name, currentScore + recencyWeight);
+      }
+    }
+
+    // Process keywords with recency weighting
+    const keywords = parseJsonSafely<string[]>(movie.keywords, []);
+    for (const keyword of keywords) {
+      if (isLiked) {
+        const currentScore = preferences.favoriteKeywords.get(keyword) || 0;
+        preferences.favoriteKeywords.set(keyword, currentScore + 2 * recencyWeight);
+      } else if (isWatched) {
+        const currentScore = preferences.favoriteKeywords.get(keyword) || 0;
+        preferences.favoriteKeywords.set(keyword, currentScore + 0.5 * recencyWeight);
+      }
+    }
+
+    // Process decades
+    if (movie.year && movie.year > 1900 && isLiked) {
+      const decade = `${Math.floor(movie.year / 10) * 10}s`;
+      const currentScore = preferences.preferredDecades.get(decade) || 0;
+      preferences.preferredDecades.set(decade, currentScore + recencyWeight);
+    }
+
+    // Track runtime
+    if (movie.runtime && movie.runtime > 0 && isWatched) {
+      totalRuntime += movie.runtime;
+      runtimeCount++;
+      runtimes.push(movie.runtime);
     }
   }
 
+  // Calculate runtime preferences
+  if (runtimeCount > 0) {
+    preferences.averageRuntime = totalRuntime / runtimeCount;
+    runtimes.sort((a, b) => a - b);
+    const p10 = Math.floor(runtimes.length * 0.1);
+    const p90 = Math.floor(runtimes.length * 0.9);
+    preferences.runtimeRange = {
+      min: runtimes[p10] || 80,
+      max: runtimes[p90] || 180,
+    };
+  }
+
+  // Process reviews for rating style
   for (const review of userReviews) {
     if (review.rating) {
       totalRating += review.rating;
       ratedCount++;
-      if (review.rating >= 4) {
-        preferences.highlyRatedMovies.add(review.mediaId || "");
-      }
-      ratingsSum += review.rating;
-      ratingsCount++;
     }
   }
 
-  preferences.averageRating = ratedCount > 0 ? totalRating / ratedCount : 3;
-  if (ratingsCount > 0) {
-    const avg = ratingsSum / ratingsCount;
-    if (avg >= 3.5) {
+  if (ratedCount > 0) {
+    preferences.averageRating = totalRating / ratedCount;
+    if (preferences.averageRating >= 3.5) {
       preferences.ratingStyle = "generous";
-    } else if (avg <= 2.5) {
+    } else if (preferences.averageRating <= 2.5) {
       preferences.ratingStyle = "critical";
-    } else {
-      preferences.ratingStyle = "moderate";
     }
   }
+
+  // Limit top liked movies to most recent 20
+  preferences.topLikedMovieIds = preferences.topLikedMovieIds.slice(0, 20);
 
   return preferences;
 }
@@ -169,151 +279,404 @@ export async function getSeenMovieIds(userId: string): Promise<Set<string>> {
   return new Set(userMoviesData.map((m) => m.movieId));
 }
 
-function normalizeGenre(genre: string): string {
-  const normalized = genre.toLowerCase().trim();
-  for (const [id, name] of Object.entries(GENRES)) {
-    if (name.toLowerCase() === normalized) {
-      return name;
-    }
-    if (id === normalized) {
-      return name;
-    }
-  }
-  return genre;
-}
+// ==========================================
+// Scoring Functions
+// ==========================================
 
-function calculateQualityScore(movie: Movie): number {
-  let quality = 0;
-  if (movie.rating) {
-    quality += movie.rating * 2;
-    if (movie.rating >= 8) {
-      quality += 3;
-    } else if (movie.rating >= 7) {
-      quality += 1.5;
-    } else if (movie.rating < 5) {
-      quality -= 2;
-    }
-  }
-  if (movie.voteCount) {
-    if (movie.voteCount >= 10000) {
-      quality += 3;
-    } else if (movie.voteCount >= 1000) {
-      quality += 1.5;
-    } else if (movie.voteCount >= 100) {
-      quality += 0.5;
-    } else if (movie.voteCount < MIN_VOTE_COUNT) {
-      quality -= 1;
-    }
-  }
-  if (movie.popularity && movie.popularity > 100) {
-    quality += 1;
-  }
-  return quality;
-}
-
-function isQualityContent(movie: Movie): boolean {
-  if (movie.voteCount !== undefined && movie.voteCount < MIN_VOTE_COUNT) {
-    return false;
-  }
-  if (movie.rating !== undefined && movie.rating < MIN_RATING_THRESHOLD) {
-    return false;
-  }
-  return true;
-}
-
-function calculateSimilarityScore(
+function calculateMovieScore(
   movie: Movie,
   preferences: UserPreferences,
   seenIds: Set<string>
-): RecommendationScore | null {
+): ScoredMovie | null {
   if (seenIds.has(movie.id)) return null;
-  if (!isQualityContent(movie)) {
-    return null;
-  }
+  if (!isQualityContent(movie)) return null;
 
   let score = 0;
   const reasons: string[] = [];
+  const sources = new Set<string>();
 
-  const movieGenres = movie.genre.map(normalizeGenre);
-  for (const genre of movieGenres) {
-    const genreScore = preferences.favoriteGenres[genre] || 0;
+  // Genre matching (weighted by user preference)
+  for (const genre of movie.genre) {
+    const genreScore = preferences.favoriteGenres.get(genre) || 0;
     if (genreScore > 0) {
-      score += genreScore;
-      reasons.push(`Matches your interest in ${genre}`);
-    }
-  }
-
-  if (movie.crew) {
-    const directors = movie.crew.filter((c) => c.job === "Director");
-    for (const director of directors) {
-      const directorScore = preferences.favoriteDirectors[director.name] || 0;
-      if (directorScore > 0) {
-        score += directorScore * 2.5;
-        reasons.push(`Directed by ${director.name}`);
+      score += genreScore * 1.5;
+      if (genreScore > 2) {
+        reasons.push(`Matches your love of ${genre}`);
       }
     }
   }
 
+  // Director matching
+  if (movie.crew) {
+    for (const member of movie.crew) {
+      if (member.job === "Director") {
+        const directorScore = preferences.favoriteDirectors.get(member.name) || 0;
+        if (directorScore > 0) {
+          score += directorScore * 2;
+          reasons.push(`Directed by ${member.name}`);
+          sources.add("director");
+        }
+      }
+    }
+  }
+
+  // Actor matching
   if (movie.cast) {
     for (const actor of movie.cast.slice(0, 5)) {
-      const actorScore = preferences.favoriteActors[actor.name] || 0;
+      const actorScore = preferences.favoriteActors.get(actor.name) || 0;
       if (actorScore > 0) {
-        score += actorScore;
-        reasons.push(`Stars ${actor.name}`);
+        score += actorScore * 1.2;
+        if (actorScore > 1) {
+          reasons.push(`Stars ${actor.name}`);
+          sources.add("actor");
+        }
       }
     }
   }
 
+  // Decade preference
   if (movie.year && movie.year > 1900) {
     const decade = `${Math.floor(movie.year / 10) * 10}s`;
-    const decadeScore = preferences.preferredDecades[decade] || 0;
+    const decadeScore = preferences.preferredDecades.get(decade) || 0;
     if (decadeScore > 0) {
       score += decadeScore * 0.5;
-      reasons.push(`From the ${decade}`);
     }
   }
 
-  const qualityScore = calculateQualityScore(movie);
-
-  if (preferences.ratingStyle === "critical") {
-    if (movie.rating && movie.rating >= 7.5) {
-      score += 2;
-    } else if (movie.rating && movie.rating >= 6.5) {
+  // Runtime preference - bonus for movies within user's preferred range
+  if (movie.runtime) {
+    if (movie.runtime >= preferences.runtimeRange.min && movie.runtime <= preferences.runtimeRange.max) {
       score += 1;
-    }
-  } else if (preferences.ratingStyle === "generous") {
-    if (movie.rating && movie.rating >= preferences.averageRating) {
-      score += 1.5;
-    }
-    if (movie.rating && movie.rating >= 6) {
-      score += 1;
-    }
-  } else {
-    if (movie.rating && movie.rating >= preferences.averageRating) {
-      score += 1;
+    } else if (Math.abs(movie.runtime - preferences.averageRuntime) > 60) {
+      score -= 0.5; // Slight penalty for very different runtime
     }
   }
 
+  // Quality bonus
   if (movie.rating && movie.rating >= 8) {
-    score += 1.5;
+    score += 2;
+    reasons.push("Critically acclaimed");
   } else if (movie.rating && movie.rating >= 7) {
+    score += 1;
+  }
+
+  // Popularity bonus (ensures some mainstream appeal)
+  if (movie.voteCount && movie.voteCount >= 5000) {
     score += 0.5;
   }
 
-  if (movie.voteCount && movie.voteCount >= 1000) {
+  // Rating style adjustment
+  if (preferences.ratingStyle === "critical" && movie.rating && movie.rating >= 7.5) {
+    score += 1;
+  } else if (preferences.ratingStyle === "generous" && movie.rating && movie.rating >= 6) {
     score += 0.5;
   }
-
-  const combinedScore = score + (qualityScore * 0.3);
-  if (combinedScore < 3) return null;
 
   return {
     movie,
-    score: combinedScore,
+    score,
     reasons: reasons.slice(0, 3),
-    qualityScore,
+    sources,
   };
 }
+
+// ==========================================
+// Diversity Control
+// ==========================================
+
+function applyDiversityFilter(
+  scoredMovies: ScoredMovie[],
+  limit: number
+): Movie[] {
+  const result: Movie[] = [];
+  const genreCounts = new Map<string, number>();
+  const decadeCounts = new Map<string, number>();
+  const directorCounts = new Map<string, number>();
+
+  const MAX_PER_GENRE = Math.ceil(limit / 3);
+  const MAX_PER_DECADE = Math.ceil(limit / 2);
+  const MAX_PER_DIRECTOR = 2;
+
+  // Sort by score descending
+  scoredMovies.sort((a, b) => b.score - a.score);
+
+  for (const scored of scoredMovies) {
+    if (result.length >= limit) break;
+
+    const movie = scored.movie;
+    let shouldInclude = true;
+
+    // Check genre diversity
+    for (const genre of movie.genre) {
+      const count = genreCounts.get(genre) || 0;
+      if (count >= MAX_PER_GENRE) {
+        shouldInclude = false;
+        break;
+      }
+    }
+
+    // Check decade diversity
+    if (shouldInclude && movie.year) {
+      const decade = `${Math.floor(movie.year / 10) * 10}s`;
+      const count = decadeCounts.get(decade) || 0;
+      if (count >= MAX_PER_DECADE) {
+        shouldInclude = false;
+      }
+    }
+
+    // Check director diversity
+    if (shouldInclude && movie.crew) {
+      for (const member of movie.crew) {
+        if (member.job === "Director") {
+          const count = directorCounts.get(member.name) || 0;
+          if (count >= MAX_PER_DIRECTOR) {
+            shouldInclude = false;
+            break;
+          }
+        }
+      }
+    }
+
+    if (shouldInclude) {
+      result.push(movie);
+
+      // Update counts
+      for (const genre of movie.genre) {
+        genreCounts.set(genre, (genreCounts.get(genre) || 0) + 1);
+      }
+      if (movie.year) {
+        const decade = `${Math.floor(movie.year / 10) * 10}s`;
+        decadeCounts.set(decade, (decadeCounts.get(decade) || 0) + 1);
+      }
+      if (movie.crew) {
+        for (const member of movie.crew) {
+          if (member.job === "Director") {
+            directorCounts.set(member.name, (directorCounts.get(member.name) || 0) + 1);
+          }
+        }
+      }
+    }
+  }
+
+  // If we don't have enough, add remaining by score without diversity filter
+  if (result.length < limit) {
+    const resultIds = new Set(result.map((m) => m.id));
+    for (const scored of scoredMovies) {
+      if (result.length >= limit) break;
+      if (!resultIds.has(scored.movie.id)) {
+        result.push(scored.movie);
+      }
+    }
+  }
+
+  return result;
+}
+
+// ==========================================
+// Recommendation Generators
+// ==========================================
+
+/**
+ * Get recommendations based on user's top liked movies (using TMDB's similar/recommendations)
+ */
+async function getSimilarToLiked(
+  preferences: UserPreferences,
+  seenIds: Set<string>
+): Promise<ScoredMovie[]> {
+  const results: ScoredMovie[] = [];
+
+  // Get recommendations for top 5 most recently liked movies
+  const likedMovieIds = preferences.topLikedMovieIds.slice(0, 5);
+
+  const promises = likedMovieIds.map(async (movieId) => {
+    try {
+      const recommendations = await getMovieRecommendations(movieId, 15);
+      return recommendations
+        .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+        .map((movie) => {
+          const scored = calculateMovieScore(movie, preferences, seenIds);
+          if (scored) {
+            scored.score += 3; // Bonus for being similar to liked
+            scored.reasons.unshift("Similar to movies you loved");
+            scored.sources.add("similar-to-liked");
+          }
+          return scored;
+        })
+        .filter((s): s is ScoredMovie => s !== null);
+    } catch {
+      return [];
+    }
+  });
+
+  const allResults = await Promise.all(promises);
+  for (const movies of allResults) {
+    results.push(...movies);
+  }
+
+  return results;
+}
+
+/**
+ * Get trending movies filtered by user's preferred genres
+ */
+async function getTrendingInGenres(
+  preferences: UserPreferences,
+  seenIds: Set<string>
+): Promise<ScoredMovie[]> {
+  const topGenres = Array.from(preferences.favoriteGenres.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([genre]) => genre);
+
+  if (topGenres.length === 0) return [];
+
+  const genreIds = topGenres
+    .map((g) => GENRE_IDS[g])
+    .filter((id): id is number => id !== undefined);
+
+  if (genreIds.length === 0) return [];
+
+  try {
+    const movies = await discoverMoviesByGenres(genreIds, {
+      minRating: 6.5,
+      minVotes: 100,
+      sortBy: "popularity.desc",
+    });
+
+    return movies
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .map((movie) => {
+        const scored = calculateMovieScore(movie, preferences, seenIds);
+        if (scored) {
+          scored.score += 2; // Bonus for trending
+          scored.reasons.unshift("Trending in your favorite genres");
+          scored.sources.add("trending-genres");
+        }
+        return scored;
+      })
+      .filter((s): s is ScoredMovie => s !== null)
+      .slice(0, MAX_RECOMMENDATIONS_PER_SOURCE);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get seasonal recommendations based on current time of year
+ */
+async function getSeasonalRecommendations(
+  preferences: UserPreferences,
+  seenIds: Set<string>
+): Promise<ScoredMovie[]> {
+  const holiday = getCurrentHoliday();
+  const season = getCurrentSeason();
+
+  let keywordIds: number[] = [];
+  let genreIds: number[] = [];
+
+  if (holiday === "christmas") {
+    keywordIds = THEME_KEYWORD_IDS["christmas"] || [];
+    genreIds = [GENRE_IDS["Family"], GENRE_IDS["Comedy"]].filter(Boolean) as number[];
+  } else if (holiday === "halloween") {
+    keywordIds = THEME_KEYWORD_IDS["halloween"] || [];
+    genreIds = [GENRE_IDS["Horror"], GENRE_IDS["Thriller"]].filter(Boolean) as number[];
+  } else if (holiday === "valentines") {
+    genreIds = [GENRE_IDS["Romance"], GENRE_IDS["Comedy"]].filter(Boolean) as number[];
+  } else if (season === "summer") {
+    genreIds = [GENRE_IDS["Action"], GENRE_IDS["Adventure"]].filter(Boolean) as number[];
+  }
+
+  if (keywordIds.length === 0 && genreIds.length === 0) return [];
+
+  try {
+    let movies: Movie[] = [];
+
+    if (keywordIds.length > 0) {
+      movies = await discoverMoviesByKeywords(keywordIds, {
+        minRating: 6.0,
+        minVotes: 50,
+      });
+    } else if (genreIds.length > 0) {
+      movies = await discoverMoviesByGenres(genreIds, {
+        minRating: 6.5,
+        minVotes: 100,
+        sortBy: "popularity.desc",
+      });
+    }
+
+    return movies
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .map((movie) => {
+        const scored = calculateMovieScore(movie, preferences, seenIds);
+        if (scored) {
+          scored.score += 1.5; // Seasonal bonus
+          if (holiday) {
+            scored.reasons.unshift(`Perfect for ${holiday}`);
+          } else {
+            scored.reasons.unshift(`Great ${season} watch`);
+          }
+          scored.sources.add("seasonal");
+        }
+        return scored;
+      })
+      .filter((s): s is ScoredMovie => s !== null)
+      .slice(0, MAX_RECOMMENDATIONS_PER_SOURCE / 2);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get movies based on user's favorite keywords/themes
+ */
+async function getKeywordBasedRecommendations(
+  preferences: UserPreferences,
+  seenIds: Set<string>
+): Promise<ScoredMovie[]> {
+  // Find matching theme keywords from user's favorites
+  const userKeywords = Array.from(preferences.favoriteKeywords.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([keyword]) => keyword.toLowerCase());
+
+  // Map user keywords to TMDB keyword IDs
+  const matchedKeywordIds: number[] = [];
+  for (const [theme, ids] of Object.entries(THEME_KEYWORD_IDS)) {
+    const themeWords = theme.split("-");
+    if (userKeywords.some((k) => themeWords.some((t) => k.includes(t) || t.includes(k)))) {
+      matchedKeywordIds.push(...ids);
+    }
+  }
+
+  if (matchedKeywordIds.length === 0) return [];
+
+  try {
+    const movies = await discoverMoviesByKeywords(matchedKeywordIds.slice(0, 5), {
+      minRating: 6.5,
+      minVotes: 100,
+    });
+
+    return movies
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .map((movie) => {
+        const scored = calculateMovieScore(movie, preferences, seenIds);
+        if (scored) {
+          scored.score += 2; // Theme bonus
+          scored.reasons.unshift("Matches themes you enjoy");
+          scored.sources.add("keywords");
+        }
+        return scored;
+      })
+      .filter((s): s is ScoredMovie => s !== null)
+      .slice(0, MAX_RECOMMENDATIONS_PER_SOURCE);
+  } catch {
+    return [];
+  }
+}
+
+// ==========================================
+// Main Recommendation Functions
+// ==========================================
 
 export async function getPersonalizedRecommendations(
   userId: string,
@@ -325,436 +688,45 @@ export async function getPersonalizedRecommendations(
       getSeenMovieIds(userId),
     ]);
 
-    const topGenres = Object.entries(preferences.favoriteGenres)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([genre]) => genre);
-
-    const topDirectors = Object.entries(preferences.favoriteDirectors)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([director]) => director);
-
-    if (topGenres.length === 0) {
+    // If user has no data, return empty
+    if (preferences.topLikedMovieIds.length === 0 && preferences.favoriteGenres.size === 0) {
       return [];
     }
 
-    const searchQueries: string[] = [];
-    for (const genre of topGenres.slice(0, 2)) {
-      searchQueries.push(genre);
-    }
-    for (const director of topDirectors) {
-      searchQueries.push(`directed by ${director}`);
-    }
+    // Gather recommendations from multiple sources in parallel
+    const [
+      similarToLiked,
+      trendingInGenres,
+      seasonal,
+      keywordBased,
+    ] = await Promise.all([
+      getSimilarToLiked(preferences, seenIds),
+      getTrendingInGenres(preferences, seenIds),
+      getSeasonalRecommendations(preferences, seenIds),
+      getKeywordBasedRecommendations(preferences, seenIds),
+    ]);
 
-    const searchPromises = searchQueries.slice(0, 5).map(async (query) => {
-      try {
-        return await searchMoviesOnly(query);
-      } catch (error) {
-        console.error(`Error searching for "${query}":`, error);
-        return [];
-      }
-    });
+    // Combine all recommendations
+    const allScored: ScoredMovie[] = [
+      ...similarToLiked,
+      ...trendingInGenres,
+      ...seasonal,
+      ...keywordBased,
+    ];
 
-    const searchResults = await Promise.all(searchPromises);
-    const candidates = searchResults.flat();
-
-    const scoredMovies = candidates
-      .filter((movie) => !seenIds.has(movie.id))
-      .map((movie) => calculateSimilarityScore(movie, preferences, seenIds))
-      .filter((item): item is RecommendationScore => item !== null);
-
-    scoredMovies.sort((a, b) => b.score - a.score);
-
-    const uniqueMovies = new Map<string, Movie>();
-    for (const item of scoredMovies) {
-      if (!uniqueMovies.has(item.movie.id)) {
-        uniqueMovies.set(item.movie.id, item.movie);
-      }
-      if (uniqueMovies.size >= limit) break;
-    }
-
-    const result = Array.from(uniqueMovies.values());
-
-    if (result.length < limit) {
-      const highlyRated = await getHighlyRatedMovies();
-      for (const movie of highlyRated) {
-        if (!seenIds.has(movie.id) && !uniqueMovies.has(movie.id)) {
-          uniqueMovies.set(movie.id, movie);
-        }
-        if (uniqueMovies.size >= limit) break;
+    // Deduplicate by movie ID, keeping highest score
+    const deduped = new Map<string, ScoredMovie>();
+    for (const scored of allScored) {
+      const existing = deduped.get(scored.movie.id);
+      if (!existing || scored.score > existing.score) {
+        deduped.set(scored.movie.id, scored);
       }
     }
 
-    return Array.from(uniqueMovies.values());
+    // Apply diversity filter and return
+    return applyDiversityFilter(Array.from(deduped.values()), limit);
   } catch (error) {
     console.error("Error getting personalized recommendations:", error);
-    return [];
-  }
-}
-
-export async function getBecauseYouLikedRecommendations(
-  userId: string,
-  likedMovieId: string,
-  limit: number = 6
-): Promise<Movie[]> {
-  try {
-    const [seenIds, likedMovie] = await Promise.all([
-      getSeenMovieIds(userId),
-      getMediaById(likedMovieId, "movie"),
-    ]);
-
-    if (!likedMovie) return [];
-
-    const similarGenres = likedMovie.genre.slice(0, 2);
-    const director = likedMovie.crew?.find((c) => c.job === "Director");
-    const topActors = likedMovie.cast?.slice(0, 3).map((a) => a.name) || [];
-
-    const searchQueries: string[] = [];
-    for (const genre of similarGenres) {
-      searchQueries.push(genre);
-    }
-    if (director) {
-      searchQueries.push(`directed by ${director.name}`);
-    }
-    for (const actor of topActors.slice(0, 2)) {
-      searchQueries.push(`starring ${actor}`);
-    }
-
-    const searchPromises = searchQueries.slice(0, 4).map(async (query) => {
-      try {
-        return await searchMoviesOnly(query);
-      } catch (error) {
-        console.error(`Error searching for "${query}":`, error);
-        return [];
-      }
-    });
-
-    const searchResults = await Promise.all(searchPromises);
-    const candidates = searchResults.flat();
-
-    const scoredMovies = candidates
-      .filter((movie) => movie.id !== likedMovieId && !seenIds.has(movie.id))
-      .filter(isQualityContent)
-      .map((movie) => {
-        let score = 0;
-        for (const genre of movie.genre) {
-          if (similarGenres.includes(genre)) {
-            score += 3;
-          }
-        }
-        if (director && movie.crew?.some((c) => c.job === "Director" && c.name === director.name)) {
-          score += 6;
-        }
-        for (const actor of movie.cast?.slice(0, 3).map((a) => a.name) || []) {
-          if (topActors.includes(actor)) {
-            score += 2;
-          }
-        }
-        if (movie.rating && movie.rating >= 7) {
-          score += 2;
-        } else if (movie.rating && movie.rating >= 6) {
-          score += 1;
-        }
-        if (movie.voteCount && movie.voteCount >= 5000) {
-          score += 1.5;
-        } else if (movie.voteCount && movie.voteCount >= 1000) {
-          score += 0.5;
-        }
-        const qualityBonus = calculateQualityScore(movie) * 0.3;
-        score += qualityBonus;
-        return { movie, score };
-      })
-      .filter((item) => item.score >= 4)
-      .sort((a, b) => b.score - a.score);
-
-    const uniqueMovies = new Map<string, Movie>();
-    for (const item of scoredMovies) {
-      if (!uniqueMovies.has(item.movie.id)) {
-        uniqueMovies.set(item.movie.id, item.movie);
-      }
-      if (uniqueMovies.size >= limit) break;
-    }
-
-    const result = Array.from(uniqueMovies.values());
-
-    if (result.length < limit) {
-      const highlyRated = await getHighlyRatedMovies();
-      for (const movie of highlyRated) {
-        if (movie.id !== likedMovieId && !seenIds.has(movie.id) && !uniqueMovies.has(movie.id)) {
-          uniqueMovies.set(movie.id, movie);
-        }
-        if (uniqueMovies.size >= limit) break;
-      }
-    }
-
-    return Array.from(uniqueMovies.values());
-  } catch (error) {
-    console.error("Error getting because you liked recommendations:", error);
-    return [];
-  }
-}
-
-export async function getDiscoveryContent(userId: string): Promise<{
-  personalized: Movie[];
-  trending: Movie[];
-  highlyRated: Movie[];
-}> {
-  try {
-    const [personalized, trending, highlyRated] = await Promise.all([
-      getPersonalizedRecommendations(userId, 12),
-      getTrendingMovies(),
-      getHighlyRatedMovies(),
-    ]);
-    return { personalized, trending, highlyRated };
-  } catch (error) {
-    console.error("Error getting discovery content:", error);
-    return {
-      personalized: [],
-      trending: [],
-      highlyRated: [],
-    };
-  }
-}
-
-interface TMDBMovieResult {
-  id: number;
-  title?: string;
-  name?: string;
-  release_date?: string;
-  first_air_date?: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  vote_average: number;
-  vote_count: number;
-  popularity?: number;
-  genre_ids?: number[];
-  overview?: string;
-}
-
-function mapTmdbResultToMovie(item: TMDBMovieResult, mediaType: "movie" | "tv"): Movie {
-  const title = item.title || item.name || "Unknown Title";
-  const date = item.release_date || item.first_air_date || "";
-  const year = date ? new Date(date).getFullYear() : 0;
-
-  const genreList = item.genre_ids
-    ? item.genre_ids.map((id) => GENRES[id]).filter(Boolean)
-    : [];
-
-  return {
-    id: item.id.toString(),
-    title,
-    year,
-    releaseDate: date,
-    posterUrl: item.poster_path
-      ? `${TMDB_IMAGE_BASE_URL_W500}${item.poster_path}`
-      : "/placeholder.jpg",
-    backdropUrl: item.backdrop_path
-      ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
-      : undefined,
-    rating: typeof item.vote_average === "number" ? Number(item.vote_average.toFixed(1)) : undefined,
-    voteCount: item.vote_count,
-    popularity: item.popularity,
-    genre: genreList.slice(0, 3),
-    overview: item.overview,
-    mediaType,
-    watched: false,
-    liked: false,
-    watchlist: false,
-  };
-}
-
-async function getHighlyRatedMovies(): Promise<Movie[]> {
-  try {
-    const apiKey = process.env.TMDB_API_KEY;
-    if (!apiKey) return [];
-
-    const data = await fetch(
-      `https://api.themoviedb.org/3/movie/top_rated?api_key=${apiKey}&language=en-US&page=1`,
-      { next: { revalidate: 3600 } }
-    );
-    const json = await data.json();
-    if (!json.results) return [];
-
-    return json.results
-      .filter((item: TMDBMovieResult) => item.vote_count >= MIN_VOTE_COUNT)
-      .slice(0, 20)
-      .map((item: TMDBMovieResult) => mapTmdbResultToMovie(item, "movie"));
-  } catch {
-    return [];
-  }
-}
-
-export async function getWatchedCount(userId: string): Promise<number> {
-  try {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(userMovies)
-      .where(and(eq(userMovies.userId, userId), eq(userMovies.watched, true)));
-    return result[0]?.count || 0;
-  } catch (error) {
-    console.error("Error getting watched count:", error);
-    return 0;
-  }
-}
-
-export async function getDefaultMood(userId: string): Promise<MoodKey> {
-  try {
-    const userMoviesData = await db
-      .select({ genres: userMovies.genres })
-      .from(userMovies)
-      .where(and(eq(userMovies.userId, userId), eq(userMovies.liked, true)));
-
-    const genreCounts: Record<string, number> = {};
-
-    for (const movie of userMoviesData) {
-      if (movie.genres) {
-        try {
-          const genres = JSON.parse(movie.genres as string) as string[];
-          for (const genre of genres) {
-            genreCounts[genre] = (genreCounts[genre] || 0) + 1;
-          }
-        } catch { }
-      }
-    }
-
-    const topGenres = Object.entries(genreCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([genre]) => genre);
-
-    const genreToMood: Record<string, MoodKey[]> = {
-      "Horror": ["dark-intense"],
-      "Crime": ["dark-intense", "mind-bending"],
-      "War": ["dark-intense", "thought-provoking"],
-      "Science Fiction": ["mind-bending", "thought-provoking"],
-      "Mystery": ["mind-bending", "classic"],
-      "Thriller": ["mind-bending", "adrenaline"],
-      "Action": ["adrenaline"],
-      "Adventure": ["adrenaline"],
-      "Comedy": ["uplifting", "feel-good"],
-      "Animation": ["uplifting", "feel-good"],
-      "Family": ["uplifting", "feel-good"],
-      "Music": ["uplifting", "feel-good"],
-      "Romance": ["feel-good"],
-      "Documentary": ["thought-provoking"],
-      "Drama": ["thought-provoking", "classic"],
-      "Film-Noir": ["classic"],
-    };
-
-    const moodScores: Record<MoodKey, number> = {
-      "uplifting": 0,
-      "mind-bending": 0,
-      "dark-intense": 0,
-      "feel-good": 0,
-      "adrenaline": 0,
-      "thought-provoking": 0,
-      "classic": 0,
-    };
-
-    for (const genre of topGenres) {
-      const possibleMoods = genreToMood[genre] || [];
-      for (const mood of possibleMoods) {
-        moodScores[mood]++;
-      }
-    }
-
-    const bestMood = Object.entries(moodScores)
-      .sort(([, a], [, b]) => b - a)[0][0] as MoodKey;
-
-    return bestMood || "uplifting";
-  } catch (error) {
-    console.error("Error getting default mood:", error);
-    return "uplifting";
-  }
-}
-
-const GENRE_NAME_TO_ID: Record<string, number> = {
-  "Action": 28,
-  "Adventure": 12,
-  "Animation": 16,
-  "Comedy": 35,
-  "Crime": 80,
-  "Documentary": 99,
-  "Drama": 18,
-  "Family": 10762,
-  "Fantasy": 14,
-  "History": 36,
-  "Horror": 27,
-  "Music": 10402,
-  "Mystery": 9648,
-  "Romance": 10749,
-  "Science Fiction": 878,
-  "Thriller": 53,
-  "War": 10752,
-  "Western": 37,
-};
-
-function getGenreCombinationsForMood(mood: MoodKey): string[][] {
-  const combinations: Record<MoodKey, string[][]> = {
-    "uplifting": [
-      ["Comedy", "Romance"],
-      ["Comedy", "Family"],
-      ["Animation", "Family"],
-      ["Romance", "Family"],
-    ],
-    "mind-bending": [
-      ["Science Fiction", "Mystery"],
-      ["Science Fiction", "Thriller"],
-      ["Mystery", "Thriller"],
-      ["Science Fiction", "Mystery", "Thriller"],
-    ],
-    "dark-intense": [
-      ["Horror", "Thriller"],
-      ["Crime", "Mystery"],
-      ["Horror", "Crime", "Thriller"],
-      ["Thriller", "Crime"],
-    ],
-    "feel-good": [
-      ["Comedy", "Romance"],
-      ["Family", "Comedy"],
-      ["Animation", "Comedy"],
-      ["Romance", "Comedy", "Family"],
-    ],
-    "adrenaline": [
-      ["Action", "Thriller"],
-      ["Action", "Adventure"],
-      ["Adventure", "Action"],
-      ["Action", "Thriller"],
-    ],
-    "thought-provoking": [
-      ["Documentary", "Drama"],
-      ["Drama", "History"],
-      ["Drama"],
-      ["Documentary", "Drama", "History"],
-    ],
-    "classic": [
-      ["Drama", "Film-Noir"],
-      ["Drama"],
-      ["Drama", "Film-Noir"],
-    ],
-  };
-
-  return combinations[mood] || [];
-}
-
-async function getPopularMovies(): Promise<Movie[]> {
-  try {
-    const apiKey = process.env.TMDB_API_KEY;
-    if (!apiKey) return [];
-
-    const url = `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&language=en-US&page=1`;
-    const response = await fetch(url, { next: { revalidate: 120 } });
-    if (!response.ok) return [];
-
-    const json = await response.json();
-    if (!json.results) return [];
-
-    return json.results
-      .slice(0, 50)
-      .map((item: TMDBMovieResult) => mapTmdbResultToMovie(item, "movie"));
-  } catch (error) {
-    console.error("Error fetching popular movies:", error);
     return [];
   }
 }
@@ -765,71 +737,33 @@ export async function getMoodRecommendations(
   limit: number = 24
 ): Promise<Movie[]> {
   try {
-    const seenIds = await getSeenMovieIds(userId);
-    const genreFilters = MOOD_MAP[mood] || [];
-    if (genreFilters.length === 0) {
-      return [];
-    }
+    const [preferences, seenIds] = await Promise.all([
+      getUserPreferences(userId),
+      getSeenMovieIds(userId),
+    ]);
 
-    const apiKey = process.env.TMDB_API_KEY;
-    if (!apiKey) return [];
+    const moodGenres = MOOD_MAP[mood] || [];
+    if (moodGenres.length === 0) return [];
 
-    const allCandidates: Movie[] = [];
-    const moodCombinations = getGenreCombinationsForMood(mood);
+    const genreIds = moodGenres
+      .map((g) => GENRE_IDS[g])
+      .filter((id): id is number => id !== undefined);
 
-    const fetchPromises = moodCombinations.map(async (combination) => {
-      try {
-        const genreIds = combination.map((g) => GENRE_NAME_TO_ID[g])
-          .filter((id): id is number => id !== undefined);
-        if (genreIds.length === 0) return [];
+    if (genreIds.length === 0) return [];
 
-        const genreParam = genreIds.join(",");
-        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&include_adult=false&page=1&with_genres=${genreParam}&vote_count.gte=100`;
-        const response = await fetch(url, { next: { revalidate: 60 } });
-        if (!response.ok) return [];
-
-        const json = await response.json();
-        if (!json.results) return [];
-
-        return json.results
-          .slice(0, 30)
-          .map((item: TMDBMovieResult) => mapTmdbResultToMovie(item, "movie"));
-      } catch (error) {
-        console.error(`Error fetching mood combination ${combination.join("+")}:`, error);
-        return [];
-      }
+    // Fetch movies matching mood genres
+    const movies = await discoverMoviesByGenres(genreIds, {
+      minRating: 6.5,
+      minVotes: 100,
+      sortBy: "popularity.desc",
     });
 
-    const results = await Promise.all(fetchPromises);
-    for (const movies of results) {
-      allCandidates.push(...movies);
-    }
+    const scored = movies
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .map((movie) => calculateMovieScore(movie, preferences, seenIds))
+      .filter((s): s is ScoredMovie => s !== null);
 
-    const uniqueMovies = new Map<string, Movie>();
-    for (const movie of allCandidates) {
-      if (seenIds.has(movie.id)) continue;
-      if (!uniqueMovies.has(movie.id)) {
-        uniqueMovies.set(movie.id, movie);
-      }
-      if (uniqueMovies.size >= limit) break;
-    }
-
-    const result = Array.from(uniqueMovies.values());
-
-    if (result.length < limit / 2) {
-      const popularMovies = await getPopularMovies();
-      for (const movie of popularMovies) {
-        if (!seenIds.has(movie.id) && !uniqueMovies.has(movie.id)) {
-          const matchingGenres = movie.genre.filter((g) => genreFilters.includes(g));
-          if (matchingGenres.length > 0) {
-            uniqueMovies.set(movie.id, movie);
-          }
-          if (uniqueMovies.size >= limit) break;
-        }
-      }
-    }
-
-    return Array.from(uniqueMovies.values());
+    return applyDiversityFilter(scored, limit);
   } catch (error) {
     console.error("Error getting mood recommendations:", error);
     return [];
@@ -841,23 +775,39 @@ export async function getExplorationRecommendations(
   limit: number = 12
 ): Promise<Movie[]> {
   try {
-    const [seenIds, highlyRated, popularMovies] = await Promise.all([
+    const [preferences, seenIds] = await Promise.all([
+      getUserPreferences(userId),
       getSeenMovieIds(userId),
-      getHighlyRatedMovies(),
-      getPopularMovies(),
     ]);
 
-    const uniqueMovies = new Map<string, Movie>();
+    // Get genres user HASN'T watched much
+    const allGenres = Object.keys(GENRE_IDS);
+    const lowWatchedGenres = allGenres
+      .filter((g) => (preferences.favoriteGenres.get(g) || 0) < 2)
+      .slice(0, 5);
 
-    for (const movie of [...highlyRated, ...popularMovies]) {
-      if (seenIds.has(movie.id)) continue;
-      if (!uniqueMovies.has(movie.id)) {
-        uniqueMovies.set(movie.id, movie);
-      }
-      if (uniqueMovies.size >= limit) break;
+    const genreIds = lowWatchedGenres
+      .map((g) => GENRE_IDS[g])
+      .filter((id): id is number => id !== undefined);
+
+    if (genreIds.length === 0) {
+      // Fallback to trending
+      const trending = await getTrendingMovies();
+      return trending.filter((m) => !seenIds.has(m.id)).slice(0, limit);
     }
 
-    return Array.from(uniqueMovies.values());
+    // Get highly rated movies from underexplored genres
+    const movies = await discoverMoviesByGenres(genreIds.slice(0, 3), {
+      minRating: 7.5,
+      minVotes: 500,
+      sortBy: "vote_average.desc",
+    });
+
+    const filtered = movies
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .slice(0, limit);
+
+    return filtered;
   } catch (error) {
     console.error("Error getting exploration recommendations:", error);
     return [];
@@ -874,65 +824,135 @@ export async function getHiddenGems(
       getSeenMovieIds(userId),
     ]);
 
-    const topGenres = Object.entries(preferences.favoriteGenres)
-      .sort(([, a], [, b]) => b - a)
+    // Get top genres
+    const topGenres = Array.from(preferences.favoriteGenres.entries())
+      .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([genre]) => genre);
 
-    const baseParams = {
-      "vote_average.gte": "7.0",
-      "vote_count.gte": "100",
-      "vote_count.lte": "3000",
-      "sort_by": "popularity.desc",
-      "include_adult": "false",
-      "page": "1",
-    };
+    const genreIds = topGenres
+      .map((g) => GENRE_IDS[g])
+      .filter((id): id is number => id !== undefined);
 
-    const moviePromises: Promise<Movie[]>[] = [];
-
-    moviePromises.push(discoverMovies(baseParams));
-
-    for (const genreName of topGenres) {
-      const genreId = GENRE_NAME_TO_ID[genreName];
-      if (genreId) {
-        moviePromises.push(
-          discoverMovies({
-            ...baseParams,
-            with_genres: genreId.toString(),
-          })
-        );
+    // Hidden gems: high rating, moderate popularity
+    const movies = await discoverMoviesByGenres(
+      genreIds.length > 0 ? genreIds : [GENRE_IDS["Drama"]],
+      {
+        minRating: 7.0,
+        minVotes: 100,
+        maxVotes: 3000,
+        sortBy: "vote_average.desc",
       }
-    }
-
-    moviePromises.push(
-      discoverTv({
-        ...baseParams,
-        page: "1",
-      })
     );
 
-    const allResults = await Promise.all(moviePromises);
-    const candidates = allResults.flat();
+    const filtered = movies
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m));
 
-    const uniqueMovies = new Map<string, Movie>();
-
-    const shuffled = [...candidates];
+    // Shuffle for variety
+    const shuffled = [...filtered];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    for (const movie of shuffled) {
-      if (seenIds.has(movie.id)) continue;
-      if (!uniqueMovies.has(movie.id)) {
-        uniqueMovies.set(movie.id, movie);
-      }
-      if (uniqueMovies.size >= limit) break;
-    }
-
-    return Array.from(uniqueMovies.values());
+    return shuffled.slice(0, limit);
   } catch (error) {
     console.error("Error getting hidden gems:", error);
     return [];
+  }
+}
+
+// ==========================================
+// Utility Exports
+// ==========================================
+
+export async function getWatchedCount(userId: string): Promise<number> {
+  try {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userMovies)
+      .where(and(eq(userMovies.userId, userId), eq(userMovies.watched, true)));
+    return result[0]?.count || 0;
+  } catch (error) {
+    console.error("Error getting watched count:", error);
+    return 0;
+  }
+}
+
+export async function getDefaultMood(userId: string): Promise<MoodKey> {
+  try {
+    const preferences = await getUserPreferences(userId);
+
+    // Map genres to moods
+    const genreToMood: Record<string, MoodKey[]> = {
+      "Horror": ["dark-intense"],
+      "Crime": ["dark-intense", "mind-bending"],
+      "War": ["dark-intense", "thought-provoking"],
+      "Science Fiction": ["mind-bending", "thought-provoking"],
+      "Mystery": ["mind-bending"],
+      "Thriller": ["mind-bending", "adrenaline"],
+      "Action": ["adrenaline"],
+      "Adventure": ["adrenaline"],
+      "Comedy": ["uplifting", "feel-good"],
+      "Animation": ["uplifting", "feel-good"],
+      "Family": ["uplifting", "feel-good"],
+      "Music": ["uplifting", "feel-good"],
+      "Romance": ["feel-good"],
+      "Documentary": ["thought-provoking"],
+      "Drama": ["thought-provoking", "classic"],
+    };
+
+    const moodScores = new Map<MoodKey, number>();
+    for (const mood of Object.keys(MOOD_MAP) as MoodKey[]) {
+      moodScores.set(mood, 0);
+    }
+
+    // Score moods based on user's genre preferences
+    for (const [genre, score] of preferences.favoriteGenres) {
+      const moods = genreToMood[genre] || [];
+      for (const mood of moods) {
+        moodScores.set(mood, (moodScores.get(mood) || 0) + score);
+      }
+    }
+
+    // Find best mood
+    let bestMood: MoodKey = "uplifting";
+    let bestScore = 0;
+    for (const [mood, score] of moodScores) {
+      if (score > bestScore) {
+        bestScore = score;
+        bestMood = mood;
+      }
+    }
+
+    return bestMood;
+  } catch (error) {
+    console.error("Error getting default mood:", error);
+    return "uplifting";
+  }
+}
+
+export async function getDiscoveryContent(userId: string): Promise<{
+  personalized: Movie[];
+  trending: Movie[];
+  highlyRated: Movie[];
+}> {
+  try {
+    const [personalized, trending] = await Promise.all([
+      getPersonalizedRecommendations(userId, 12),
+      getTrendingMovies(),
+    ]);
+
+    const seenIds = await getSeenMovieIds(userId);
+    const filteredTrending = trending.filter((m) => !seenIds.has(m.id));
+
+    return {
+      personalized,
+      trending: filteredTrending,
+      highlyRated: [], // Can be populated if needed
+    };
+  } catch (error) {
+    console.error("Error getting discovery content:", error);
+    return { personalized: [], trending: [], highlyRated: [] };
   }
 }
