@@ -297,7 +297,7 @@ export interface ActorDetails {
   knownForDepartment?: string;
 }
 
-const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
+export const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
   const queryParams = new URLSearchParams({
     api_key: TMDB_API_KEY || "",
     language: "en-US",
@@ -519,7 +519,7 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
       include_image_language: "en,null",
     });
     if (!data) return null;
-    
+
     const movie = mapTmdbToMovie(data, 'tv');
     const { trailerKey, trailerUrl } = pickTrailer(data.videos?.results);
     movie.trailerKey = trailerKey;
@@ -531,45 +531,45 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
 
     // Lazy-load seasons: only fetch first 3 by default, all if fetchAllSeasons is true
     if (data.seasons && data.seasons.length > 0) {
-      const seasonsToFetch = fetchAllSeasons 
+      const seasonsToFetch = fetchAllSeasons
         ? data.seasons.slice(0, 20)
         : data.seasons.slice(0, 3);
-      
+
       const seasonsWithEpisodes = await Promise.all(
         seasonsToFetch.map(async (season: TMDBSeasonSummary) => {
           try {
             const seasonDetail = await fetchTMDB(`/tv/${id}/season/${season.season_number}`);
             return {
-                id: season.id,
-                name: season.name,
-                overview: season.overview,
-                posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
-                seasonNumber: season.season_number,
-                episodeCount: season.episode_count,
-                airDate: season.air_date,
-                episodes: seasonDetail?.episodes?.map((ep: TMDBEpisode) => ({
-                    id: ep.id,
-                    name: ep.name,
-                    overview: ep.overview,
-                    airDate: ep.air_date,
-                    episodeNumber: ep.episode_number,
-                    seasonNumber: ep.season_number,
-                    stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
-                    voteAverage: ep.vote_average,
-                    runtime: ep.runtime
-                })) || []
+              id: season.id,
+              name: season.name,
+              overview: season.overview,
+              posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+              seasonNumber: season.season_number,
+              episodeCount: season.episode_count,
+              airDate: season.air_date,
+              episodes: seasonDetail?.episodes?.map((ep: TMDBEpisode) => ({
+                id: ep.id,
+                name: ep.name,
+                overview: ep.overview,
+                airDate: ep.air_date,
+                episodeNumber: ep.episode_number,
+                seasonNumber: ep.season_number,
+                stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+                voteAverage: ep.vote_average,
+                runtime: ep.runtime
+              })) || []
             };
           } catch (e) {
             console.error(`Failed to fetch season ${season.season_number} for series ${id}`, e);
             return {
-                id: season.id,
-                name: season.name,
-                overview: season.overview,
-                posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
-                seasonNumber: season.season_number,
-                episodeCount: season.episode_count,
-                airDate: season.air_date,
-                episodes: []
+              id: season.id,
+              name: season.name,
+              overview: season.overview,
+              posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+              seasonNumber: season.season_number,
+              episodeCount: season.episode_count,
+              airDate: season.air_date,
+              episodes: []
             };
           }
         })
@@ -638,14 +638,14 @@ export const getWatchProviders = async (
     const data = await fetchTMDB(`/${mediaType}/${id}/watch/providers`);
     const results = data?.results as
       | Record<
-          string,
-          {
-            link?: string;
-            flatrate?: WatchProvider[];
-            rent?: WatchProvider[];
-            buy?: WatchProvider[];
-          }
-        >
+        string,
+        {
+          link?: string;
+          flatrate?: WatchProvider[];
+          rent?: WatchProvider[];
+          buy?: WatchProvider[];
+        }
+      >
       | undefined;
 
     if (!results) return null;
@@ -816,6 +816,26 @@ export const searchMoviesWithYear = async (query: string, year?: number): Promis
   }
 };
 
+export const discoverMovies = async (params: Record<string, string> = {}): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/discover/movie", params);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"));
+  } catch (error) {
+    console.error("Error discovering movies:", error);
+    return [];
+  }
+};
+
+export const discoverTv = async (params: Record<string, string> = {}): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/discover/tv", params);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "tv"));
+  } catch (error) {
+    console.error("Error discovering TV shows:", error);
+    return [];
+  }
+};
+
 export const searchTvSeries = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/tv", { query });
@@ -895,7 +915,7 @@ export const getTrendingActors = async (): Promise<{ id: number; name: string }[
     const data = await fetchTMDB("/trending/person/week");
     const results = Array.isArray(data?.results) ? data.results : [];
     return results
-      .filter((person: { id?: number; known_for_department?: string }) => 
+      .filter((person: { id?: number; known_for_department?: string }) =>
         person.id && person.known_for_department === "Acting"
       )
       .map((person: { id: number; name: string }) => ({
@@ -913,9 +933,9 @@ export const getTrendingDirectors = async (): Promise<{ id: number; name: string
   try {
     const data = await fetchTMDB("/trending/movie/week");
     const results = Array.isArray(data?.results) ? data.results : [];
-    
+
     const directorMap = new Map<number, { id: number; name: string }>();
-    
+
     for (const item of results) {
       if (item.id && item.credits?.crew) {
         const directors = item.credits.crew.filter((c: { job: string }) => c.job === "Director");
@@ -929,10 +949,261 @@ export const getTrendingDirectors = async (): Promise<{ id: number; name: string
         }
       }
     }
-    
+
     return Array.from(directorMap.values()).slice(0, 20);
   } catch (error) {
     console.error("Error fetching trending directors:", error);
     return [];
   }
+};
+
+// ==========================================
+// Enhanced TMDB functions for recommendations
+// ==========================================
+
+export interface MovieKeywords {
+  id: string;
+  keywords: string[];
+}
+
+export interface MovieCollection {
+  id: number;
+  name: string;
+  posterPath?: string;
+  backdropPath?: string;
+}
+
+export interface EnhancedMovieData {
+  keywords: string[];
+  collection?: MovieCollection;
+  recommendations: Movie[];
+  similar: Movie[];
+}
+
+/**
+ * Fetch keywords for a movie
+ */
+export const getMovieKeywords = async (movieId: string): Promise<string[]> => {
+  try {
+    const data = await fetchTMDB(`/movie/${movieId}/keywords`);
+    if (!data?.keywords) return [];
+    return data.keywords.map((k: { id: number; name: string }) => k.name);
+  } catch (error) {
+    console.error(`Error fetching keywords for movie ${movieId}:`, error);
+    return [];
+  }
+};
+
+/**
+ * Fetch TMDB's own recommendations for a movie
+ */
+export const getMovieRecommendations = async (movieId: string, limit: number = 20): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB(`/movie/${movieId}/recommendations`);
+    const results = Array.isArray(data?.results) ? (data.results as TMDBMovie[]) : [];
+    return results.map((item) => mapTmdbToMovie(item, "movie")).slice(0, limit);
+  } catch (error) {
+    console.error(`Error fetching recommendations for movie ${movieId}:`, error);
+    return [];
+  }
+};
+
+/**
+ * Fetch enhanced movie data including keywords, collection, recommendations, and similar
+ */
+export const getEnhancedMovieData = async (movieId: string): Promise<EnhancedMovieData> => {
+  try {
+    const [keywordsData, movieData] = await Promise.all([
+      fetchTMDB(`/movie/${movieId}/keywords`),
+      fetchTMDB(`/movie/${movieId}`, {
+        append_to_response: "recommendations,similar",
+      }),
+    ]);
+
+    const keywords = keywordsData?.keywords?.map((k: { name: string }) => k.name) || [];
+
+    let collection: MovieCollection | undefined;
+    if (movieData?.belongs_to_collection) {
+      collection = {
+        id: movieData.belongs_to_collection.id,
+        name: movieData.belongs_to_collection.name,
+        posterPath: movieData.belongs_to_collection.poster_path
+          ? `${TMDB_IMAGE_BASE_URL_W500}${movieData.belongs_to_collection.poster_path}`
+          : undefined,
+        backdropPath: movieData.belongs_to_collection.backdrop_path
+          ? `${TMDB_IMAGE_BASE_URL_W500}${movieData.belongs_to_collection.backdrop_path}`
+          : undefined,
+      };
+    }
+
+    const recommendations = (movieData?.recommendations?.results || [])
+      .map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"))
+      .slice(0, 20);
+
+    const similar = (movieData?.similar?.results || [])
+      .map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"))
+      .slice(0, 20);
+
+    return { keywords, collection, recommendations, similar };
+  } catch (error) {
+    console.error(`Error fetching enhanced data for movie ${movieId}:`, error);
+    return { keywords: [], recommendations: [], similar: [] };
+  }
+};
+
+/**
+ * Discover movies with specific genre combinations
+ */
+export const discoverMoviesByGenres = async (
+  genreIds: number[],
+  options: {
+    minRating?: number;
+    minVotes?: number;
+    maxVotes?: number;
+    releaseDateGte?: string;
+    releaseDateLte?: string;
+    sortBy?: string;
+    page?: number;
+  } = {}
+): Promise<Movie[]> => {
+  try {
+    const params: Record<string, string> = {
+      with_genres: genreIds.join(","),
+      sort_by: options.sortBy || "popularity.desc",
+      include_adult: "false",
+      page: String(options.page || 1),
+    };
+
+    if (options.minRating) params["vote_average.gte"] = String(options.minRating);
+    if (options.minVotes) params["vote_count.gte"] = String(options.minVotes);
+    if (options.maxVotes) params["vote_count.lte"] = String(options.maxVotes);
+    if (options.releaseDateGte) params["primary_release_date.gte"] = options.releaseDateGte;
+    if (options.releaseDateLte) params["primary_release_date.lte"] = options.releaseDateLte;
+
+    const data = await fetchTMDB("/discover/movie", params);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"));
+  } catch (error) {
+    console.error("Error discovering movies by genres:", error);
+    return [];
+  }
+};
+
+/**
+ * Get upcoming movies (for new release recommendations)
+ */
+export const getUpcomingMovies = async (page: number = 1): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/movie/upcoming", { page: String(page) });
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"));
+  } catch (error) {
+    console.error("Error fetching upcoming movies:", error);
+    return [];
+  }
+};
+
+/**
+ * Get now playing movies
+ */
+export const getNowPlayingMovies = async (page: number = 1): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/movie/now_playing", { page: String(page) });
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"));
+  } catch (error) {
+    console.error("Error fetching now playing movies:", error);
+    return [];
+  }
+};
+
+/**
+ * Discover movies with keyword filter
+ */
+export const discoverMoviesByKeywords = async (
+  keywordIds: number[],
+  options: {
+    genreIds?: number[];
+    minRating?: number;
+    minVotes?: number;
+    page?: number;
+  } = {}
+): Promise<Movie[]> => {
+  try {
+    const params: Record<string, string> = {
+      with_keywords: keywordIds.join("|"), // OR logic for keywords
+      sort_by: "popularity.desc",
+      include_adult: "false",
+      page: String(options.page || 1),
+    };
+
+    if (options.genreIds?.length) params.with_genres = options.genreIds.join(",");
+    if (options.minRating) params["vote_average.gte"] = String(options.minRating);
+    if (options.minVotes) params["vote_count.gte"] = String(options.minVotes);
+
+    const data = await fetchTMDB("/discover/movie", params);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"));
+  } catch (error) {
+    console.error("Error discovering movies by keywords:", error);
+    return [];
+  }
+};
+
+/**
+ * Search for keyword IDs by name
+ */
+export const searchKeywords = async (query: string): Promise<{ id: number; name: string }[]> => {
+  try {
+    const data = await fetchTMDB("/search/keyword", { query });
+    return (data?.results || []).map((k: { id: number; name: string }) => ({
+      id: k.id,
+      name: k.name,
+    }));
+  } catch (error) {
+    console.error("Error searching keywords:", error);
+    return [];
+  }
+};
+
+// Genre ID mapping for discover API
+export const GENRE_IDS: Record<string, number> = {
+  "Action": 28,
+  "Adventure": 12,
+  "Animation": 16,
+  "Comedy": 35,
+  "Crime": 80,
+  "Documentary": 99,
+  "Drama": 18,
+  "Family": 10751,
+  "Fantasy": 14,
+  "History": 36,
+  "Horror": 27,
+  "Music": 10402,
+  "Mystery": 9648,
+  "Romance": 10749,
+  "Science Fiction": 878,
+  "TV Movie": 10770,
+  "Thriller": 53,
+  "War": 10752,
+  "Western": 37,
+};
+
+// Common keyword IDs for theme-based discovery
+export const THEME_KEYWORD_IDS: Record<string, number[]> = {
+  "time-travel": [4379, 156421],
+  "heist": [10051, 186373],
+  "revenge": [10084, 162365],
+  "dystopia": [4565, 156177],
+  "space": [14909, 4379],
+  "artificial-intelligence": [310, 9951],
+  "based-on-true-story": [9672, 818],
+  "psychological": [11003, 10683],
+  "twist-ending": [1931, 163084],
+  "friendship": [1510, 9840],
+  "coming-of-age": [9799, 9714],
+  "survival": [11002, 10683],
+  "conspiracy": [3133, 10919],
+  "underdog": [9823, 190212],
+  "redemption": [10683, 4344],
+  "christmas": [207317, 1510],
+  "halloween": [9715, 162846],
+  "summer": [10683, 9799],
+  "holiday": [207317, 2837],
 };

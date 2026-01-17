@@ -7,16 +7,30 @@ import { motion } from "framer-motion";
 import { Play, Plus } from "lucide-react";
 import { Movie } from "@/types";
 import Image from "next/image";
+import { MoodSection } from "@/components/MoodSection";
+import { ExplorationSection } from "@/components/ExplorationSection";
+import { HiddenGemsSection } from "@/components/HiddenGemsSection";
 
 interface HomePageProps {
   trendingMovies: Movie[];
   popularSeries: Movie[];
+  recommendedMovies?: Movie[];
+  isAuthenticated?: boolean;
+  watchedCount?: number;
+  defaultMood?: string;
 }
 
-export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
+export function HomePage({
+  trendingMovies,
+  popularSeries,
+  recommendedMovies,
+  isAuthenticated,
+  watchedCount = 0,
+  defaultMood = "uplifting",
+}: HomePageProps) {
   const orderedTrending = useMemo(() => trendingMovies, [trendingMovies]);
 
-  const heroMovie = orderedTrending[0]; 
+  const heroMovie = orderedTrending[0];
 
   if (!heroMovie) {
     return (
@@ -33,6 +47,9 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
   const trailerUrl =
     heroMovie.trailerUrl ||
     `https://www.youtube.com/results?search_query=${encodeURIComponent(`${heroMovie.title} trailer`)}`;
+
+  const showExploration = isAuthenticated && watchedCount >= 100;
+  const showHiddenGems = isAuthenticated && watchedCount >= 50;
 
   return (
     <div className="space-y-8 sm:space-y-12 pb-20">
@@ -63,67 +80,101 @@ export function HomePage({ trendingMovies, popularSeries }: HomePageProps) {
             style={{ willChange: "transform, opacity" }}
             className="max-w-3xl space-y-4 sm:space-y-6"
           >
-             <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/90 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
-                <span>Trending Now</span>
-             </div>
-            
+            <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/90 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
+              <span>Trending Now</span>
+            </div>
+
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white drop-shadow-sm leading-tight">
               {heroMovie.title}
             </h1>
-            
+
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-white/90 text-xs sm:text-sm md:text-base font-medium">
-               <span>{heroMovie.year}</span>
-               <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white/40 rounded-full" />
-               <span className="line-clamp-1">{heroMovie.genre.join(", ")}</span>
-               <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white/40 rounded-full" />
-               <span className="flex items-center gap-1 text-yellow-400">
-                 ★ {heroMovie.rating}
-               </span>
+              <span>{heroMovie.year}</span>
+              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white/40 rounded-full" />
+              <span className="line-clamp-1">{heroMovie.genre.join(", ")}</span>
+              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-white/40 rounded-full" />
+              <span className="flex items-center gap-1 text-yellow-400">
+                ★ {heroMovie.rating}
+              </span>
             </div>
-            
+
             <p className="text-sm sm:text-base md:text-lg text-white/80 line-clamp-2 sm:line-clamp-3 max-w-2xl font-light leading-relaxed">
               {heroDescription}
             </p>
 
             <div className="flex items-center gap-3 sm:gap-4 pt-2 sm:pt-4">
-               <a
-                 href={trailerUrl}
-                 target="_blank"
-                 rel="noreferrer noopener"
-                 className="h-11 sm:h-12 md:h-14 px-5 sm:px-6 md:px-8 rounded-full bg-white text-black font-semibold flex items-center gap-2 hover:bg-white/90 transition-all transform hover:scale-105 shadow-lg shadow-white/10 text-sm sm:text-base"
-               >
-                  <Play size={18} className="sm:w-5 sm:h-5" fill="currentColor" />
-                  <span className="hidden sm:inline">Watch Trailer</span>
-                  <span className="sm:hidden">Watch</span>
-               </a>
-               <button className="h-11 w-11 sm:h-12 sm:w-12 md:h-14 md:w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-all hover:scale-105">
-                  <Plus size={20} className="sm:w-6 sm:h-6" />
-               </button>
+              <a
+                href={trailerUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="h-11 sm:h-12 md:h-14 px-5 sm:px-6 md:px-8 rounded-full bg-white text-black font-semibold flex items-center gap-2 hover:bg-white/90 transition-all transform hover:scale-105 shadow-lg shadow-white/10 text-sm sm:text-base"
+              >
+                <Play size={18} className="sm:w-5 sm:h-5" fill="currentColor" />
+                <span className="hidden sm:inline">Watch Trailer</span>
+                <span className="sm:hidden">Watch</span>
+              </a>
+              <button className="h-11 w-11 sm:h-12 sm:w-12 md:h-14 md:w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-all hover:scale-105">
+                <Plus size={20} className="sm:w-6 sm:h-6" />
+              </button>
             </div>
           </motion.div>
         </div>
       </section>
 
+      {/* Personalized Recommendations - only show for authenticated users */}
+      {isAuthenticated && recommendedMovies && recommendedMovies.length > 0 && (
+        <section>
+          <Carousel title="Recommended For You">
+            {recommendedMovies.map((movie) => (
+              <div
+                key={movie.id}
+                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+              >
+                <MovieCard movie={movie} />
+              </div>
+            ))}
+          </Carousel>
+        </section>
+      )}
+
+      {/* Mood Section - only show for authenticated users */}
+      {isAuthenticated && (
+        <MoodSection
+          defaultMood={defaultMood}
+          className="pt-4"
+        />
+      )}
+
+      {/* Try Something New - only show if watched >= 100 */}
+      {showExploration && (
+        <ExplorationSection />
+      )}
+
+      {/* Hidden Gems - only show if watched >= 50 */}
+      {showHiddenGems && (
+        <HiddenGemsSection />
+      )}
+
       {/* Trending Movies Carousel */}
       <section>
-         <Carousel title="Trending Movies">
-            {orderedTrending.map((movie) => (
-               <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
-                  <MovieCard movie={movie} />
-               </div>
-            ))}
-         </Carousel>
+        <Carousel title="Trending Movies">
+          {orderedTrending.map((movie) => (
+            <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
+              <MovieCard movie={movie} />
+            </div>
+          ))}
+        </Carousel>
       </section>
 
       {/* Popular Series Carousel */}
       <section>
-         <Carousel title="Popular Series">
-            {popularSeries.map((movie) => (
-               <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
-                  <MovieCard movie={movie} aspectRatio="portrait" />
-               </div>
-            ))}
-         </Carousel>
+        <Carousel title="Popular Series">
+          {popularSeries.map((movie) => (
+            <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
+              <MovieCard movie={movie} aspectRatio="portrait" />
+            </div>
+          ))}
+        </Carousel>
       </section>
     </div>
   );

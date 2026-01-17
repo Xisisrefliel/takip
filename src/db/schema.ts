@@ -72,6 +72,9 @@ export const userMovies = pgTable("user_movies", {
   genres: text("genres"),
   cast: text("cast"),
   crew: text("crew"),
+  keywords: text("keywords"), // JSON array of keyword strings for theme matching
+  collectionId: integer("collectionId"), // Franchise/collection ID from TMDB
+  collectionName: text("collectionName"), // Franchise/collection name
   mediaType: mediaTypeEnum("mediaType").notNull(),
   watched: boolean("watched").default(false),
   watchedDate: timestamp("watchedDate", { withTimezone: true, mode: "date" }),

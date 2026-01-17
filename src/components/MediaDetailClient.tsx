@@ -19,6 +19,7 @@ import { LastVisitedUpdater } from "@/components/LastVisitedUpdater";
 import { BackButton } from "@/components/BackButton";
 import { MediaVisuals } from "@/components/MediaVisuals";
 import { CastAndCrew } from "@/components/CastAndCrew";
+import { SimilarRecommendations } from "@/components/Recommendations";
 
 interface MediaDetailClientProps {
   item: Movie | Book;
@@ -275,6 +276,10 @@ export function MediaDetailClient({
             ))}
           </Carousel>
         </div>
+      )}
+
+      {!isBook(item) && sessionUserId && item.liked && (
+        <SimilarRecommendations mediaId={id} />
       )}
 
       {!isBook(item) && recommendations.length > 0 && (
