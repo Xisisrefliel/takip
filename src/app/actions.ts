@@ -327,6 +327,9 @@ export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvIm
         genres: match.genre?.length ? JSON.stringify(match.genre) : null,
         cast: match.cast?.length ? JSON.stringify(match.cast) : null,
         crew: match.crew?.length ? JSON.stringify(match.crew) : null,
+        keywords: null,
+        collectionId: null,
+        collectionName: null,
       } satisfies UserMovieMetadata);
 
     const existing = await db
@@ -708,10 +711,14 @@ export async function toggleWatchedAction(
       }
     }
 
-    // Revalidate pages that display movies
-    revalidatePath("/");
+    // Revalidate user-specific pages only (not homepage - user status is fetched fresh)
     revalidatePath("/profile");
     invalidateUserStats(userId);
+
+    // Mark recommendations as stale (will refresh in background on next request)
+    import("@/lib/recommendation-cache").then(({ markRecommendationsStale }) => {
+      markRecommendationsStale(userId);
+    });
 
     return { success: true };
   } catch (error) {
@@ -796,10 +803,14 @@ export async function toggleWatchlistAction(
       }
     }
 
-    // Revalidate pages that display movies
-    revalidatePath("/");
+    // Revalidate user-specific pages only (not homepage - user status is fetched fresh)
     revalidatePath("/profile");
     invalidateUserStats(userId);
+
+    // Mark recommendations as stale (will refresh in background on next request)
+    import("@/lib/recommendation-cache").then(({ markRecommendationsStale }) => {
+      markRecommendationsStale(userId);
+    });
 
     return { success: true };
   } catch (error) {
@@ -884,10 +895,14 @@ export async function toggleLikedAction(
       }
     }
 
-    // Revalidate pages that display movies
-    revalidatePath("/");
+    // Revalidate user-specific pages only (not homepage - user status is fetched fresh)
     revalidatePath("/profile");
     invalidateUserStats(userId);
+
+    // Mark recommendations as stale (will refresh in background on next request)
+    import("@/lib/recommendation-cache").then(({ markRecommendationsStale }) => {
+      markRecommendationsStale(userId);
+    });
 
     return { success: true };
   } catch (error) {
@@ -1224,13 +1239,20 @@ export async function enrichMoviesWithUserStatus(movies: Movie[]): Promise<Movie
     return movies;
   }
 
-  const userId = session.user.id;
+  return enrichMoviesWithUserStatusInternal(movies, session.user.id);
+}
+
+// Internal function that skips auth check - used by batch version
+async function enrichMoviesWithUserStatusInternal(movies: Movie[], userId: string): Promise<Movie[]> {
+  if (!movies || movies.length === 0) {
+    return movies;
+  }
 
   try {
     // Group movies by mediaType and collect their IDs
     const movieIds: string[] = [];
     const tvIds: string[] = [];
-    
+
     movies.forEach(movie => {
       if (movie.mediaType === 'movie') {
         movieIds.push(movie.id);
@@ -1269,7 +1291,7 @@ export async function enrichMoviesWithUserStatus(movies: Movie[]): Promise<Movie
 
     // Create a map for quick lookup
     const statusMap = new Map<string, { watched: boolean; liked: boolean; watchlist: boolean }>();
-    
+
     [...movieStatuses, ...tvStatuses].forEach(status => {
       statusMap.set(status.movieId, {
         watched: status.watched ?? false,
@@ -1299,6 +1321,101 @@ export async function enrichMoviesWithUserStatus(movies: Movie[]): Promise<Movie
   } catch (error) {
     console.error("Enrich movies with user status error:", error);
     return movies;
+  }
+}
+
+// Batch version: enriches multiple movie arrays with a single auth check and DB query
+export async function enrichMoviesWithUserStatusBatch<T extends Movie[][]>(
+  ...movieArrays: T
+): Promise<T> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return movieArrays;
+  }
+
+  const userId = session.user.id;
+
+  // Combine all movies for a single DB query
+  const allMovies = movieArrays.flat();
+  if (allMovies.length === 0) {
+    return movieArrays;
+  }
+
+  try {
+    // Group all movies by mediaType
+    const movieIds: string[] = [];
+    const tvIds: string[] = [];
+
+    allMovies.forEach(movie => {
+      if (movie.mediaType === 'movie') {
+        movieIds.push(movie.id);
+      } else if (movie.mediaType === 'tv') {
+        tvIds.push(movie.id);
+      }
+    });
+
+    // Single batch query for all statuses
+    const [movieStatuses, tvStatuses] = await Promise.all([
+      movieIds.length > 0
+        ? db
+            .select()
+            .from(userMovies)
+            .where(
+              and(
+                eq(userMovies.userId, userId),
+                eq(userMovies.mediaType, 'movie'),
+                inArray(userMovies.movieId, movieIds)
+              )
+            )
+        : [],
+      tvIds.length > 0
+        ? db
+            .select()
+            .from(userMovies)
+            .where(
+              and(
+                eq(userMovies.userId, userId),
+                eq(userMovies.mediaType, 'tv'),
+                inArray(userMovies.movieId, tvIds)
+              )
+            )
+        : [],
+    ]);
+
+    // Create a shared map for quick lookup
+    const statusMap = new Map<string, { watched: boolean; liked: boolean; watchlist: boolean }>();
+
+    [...movieStatuses, ...tvStatuses].forEach(status => {
+      statusMap.set(status.movieId, {
+        watched: status.watched ?? false,
+        liked: status.liked ?? false,
+        watchlist: status.watchlist ?? false,
+      });
+    });
+
+    // Enrich each array while preserving structure
+    return movieArrays.map(movies =>
+      movies.map(movie => {
+        const status = statusMap.get(movie.id);
+        if (status) {
+          return {
+            ...movie,
+            watched: status.watched,
+            liked: status.liked,
+            watchlist: status.watchlist,
+          };
+        }
+        return {
+          ...movie,
+          watched: false,
+          liked: false,
+          watchlist: false,
+        };
+      })
+    ) as T;
+  } catch (error) {
+    console.error("Batch enrich movies with user status error:", error);
+    return movieArrays;
   }
 }
 
@@ -1399,7 +1516,10 @@ export async function createReviewAction(
       });
     }
 
-    revalidatePath("/");
+    // Revalidate the specific media page where review is shown
+    if (mediaId && mediaType) {
+      revalidatePath(`/${mediaType}/${mediaId}`);
+    }
     invalidateUserStats(userId);
     return { success: true };
   } catch (error) {
@@ -1446,7 +1566,10 @@ export async function updateReviewAction(
       })
       .where(eq(reviews.id, reviewId));
 
-    revalidatePath("/");
+    // Revalidate the specific media page where review is shown
+    if (existingReview.mediaId && existingReview.mediaType) {
+      revalidatePath(`/${existingReview.mediaType}/${existingReview.mediaId}`);
+    }
     invalidateUserStats(userId);
     return { success: true };
   } catch (error) {
@@ -1477,7 +1600,10 @@ export async function deleteReviewAction(reviewId: string) {
 
     await db.delete(reviews).where(eq(reviews.id, reviewId));
 
-    revalidatePath("/");
+    // Revalidate the specific media page where review is shown
+    if (existingReview.mediaId && existingReview.mediaType) {
+      revalidatePath(`/${existingReview.mediaType}/${existingReview.mediaId}`);
+    }
     invalidateUserStats(userId);
     return { success: true };
   } catch (error) {
@@ -1714,8 +1840,9 @@ export async function getRecommendationsAction(
       const movies = await getPersonalizedRecommendations(userId, 12);
       return { movies };
     } else if (type === "similar" && mediaId) {
-      const { getBecauseYouLikedRecommendations } = await import("@/lib/recommendations");
-      const movies = await getBecauseYouLikedRecommendations(userId, mediaId, 6);
+      // Use TMDB recommendations for similar movies
+      const { getMovieRecommendations } = await import("@/lib/tmdb");
+      const movies = await getMovieRecommendations(mediaId, 6);
       return { movies };
     }
 
@@ -1743,8 +1870,9 @@ export async function getMoodRecommendationsAction(
   }
 
   try {
-    const { getMoodRecommendations } = await import("@/lib/recommendations");
-    const movies = await getMoodRecommendations(userId, mood as "uplifting", 12);
+    // Try to get from cache first
+    const { getCachedMoodRecommendations } = await import("@/lib/recommendation-cache");
+    const { movies } = await getCachedMoodRecommendations(userId, mood);
     return { movies };
   } catch (error) {
     console.error("Get mood recommendations error:", error);
@@ -1764,6 +1892,13 @@ export async function getExplorationRecommendationsAction(): Promise<{
   const userId = session.user.id;
 
   try {
+    // Try cache first
+    const { getCachedRecommendations } = await import("@/lib/recommendation-cache");
+    const cached = await getCachedRecommendations(userId);
+    if (cached?.exploration?.length) {
+      return { movies: cached.exploration };
+    }
+    // Fall back to generating
     const { getExplorationRecommendations } = await import("@/lib/recommendations");
     const movies = await getExplorationRecommendations(userId, 12);
     return { movies };
@@ -1782,12 +1917,53 @@ export async function getHiddenGemsAction(): Promise<{ movies?: Movie[]; error?:
   const userId = session.user.id;
 
   try {
+    // Try cache first
+    const { getCachedRecommendations } = await import("@/lib/recommendation-cache");
+    const cached = await getCachedRecommendations(userId);
+    if (cached?.hiddenGems?.length) {
+      return { movies: cached.hiddenGems };
+    }
+    // Fall back to generating
     const { getHiddenGems } = await import("@/lib/recommendations");
     const movies = await getHiddenGems(userId, 12);
     return { movies };
   } catch (error) {
     console.error("Get hidden gems error:", error);
     return { error: "Failed to get hidden gems" };
+  }
+}
+
+// Get all cached recommendations at once (for homepage SSR)
+export async function getAllCachedRecommendationsAction(): Promise<{
+  personalized?: Movie[];
+  exploration?: Movie[];
+  hiddenGems?: Movie[];
+  moods?: Record<string, Movie[]>;
+  defaultMood?: string;
+  isStale?: boolean;
+  error?: string;
+}> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const { getRecommendationsWithSWR } = await import("@/lib/recommendation-cache");
+    const cached = await getRecommendationsWithSWR(userId);
+    return {
+      personalized: cached.personalized,
+      exploration: cached.exploration,
+      hiddenGems: cached.hiddenGems,
+      moods: cached.moods,
+      defaultMood: cached.defaultMood,
+      isStale: cached.isStale,
+    };
+  } catch (error) {
+    console.error("Get all cached recommendations error:", error);
+    return { error: "Failed to get recommendations" };
   }
 }
 

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Book } from "@/types";
 
 const HARDCOVER_API_URL = "https://api.hardcover.app/v1/graphql";
@@ -73,7 +74,8 @@ interface HardcoverEditionsResponse {
   errors?: unknown[];
 }
 
-export async function searchBooks(query: string): Promise<Book[]> {
+// Internal search function
+async function _searchBooks(query: string): Promise<Book[]> {
   if (!API_KEY) {
     console.warn("HARDCOVER_API_KEY is not set. Please add it to your .env.local file.");
     return [];
@@ -98,7 +100,7 @@ export async function searchBooks(query: string): Promise<Book[]> {
         query: graphqlQuery,
         variables: { query },
       }),
-      cache: "no-store",
+      next: { revalidate: 300 }, // Cache search results for 5 minutes
     });
 
     if (!res.ok) {
@@ -107,7 +109,6 @@ export async function searchBooks(query: string): Promise<Book[]> {
     }
 
     const json: HardcoverSearchResponse = await res.json();
-    console.log("[Hardcover Search Response]", JSON.stringify(json, null, 2));
 
     if (json.errors) {
       console.error("[Hardcover] GraphQL Errors:", JSON.stringify(json.errors, null, 2));
@@ -115,13 +116,16 @@ export async function searchBooks(query: string): Promise<Book[]> {
     }
 
     const hits = json.data?.search?.results?.hits || [];
-    
+
     return hits.map(hit => mapSearchResultToBook(hit.document));
   } catch (error) {
     console.error("[Hardcover] Service Error:", error);
     return [];
   }
 }
+
+// Request deduplication + Next.js ISR caching
+export const searchBooks = cache(_searchBooks);
 
 export async function getTrendingBooks(): Promise<Book[]> {
   if (!API_KEY) return [];
@@ -180,9 +184,10 @@ export async function getTrendingBooks(): Promise<Book[]> {
   }
 }
 
-export async function getBookById(id: string): Promise<Book | null> {
+// Internal getBookById function
+async function _getBookById(id: string): Promise<Book | null> {
   if (!API_KEY) return null;
-  
+
   const intId = parseInt(id, 10);
   if (isNaN(intId)) return null;
 
@@ -219,14 +224,13 @@ export async function getBookById(id: string): Promise<Book | null> {
         query: graphqlQuery,
         variables: { id: intId },
       }),
-      next: { revalidate: 3600 }, // Cache for 1 hour
+      next: { revalidate: 86400 }, // Cache for 24 hours (book data rarely changes)
     });
 
     if (!res.ok) return null;
 
     const json: HardcoverBooksResponse = await res.json();
-    console.log("[Hardcover Book Response]", JSON.stringify(json, null, 2));
-    
+
     if (json.errors || !json.data?.books?.length) {
       if (json.errors) {
         console.error("[Hardcover] GraphQL Errors (getBookById):", JSON.stringify(json.errors, null, 2));
@@ -240,6 +244,9 @@ export async function getBookById(id: string): Promise<Book | null> {
     return null;
   }
 }
+
+// Request deduplication + 24 hour cache for book details
+export const getBookById = cache(_getBookById);
 
 function mapSearchResultToBook(doc: HardcoverSearchResultDoc): Book {
   const year = doc.release_year || (doc.release_date ? parseInt(doc.release_date.split("-")[0]) : new Date().getFullYear());
@@ -293,7 +300,8 @@ function mapHardcoverBookToBook(item: HardcoverBookResult): Book {
   };
 }
 
-export async function getEditionsFromTitle(title: string): Promise<HardcoverEdition[]> {
+// Internal getEditionsFromTitle function
+async function _getEditionsFromTitle(title: string): Promise<HardcoverEdition[]> {
   if (!API_KEY) return [];
 
   const graphqlQuery = `
@@ -324,6 +332,7 @@ export async function getEditionsFromTitle(title: string): Promise<HardcoverEdit
         query: graphqlQuery,
         variables: { title },
       }),
+      next: { revalidate: 86400 }, // Cache for 24 hours (editions rarely change)
     });
 
     if (!res.ok) {
@@ -336,10 +345,13 @@ export async function getEditionsFromTitle(title: string): Promise<HardcoverEdit
         console.error("[Hardcover] GraphQL Errors (getEditionsFromTitle):", JSON.stringify(json.errors, null, 2));
         return [];
     }
-    
+
     return json.data?.editions || [];
   } catch (error) {
      console.error("[Hardcover] Error fetching editions:", error);
      return [];
   }
 }
+
+// Request deduplication + 24 hour cache for editions
+export const getEditionsFromTitle = cache(_getEditionsFromTitle);

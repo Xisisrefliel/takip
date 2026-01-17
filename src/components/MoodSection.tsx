@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Movie } from "@/types";
 import { MovieCard } from "@/components/MovieCard";
 import { Carousel } from "@/components/Carousel";
-import { MoodSelector, MOODS } from "@/components/MoodSelector";
+import { MoodSelector } from "@/components/MoodSelector";
+import { MOOD_IDS } from "@/lib/constants";
 import { getMoodRecommendationsAction } from "@/app/actions";
 
 interface MoodSectionProps {
@@ -40,59 +41,12 @@ export function MoodSection({
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [availableMoods, setAvailableMoods] = useState<string[]>([]);
-  const [isCheckingMoods, setIsCheckingMoods] = useState(true);
+  // Start with all moods available, hide them lazily when found empty
+  const [unavailableMoods, setUnavailableMoods] = useState<Set<string>>(new Set());
   const moodCache = useRef<Map<string, MoodCache>>(new Map());
 
-  // Check which moods have movies on mount
-  useEffect(() => {
-    async function checkAvailableMoods() {
-      setIsCheckingMoods(true);
-      const available: string[] = [];
-      const now = Date.now();
-
-      // Check all moods in parallel
-      const results = await Promise.all(
-        MOODS.map(async (mood) => {
-          try {
-            const result = await getMoodRecommendationsAction(mood.id);
-            if (result.movies && result.movies.length > 0) {
-              // Cache the result
-              moodCache.current.set(mood.id, { movies: result.movies, timestamp: now });
-              return mood.id;
-            }
-            return null;
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      for (const moodId of results) {
-        if (moodId) available.push(moodId);
-      }
-
-      setAvailableMoods(available);
-      setIsCheckingMoods(false);
-
-      // Set initial mood to first available if current isn't available
-      if (available.length > 0) {
-        const currentMood = initialMood || defaultMood;
-        if (!available.includes(currentMood)) {
-          setSelectedMood(available[0]);
-        }
-      }
-    }
-
-    checkAvailableMoods();
-  }, [initialMood, defaultMood]);
-
-  // Update selected mood when initialMood changes
-  useEffect(() => {
-    if (initialMood && MOODS.some((m) => m.id === initialMood) && availableMoods.includes(initialMood)) {
-      setSelectedMood(initialMood);
-    }
-  }, [initialMood, availableMoods]);
+  // Compute available moods (all moods minus unavailable ones)
+  const availableMoods = MOOD_IDS.filter(id => !unavailableMoods.has(id));
 
   const loadMoodMovies = useCallback(async (mood: string) => {
     const now = Date.now();
@@ -110,30 +64,51 @@ export function MoodSection({
     try {
       const result = await getMoodRecommendationsAction(mood);
 
-      if (result.movies) {
+      if (result.movies && result.movies.length > 0) {
         setMovies(result.movies);
         moodCache.current.set(mood, { movies: result.movies, timestamp: now });
+      } else {
+        // Mark this mood as unavailable and switch to next available
+        setUnavailableMoods(prev => new Set([...prev, mood]));
+        setMovies([]);
       }
     } catch (error) {
       console.error("Error loading mood recommendations:", error);
+      // Mark as unavailable on error too
+      setUnavailableMoods(prev => new Set([...prev, mood]));
     } finally {
       setIsLoading(false);
       setHasLoadedOnce(true);
     }
   }, []);
 
+  // Load movies when mood changes
   useEffect(() => {
-    if (!isCheckingMoods && selectedMood) {
+    if (selectedMood) {
       loadMoodMovies(selectedMood);
     }
-  }, [selectedMood, loadMoodMovies, isCheckingMoods]);
+  }, [selectedMood, loadMoodMovies]);
+
+  // Update selected mood when initialMood changes
+  useEffect(() => {
+    if (initialMood && MOOD_IDS.includes(initialMood as typeof MOOD_IDS[number]) && !unavailableMoods.has(initialMood)) {
+      setSelectedMood(initialMood);
+    }
+  }, [initialMood, unavailableMoods]);
+
+  // If current mood becomes unavailable, switch to first available
+  useEffect(() => {
+    if (unavailableMoods.has(selectedMood) && availableMoods.length > 0) {
+      setSelectedMood(availableMoods[0]);
+    }
+  }, [unavailableMoods, selectedMood, availableMoods]);
 
   const handleMoodChange = (mood: string) => {
     setSelectedMood(mood);
   };
 
-  // Don't render if no moods have movies
-  if (!isCheckingMoods && availableMoods.length === 0) {
+  // Hide section if all moods are unavailable
+  if (availableMoods.length === 0 && hasLoadedOnce) {
     return null;
   }
 
@@ -145,7 +120,7 @@ export function MoodSection({
       <MoodSelector
         initialMood={selectedMood}
         onMoodChange={handleMoodChange}
-        availableMoods={isCheckingMoods ? undefined : availableMoods}
+        availableMoods={availableMoods}
       />
     </div>
   );
@@ -153,7 +128,7 @@ export function MoodSection({
   return (
     <div className={className}>
       <Carousel headerLeft={headerContent}>
-        {isLoading || isCheckingMoods || !hasLoadedOnce
+        {isLoading || !hasLoadedOnce
           ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
           : movies.map((movie) => (
               <div

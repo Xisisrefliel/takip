@@ -1,51 +1,47 @@
 import { getTrendingMovies, getPopularSeries } from "@/lib/tmdb";
 import { HomePage } from "@/components/HomePage";
-import { enrichMoviesWithUserStatus } from "@/app/actions";
+import { enrichMoviesWithUserStatusBatch } from "@/app/actions";
 import { auth } from "@/auth";
-import { getPersonalizedRecommendations, getWatchedCount, getDefaultMood } from "@/lib/recommendations";
+import { getRecommendationsWithSWR } from "@/lib/recommendation-cache";
+import { getWatchedCount } from "@/lib/recommendations";
 
-export const dynamic = 'force-dynamic';
+// Revalidate homepage every hour for fresh trending content
+export const revalidate = 3600;
 
 export default async function Page() {
   const session = await auth();
   const userId = session?.user?.id;
   const isAuthenticated = !!userId;
 
-  const [trendingMovies, popularSeries] = await Promise.all([
+  // Fetch all data in parallel
+  const [trendingMovies, popularSeries, cachedRecommendations, watchedCount] = await Promise.all([
     getTrendingMovies(),
     getPopularSeries(),
+    // Get pre-computed recommendations from cache (instant if cached)
+    isAuthenticated && userId
+      ? getRecommendationsWithSWR(userId).catch((error) => {
+          console.error("Error fetching cached recommendations:", error);
+          return null;
+        })
+      : null,
+    // Watched count is a simple query, keep it separate
+    isAuthenticated && userId
+      ? getWatchedCount(userId).catch(() => 0)
+      : 0,
   ]);
 
-  const [enrichedTrendingMovies, enrichedPopularSeries] = await Promise.all([
-    enrichMoviesWithUserStatus(trendingMovies),
-    enrichMoviesWithUserStatus(popularSeries),
-  ]);
+  const recommendations = cachedRecommendations?.personalized ?? [];
+  const defaultMood = cachedRecommendations?.defaultMood ?? "uplifting";
 
-  let recommendedMovies: typeof enrichedTrendingMovies = [];
-  let watchedCount = 0;
-  let defaultMood = "uplifting";
-
-  if (isAuthenticated && userId) {
-    try {
-      const [recommendations, count, mood] = await Promise.all([
-        getPersonalizedRecommendations(userId, 12),
-        getWatchedCount(userId),
-        getDefaultMood(userId),
-      ]);
-
-      recommendedMovies = await enrichMoviesWithUserStatus(recommendations);
-      watchedCount = count;
-      defaultMood = mood;
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-    }
-  }
+  // Single batch call to enrich all movie arrays (1 auth check, 1 DB query)
+  const [enrichedTrendingMovies, enrichedPopularSeries, enrichedRecommendations] =
+    await enrichMoviesWithUserStatusBatch(trendingMovies, popularSeries, recommendations);
 
   return (
     <HomePage
       trendingMovies={enrichedTrendingMovies}
       popularSeries={enrichedPopularSeries}
-      recommendedMovies={recommendedMovies}
+      recommendedMovies={enrichedRecommendations}
       isAuthenticated={isAuthenticated}
       watchedCount={watchedCount}
       defaultMood={defaultMood}

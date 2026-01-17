@@ -15,7 +15,8 @@ import {
 import { auth } from "@/auth";
 import { MediaDetailClient } from "@/components/MediaDetailClient";
 
-export const dynamic = "force-dynamic";
+// Revalidate media details every 24 hours (static content rarely changes)
+export const revalidate = 86400;
 
 interface PageProps {
   params: Promise<{

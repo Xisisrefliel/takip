@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Movie, WatchProvider, WatchProvidersData } from "@/types";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -297,14 +298,42 @@ export interface ActorDetails {
   knownForDepartment?: string;
 }
 
-export const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
+// Cache TTLs (in seconds) differentiated by data type
+const CACHE_TTL = {
+  TRENDING: 3600,       // 1 hour - changes frequently
+  POPULAR: 14400,       // 4 hours - changes moderately
+  DETAILS: 86400,       // 24 hours - rarely changes
+  PERSON: 86400,        // 24 hours - rarely changes
+  SEARCH: 300,          // 5 min - user-initiated, fresh results preferred
+  DISCOVER: 14400,      // 4 hours - changes moderately
+  PROVIDERS: 43200,     // 12 hours - changes occasionally
+  COLLECTION: 86400,    // 24 hours - rarely changes
+  DEFAULT: 3600,        // 1 hour default
+} as const;
+
+// Determine appropriate cache TTL based on endpoint pattern
+function getCacheTTL(endpoint: string): number {
+  if (endpoint.startsWith('/trending/')) return CACHE_TTL.TRENDING;
+  if (endpoint.startsWith('/search/')) return CACHE_TTL.SEARCH;
+  if (endpoint.includes('/watch/providers')) return CACHE_TTL.PROVIDERS;
+  if (endpoint.startsWith('/collection/')) return CACHE_TTL.COLLECTION;
+  if (endpoint.startsWith('/person/')) return CACHE_TTL.PERSON;
+  if (endpoint.startsWith('/discover/')) return CACHE_TTL.DISCOVER;
+  if (endpoint.includes('/popular') || endpoint.includes('/top_rated')) return CACHE_TTL.POPULAR;
+  if (/^\/(movie|tv)\/\d+/.test(endpoint)) return CACHE_TTL.DETAILS;
+  return CACHE_TTL.DEFAULT;
+}
+
+// Internal fetch function with dynamic TTL
+const _fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
   const queryParams = new URLSearchParams({
     api_key: TMDB_API_KEY || "",
     language: "en-US",
     ...params,
   });
   const url = `${TMDB_BASE_URL}${endpoint}?${queryParams.toString()}`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
+  const ttl = getCacheTTL(endpoint);
+  const res = await fetch(url, { next: { revalidate: ttl } });
 
   if (!res.ok) {
     // If 404, just return null if possible, but throwing is okay for now
@@ -314,6 +343,11 @@ export const fetchTMDB = async (endpoint: string, params: Record<string, string>
 
   return res.json();
 };
+
+// Request deduplication: identical calls within the same request are cached
+export const fetchTMDB = cache(async (endpoint: string, params: Record<string, string> = {}) => {
+  return _fetchTMDB(endpoint, params);
+});
 
 const pickTrailer = (videos?: TMDBVideo[]) => {
   if (!videos || videos.length === 0) return { trailerKey: undefined, trailerUrl: undefined };
