@@ -11,6 +11,7 @@ import { getMoodRecommendationsAction } from "@/app/actions";
 interface MoodSectionProps {
   initialMood?: string;
   defaultMood: string;
+  cachedMoodMovies?: Record<string, Movie[]>;
   className?: string;
 }
 
@@ -35,15 +36,46 @@ function SkeletonCard() {
 export function MoodSection({
   initialMood,
   defaultMood,
+  cachedMoodMovies = {},
   className,
 }: MoodSectionProps) {
-  const [selectedMood, setSelectedMood] = useState<string>(initialMood || defaultMood);
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  // Start with all moods available, hide them lazily when found empty
-  const [unavailableMoods, setUnavailableMoods] = useState<Set<string>>(new Set());
+  // Initialize cache with server-provided data immediately
   const moodCache = useRef<Map<string, MoodCache>>(new Map());
+
+  // Populate cache on mount
+  if (moodCache.current.size === 0 && Object.keys(cachedMoodMovies).length > 0) {
+    for (const [moodId, moodMovies] of Object.entries(cachedMoodMovies)) {
+      if (moodMovies && moodMovies.length > 0) {
+        moodCache.current.set(moodId, { movies: moodMovies, timestamp: Date.now() });
+      }
+    }
+  }
+
+  // Find first mood that has cached data, or fall back to default
+  const getInitialMood = () => {
+    const preferredMood = initialMood || defaultMood;
+    // If preferred mood has cached data, use it
+    if (cachedMoodMovies[preferredMood]?.length) {
+      return preferredMood;
+    }
+    // Otherwise, find first mood with data
+    const firstAvailableMood = Object.keys(cachedMoodMovies).find(
+      (moodId) => cachedMoodMovies[moodId]?.length > 0
+    );
+    return firstAvailableMood || preferredMood;
+  };
+
+  const initialMoodWithData = getInitialMood();
+
+  const [selectedMood, setSelectedMood] = useState<string>(initialMoodWithData);
+  const [movies, setMovies] = useState<Movie[]>(
+    cachedMoodMovies[initialMoodWithData] || []
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(
+    !!(cachedMoodMovies[initialMoodWithData]?.length)
+  );
+  const [unavailableMoods, setUnavailableMoods] = useState<Set<string>>(new Set());
 
   // Compute available moods (all moods minus unavailable ones)
   const availableMoods = MOOD_IDS.filter(id => !unavailableMoods.has(id));
@@ -52,6 +84,7 @@ export function MoodSection({
     const now = Date.now();
     const cached = moodCache.current.get(mood);
 
+    // Check cache first (including server cache)
     if (cached && now - cached.timestamp < CACHE_DURATION) {
       setMovies(cached.movies);
       setIsLoading(false);
@@ -59,6 +92,16 @@ export function MoodSection({
       return;
     }
 
+    // If we have it from server but it's not in our ref cache, use it
+    if (cachedMoodMovies[mood] && cachedMoodMovies[mood].length > 0) {
+      setMovies(cachedMoodMovies[mood]);
+      moodCache.current.set(mood, { movies: cachedMoodMovies[mood], timestamp: now });
+      setIsLoading(false);
+      setHasLoadedOnce(true);
+      return;
+    }
+
+    // Only fetch if we don't have cached data
     setIsLoading(true);
 
     try {
@@ -67,23 +110,36 @@ export function MoodSection({
       if (result.movies && result.movies.length > 0) {
         setMovies(result.movies);
         moodCache.current.set(mood, { movies: result.movies, timestamp: now });
+        setHasLoadedOnce(true);
       } else {
-        // Mark this mood as unavailable and switch to next available
+        // Mark this mood as unavailable
         setUnavailableMoods(prev => new Set([...prev, mood]));
         setMovies([]);
+        setHasLoadedOnce(true);
       }
     } catch (error) {
       console.error("Error loading mood recommendations:", error);
-      // Mark as unavailable on error too
+      // Mark as unavailable on error
       setUnavailableMoods(prev => new Set([...prev, mood]));
+      setMovies([]);
+      setHasLoadedOnce(true);
     } finally {
       setIsLoading(false);
-      setHasLoadedOnce(true);
     }
-  }, []);
+  }, [cachedMoodMovies]);
 
-  // Load movies when mood changes
+  // Load movies when mood changes (skip initial mount if we already have cached data)
+  const isInitialMount = useRef(true);
+  const hasInitialData = useRef(movies.length > 0);
+
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Skip loading on initial mount if we already have cached data
+      if (hasInitialData.current) {
+        return;
+      }
+    }
     if (selectedMood) {
       loadMoodMovies(selectedMood);
     }
@@ -107,8 +163,8 @@ export function MoodSection({
     setSelectedMood(mood);
   };
 
-  // Hide section if all moods are unavailable
-  if (availableMoods.length === 0 && hasLoadedOnce) {
+  // Hide section only if all moods are unavailable and we have no cached data
+  if (availableMoods.length === 0 && Object.keys(cachedMoodMovies).length === 0 && hasLoadedOnce) {
     return null;
   }
 
@@ -128,7 +184,7 @@ export function MoodSection({
   return (
     <div className={className}>
       <Carousel headerLeft={headerContent}>
-        {isLoading || !hasLoadedOnce
+        {isLoading || (!hasLoadedOnce && movies.length === 0)
           ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
           : movies.map((movie) => (
               <div

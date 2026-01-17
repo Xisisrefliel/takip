@@ -31,17 +31,50 @@ export default async function Page() {
   ]);
 
   const recommendations = cachedRecommendations?.personalized ?? [];
+  const exploration = cachedRecommendations?.exploration ?? [];
+  const hiddenGems = cachedRecommendations?.hiddenGems ?? [];
+  const moods = cachedRecommendations?.moods ?? {};
   const defaultMood = cachedRecommendations?.defaultMood ?? "uplifting";
 
+  // Collect all mood movies for batch enrichment
+  const moodArrays = Object.entries(moods)
+    .filter(([, moodMovies]) => moodMovies && moodMovies.length > 0)
+    .map(([, moodMovies]) => moodMovies);
+
   // Single batch call to enrich all movie arrays (1 auth check, 1 DB query)
-  const [enrichedTrendingMovies, enrichedPopularSeries, enrichedRecommendations] =
-    await enrichMoviesWithUserStatusBatch(trendingMovies, popularSeries, recommendations);
+  const enrichedArrays = await enrichMoviesWithUserStatusBatch(
+    trendingMovies,
+    popularSeries,
+    recommendations,
+    exploration,
+    hiddenGems,
+    ...moodArrays
+  );
+
+  const [
+    enrichedTrendingMovies,
+    enrichedPopularSeries,
+    enrichedRecommendations,
+    enrichedExploration,
+    enrichedHiddenGems,
+    ...enrichedMoodArrays
+  ] = enrichedArrays;
+
+  // Map enriched mood arrays back to their mood IDs
+  const enrichedMoods: Record<string, typeof enrichedRecommendations> = {};
+  const moodIds = Object.keys(moods).filter(id => moods[id] && moods[id].length > 0);
+  moodIds.forEach((moodId, index) => {
+    enrichedMoods[moodId] = enrichedMoodArrays[index];
+  });
 
   return (
     <HomePage
       trendingMovies={enrichedTrendingMovies}
       popularSeries={enrichedPopularSeries}
       recommendedMovies={enrichedRecommendations}
+      explorationMovies={enrichedExploration}
+      hiddenGemsMovies={enrichedHiddenGems}
+      moodMovies={enrichedMoods}
       isAuthenticated={isAuthenticated}
       watchedCount={watchedCount}
       defaultMood={defaultMood}

@@ -15,6 +15,9 @@ interface HomePageProps {
   trendingMovies: Movie[];
   popularSeries: Movie[];
   recommendedMovies?: Movie[];
+  explorationMovies?: Movie[];
+  hiddenGemsMovies?: Movie[];
+  moodMovies?: Record<string, Movie[]>;
   isAuthenticated?: boolean;
   watchedCount?: number;
   defaultMood?: string;
@@ -24,6 +27,9 @@ export function HomePage({
   trendingMovies,
   popularSeries,
   recommendedMovies,
+  explorationMovies,
+  hiddenGemsMovies,
+  moodMovies,
   isAuthenticated,
   watchedCount = 0,
   defaultMood = "uplifting",
@@ -141,18 +147,19 @@ export function HomePage({
       {isAuthenticated && (
         <MoodSection
           defaultMood={defaultMood}
+          cachedMoodMovies={moodMovies}
           className="pt-4"
         />
       )}
 
       {/* Try Something New - only show if watched >= 100 */}
       {showExploration && (
-        <ExplorationSection />
+        <ExplorationSection cachedMovies={explorationMovies} />
       )}
 
       {/* Hidden Gems - only show if watched >= 50 */}
       {showHiddenGems && (
-        <HiddenGemsSection />
+        <HiddenGemsSection cachedMovies={hiddenGemsMovies} />
       )}
 
       {/* Trending Movies Carousel */}
