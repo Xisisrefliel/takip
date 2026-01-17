@@ -12,7 +12,6 @@ import {
 import { Book, Movie, Season } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
 import { createUser, getUserByEmail, hashPassword } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema";
@@ -468,7 +467,7 @@ export async function signUpAction(email: string, password: string) {
     }
 
     await createUser(email, password);
-    
+
     const result = await signIn("credentials", {
       email,
       password,
@@ -479,12 +478,8 @@ export async function signUpAction(email: string, password: string) {
       return { error: "Failed to sign in after registration" };
     }
 
-    redirect("/");
+    return { success: true };
   } catch (error) {
-    // Re-throw redirect errors - they're how Next.js handles redirects
-    if (error && typeof error === "object" && "digest" in error && typeof error.digest === "string" && error.digest.startsWith("NEXT_REDIRECT")) {
-      throw error;
-    }
     console.error("Sign up error:", error);
     return { error: "Failed to create account" };
   }
@@ -506,12 +501,8 @@ export async function signInAction(email: string, password: string) {
       return { error: "Invalid email or password" };
     }
 
-    redirect("/");
+    return { success: true };
   } catch (error) {
-    // Re-throw redirect errors - they're how Next.js handles redirects
-    if (error && typeof error === "object" && "digest" in error && typeof error.digest === "string" && error.digest.startsWith("NEXT_REDIRECT")) {
-      throw error;
-    }
     console.error("Sign in error:", error);
     return { error: "Failed to sign in" };
   }

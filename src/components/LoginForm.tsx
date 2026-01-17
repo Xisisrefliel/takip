@@ -3,8 +3,12 @@
 import { useState, useTransition } from "react";
 import { signInAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export function LoginForm() {
+  const router = useRouter();
+  const { update } = useSession();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -18,9 +22,14 @@ export function LoginForm() {
       const result = await signInAction(email, password);
       if (result?.error) {
         setError(result.error);
+      } else if (result?.success) {
+        // Refresh the session on the client side first
+        await update?.();
+        // Navigate to home page
+        router.push("/");
+        // Refresh to ensure all server components update
+        router.refresh();
       }
-      // Note: redirect() in signInAction will navigate away, so AuthButton
-      // will update via pathname change listener
     });
   };
 
