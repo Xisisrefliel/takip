@@ -297,7 +297,7 @@ export interface ActorDetails {
   knownForDepartment?: string;
 }
 
-const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
+export const fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
   const queryParams = new URLSearchParams({
     api_key: TMDB_API_KEY || "",
     language: "en-US",
@@ -519,7 +519,7 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
       include_image_language: "en,null",
     });
     if (!data) return null;
-    
+
     const movie = mapTmdbToMovie(data, 'tv');
     const { trailerKey, trailerUrl } = pickTrailer(data.videos?.results);
     movie.trailerKey = trailerKey;
@@ -531,45 +531,45 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
 
     // Lazy-load seasons: only fetch first 3 by default, all if fetchAllSeasons is true
     if (data.seasons && data.seasons.length > 0) {
-      const seasonsToFetch = fetchAllSeasons 
+      const seasonsToFetch = fetchAllSeasons
         ? data.seasons.slice(0, 20)
         : data.seasons.slice(0, 3);
-      
+
       const seasonsWithEpisodes = await Promise.all(
         seasonsToFetch.map(async (season: TMDBSeasonSummary) => {
           try {
             const seasonDetail = await fetchTMDB(`/tv/${id}/season/${season.season_number}`);
             return {
-                id: season.id,
-                name: season.name,
-                overview: season.overview,
-                posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
-                seasonNumber: season.season_number,
-                episodeCount: season.episode_count,
-                airDate: season.air_date,
-                episodes: seasonDetail?.episodes?.map((ep: TMDBEpisode) => ({
-                    id: ep.id,
-                    name: ep.name,
-                    overview: ep.overview,
-                    airDate: ep.air_date,
-                    episodeNumber: ep.episode_number,
-                    seasonNumber: ep.season_number,
-                    stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
-                    voteAverage: ep.vote_average,
-                    runtime: ep.runtime
-                })) || []
+              id: season.id,
+              name: season.name,
+              overview: season.overview,
+              posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+              seasonNumber: season.season_number,
+              episodeCount: season.episode_count,
+              airDate: season.air_date,
+              episodes: seasonDetail?.episodes?.map((ep: TMDBEpisode) => ({
+                id: ep.id,
+                name: ep.name,
+                overview: ep.overview,
+                airDate: ep.air_date,
+                episodeNumber: ep.episode_number,
+                seasonNumber: ep.season_number,
+                stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+                voteAverage: ep.vote_average,
+                runtime: ep.runtime
+              })) || []
             };
           } catch (e) {
             console.error(`Failed to fetch season ${season.season_number} for series ${id}`, e);
             return {
-                id: season.id,
-                name: season.name,
-                overview: season.overview,
-                posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
-                seasonNumber: season.season_number,
-                episodeCount: season.episode_count,
-                airDate: season.air_date,
-                episodes: []
+              id: season.id,
+              name: season.name,
+              overview: season.overview,
+              posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+              seasonNumber: season.season_number,
+              episodeCount: season.episode_count,
+              airDate: season.air_date,
+              episodes: []
             };
           }
         })
@@ -638,14 +638,14 @@ export const getWatchProviders = async (
     const data = await fetchTMDB(`/${mediaType}/${id}/watch/providers`);
     const results = data?.results as
       | Record<
-          string,
-          {
-            link?: string;
-            flatrate?: WatchProvider[];
-            rent?: WatchProvider[];
-            buy?: WatchProvider[];
-          }
-        >
+        string,
+        {
+          link?: string;
+          flatrate?: WatchProvider[];
+          rent?: WatchProvider[];
+          buy?: WatchProvider[];
+        }
+      >
       | undefined;
 
     if (!results) return null;
@@ -816,6 +816,26 @@ export const searchMoviesWithYear = async (query: string, year?: number): Promis
   }
 };
 
+export const discoverMovies = async (params: Record<string, string> = {}): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/discover/movie", params);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"));
+  } catch (error) {
+    console.error("Error discovering movies:", error);
+    return [];
+  }
+};
+
+export const discoverTv = async (params: Record<string, string> = {}): Promise<Movie[]> => {
+  try {
+    const data = await fetchTMDB("/discover/tv", params);
+    return (data?.results || []).map((item: TMDBMovie) => mapTmdbToMovie(item, "tv"));
+  } catch (error) {
+    console.error("Error discovering TV shows:", error);
+    return [];
+  }
+};
+
 export const searchTvSeries = async (query: string): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/search/tv", { query });
@@ -895,7 +915,7 @@ export const getTrendingActors = async (): Promise<{ id: number; name: string }[
     const data = await fetchTMDB("/trending/person/week");
     const results = Array.isArray(data?.results) ? data.results : [];
     return results
-      .filter((person: { id?: number; known_for_department?: string }) => 
+      .filter((person: { id?: number; known_for_department?: string }) =>
         person.id && person.known_for_department === "Acting"
       )
       .map((person: { id: number; name: string }) => ({
@@ -913,9 +933,9 @@ export const getTrendingDirectors = async (): Promise<{ id: number; name: string
   try {
     const data = await fetchTMDB("/trending/movie/week");
     const results = Array.isArray(data?.results) ? data.results : [];
-    
+
     const directorMap = new Map<number, { id: number; name: string }>();
-    
+
     for (const item of results) {
       if (item.id && item.credits?.crew) {
         const directors = item.credits.crew.filter((c: { job: string }) => c.job === "Director");
@@ -929,7 +949,7 @@ export const getTrendingDirectors = async (): Promise<{ id: number; name: string
         }
       }
     }
-    
+
     return Array.from(directorMap.values()).slice(0, 20);
   } catch (error) {
     console.error("Error fetching trending directors:", error);

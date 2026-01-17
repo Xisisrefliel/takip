@@ -1667,3 +1667,133 @@ export async function loadRemainingSeasonsAction(seriesId: string, loadedSeasonC
   }
 }
 
+export async function getRecommendationsAction(
+  type: "personalized" | "similar",
+  mediaId?: string
+): Promise<{ movies?: Movie[]; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    if (type === "personalized") {
+      const { getPersonalizedRecommendations } = await import("@/lib/recommendations");
+      const movies = await getPersonalizedRecommendations(userId, 12);
+      return { movies };
+    } else if (type === "similar" && mediaId) {
+      const { getBecauseYouLikedRecommendations } = await import("@/lib/recommendations");
+      const movies = await getBecauseYouLikedRecommendations(userId, mediaId, 6);
+      return { movies };
+    }
+
+    return { error: "Invalid request" };
+  } catch (error) {
+    console.error("Get recommendations error:", error);
+    return { error: "Failed to get recommendations" };
+  }
+}
+
+export async function getMoodRecommendationsAction(
+  mood: string
+): Promise<{ movies?: Movie[]; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  const validMoods = ["uplifting", "mind-bending", "dark-intense", "feel-good", "adrenaline", "thought-provoking", "classic"];
+
+  if (!validMoods.includes(mood)) {
+    return { error: "Invalid mood" };
+  }
+
+  try {
+    const { getMoodRecommendations } = await import("@/lib/recommendations");
+    const movies = await getMoodRecommendations(userId, mood as "uplifting", 12);
+    return { movies };
+  } catch (error) {
+    console.error("Get mood recommendations error:", error);
+    return { error: "Failed to get mood recommendations" };
+  }
+}
+
+export async function getExplorationRecommendationsAction(): Promise<{
+  movies?: Movie[];
+  error?: string;
+}> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const { getExplorationRecommendations } = await import("@/lib/recommendations");
+    const movies = await getExplorationRecommendations(userId, 12);
+    return { movies };
+  } catch (error) {
+    console.error("Get exploration recommendations error:", error);
+    return { error: "Failed to get exploration recommendations" };
+  }
+}
+
+export async function getHiddenGemsAction(): Promise<{ movies?: Movie[]; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const { getHiddenGems } = await import("@/lib/recommendations");
+    const movies = await getHiddenGems(userId, 12);
+    return { movies };
+  } catch (error) {
+    console.error("Get hidden gems error:", error);
+    return { error: "Failed to get hidden gems" };
+  }
+}
+
+export async function getWatchedCountAction(): Promise<{ count?: number; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const { getWatchedCount } = await import("@/lib/recommendations");
+    const count = await getWatchedCount(userId);
+    return { count };
+  } catch (error) {
+    console.error("Get watched count error:", error);
+    return { error: "Failed to get watched count" };
+  }
+}
+
+export async function getDefaultMoodAction(): Promise<{ mood?: string; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const { getDefaultMood } = await import("@/lib/recommendations");
+    const mood = await getDefaultMood(userId);
+    return { mood };
+  } catch (error) {
+    console.error("Get default mood error:", error);
+    return { error: "Failed to get default mood" };
+  }
+}
+
