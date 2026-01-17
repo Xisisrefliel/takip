@@ -14,7 +14,8 @@ import { GenreChart } from "./components/GenreChart";
 import { RatingDistribution } from "./components/RatingDistribution";
 import { TopActorsGrid, TopDirectorsGrid } from "./components/TopPeopleGrid";
 
-export const dynamic = 'force-dynamic';
+// Revalidate stats every 5 minutes (user-specific data changes more frequently)
+export const revalidate = 300;
 
 export default async function StatsPage() {
   const stats = await getStatsData();

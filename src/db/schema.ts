@@ -156,3 +156,20 @@ export const userStats = pgTable("user_stats", {
   updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
 });
 
+// Cached recommendations - pre-computed for instant loading
+export const userRecommendations = pgTable("user_recommendations", {
+  userId: text("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  // Pre-computed recommendation sets (stored as JSON arrays of movie objects)
+  personalized: jsonb("personalized"), // "Recommended For You"
+  exploration: jsonb("exploration"), // "Try Something New"
+  hiddenGems: jsonb("hiddenGems"), // "Hidden Gems"
+  // Mood-based recommendations (keyed by mood ID)
+  moods: jsonb("moods"), // { uplifting: [...], "mind-bending": [...], ... }
+  // Default mood based on user's preferences
+  defaultMood: text("defaultMood"),
+  // Cache metadata
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" }).defaultNow(),
+  // Flag to indicate if recommendations need refresh
+  isStale: boolean("isStale").default(false),
+});
+

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Brain, Flame, Heart, Zap, Lightbulb, Film } from "lucide-react";
+import { Sparkles, Brain, Flame, Heart, Zap, Lightbulb, Film, LucideIcon } from "lucide-react";
+import { MOOD_IDS, MOOD_LABELS, type MoodId } from "@/lib/constants";
 
 interface MoodSelectorProps {
   initialMood?: string;
@@ -12,17 +13,23 @@ interface MoodSelectorProps {
   className?: string;
 }
 
-const MOODS = [
-  { id: "uplifting", label: "Uplifting", icon: Sparkles },
-  { id: "mind-bending", label: "Mind-Bending", icon: Brain },
-  { id: "dark-intense", label: "Dark & Intense", icon: Flame },
-  { id: "feel-good", label: "Feel-Good", icon: Heart },
-  { id: "adrenaline", label: "Adrenaline", icon: Zap },
-  { id: "thought-provoking", label: "Thought-Provoking", icon: Lightbulb },
-  { id: "classic", label: "Classic", icon: Film },
-] as const;
+// Map mood IDs to their icons (client-only)
+const MOOD_ICONS: Record<MoodId, LucideIcon> = {
+  "uplifting": Sparkles,
+  "mind-bending": Brain,
+  "dark-intense": Flame,
+  "feel-good": Heart,
+  "adrenaline": Zap,
+  "thought-provoking": Lightbulb,
+  "classic": Film,
+};
 
-type MoodId = typeof MOODS[number]["id"];
+// Combined mood data for the component
+const MOODS = MOOD_IDS.map(id => ({
+  id,
+  label: MOOD_LABELS[id],
+  icon: MOOD_ICONS[id],
+}));
 
 export function MoodSelector({
   initialMood,

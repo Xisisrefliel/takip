@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ComponentType } from "react";
+import { useState, useTransition, useCallback, memo, type ComponentType } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Eye, ClockPlus, ClockCheck, Heart, Check } from "lucide-react";
@@ -15,7 +15,7 @@ interface MovieCardProps {
   className?: string;
 }
 
-export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieCardProps) {
+function MovieCardInner({ movie, aspectRatio = "portrait", className }: MovieCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isHovered, setIsHovered] = useState(false);
@@ -25,7 +25,7 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
 
   const mediaType = movie.mediaType === 'tv' ? 'tv' : 'movie';
 
-  const handleWatched = (e: React.MouseEvent) => {
+  const handleWatched = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const newValue = !watched;
@@ -38,9 +38,9 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
         router.refresh();
       }
     });
-  };
+  }, [movie.id, mediaType, router, watched]);
 
-  const handleWatchlist = (e: React.MouseEvent) => {
+  const handleWatchlist = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const newValue = !watchlist;
@@ -53,9 +53,9 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
         router.refresh();
       }
     });
-  };
+  }, [movie.id, mediaType, router, watchlist]);
 
-  const handleLiked = (e: React.MouseEvent) => {
+  const handleLiked = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const newValue = !liked;
@@ -68,14 +68,17 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
         router.refresh();
       }
     });
-  };
+  }, [movie.id, mediaType, router, liked]);
+
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
   return (
     <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)}>
       <div
         className={cn("group flex flex-col gap-3")}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Card Container */}
         <div
@@ -166,7 +169,22 @@ export function MovieCard({ movie, aspectRatio = "portrait", className }: MovieC
   );
 }
 
-function ActionButton({
+// Memoized MovieCard - prevents re-renders when parent re-renders with same movie data
+export const MovieCard = memo(MovieCardInner, (prevProps, nextProps) => {
+  // Custom comparison for better memoization
+  return (
+    prevProps.movie.id === nextProps.movie.id &&
+    prevProps.movie.watched === nextProps.movie.watched &&
+    prevProps.movie.liked === nextProps.movie.liked &&
+    prevProps.movie.watchlist === nextProps.movie.watchlist &&
+    prevProps.aspectRatio === nextProps.aspectRatio &&
+    prevProps.className === nextProps.className
+  );
+});
+
+MovieCard.displayName = "MovieCard";
+
+const ActionButton = memo(function ActionButton({
   active,
   onClick,
   icon: Icon,
@@ -203,4 +221,4 @@ function ActionButton({
       />
     </button>
   );
-}
+});
