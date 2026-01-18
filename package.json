@@ -8,7 +8,8 @@
     "start": "bun run --bun next start",
     "lint": "eslint",
     "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bunx tsx src/db/migrate.ts"
+    "db:migrate": "bunx tsx src/db/migrate.ts",
+    "analyze-behavior": "bunx tsx scripts/analyze-user-behavior.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",

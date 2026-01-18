@@ -514,7 +514,7 @@ export const getPopularSeries = async (): Promise<Movie[]> => {
 export const getMovieById = async (id: string): Promise<Movie | null> => {
   try {
     const data = await fetchTMDB(`/movie/${id}`, {
-      append_to_response: "credits,images,recommendations,videos,release_dates",
+      append_to_response: "credits,images,recommendations,videos,release_dates,keywords",
       include_image_language: "en,null",
     });
     if (!data) return null;
@@ -526,6 +526,11 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
       .filter((rec: TMDBMovie) => rec.id !== data.id)
       .map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"))
       .slice(0, 16);
+
+    // Add keywords
+    if (data.keywords?.keywords) {
+      movie.keywords = data.keywords.keywords.map((k: { name: string }) => k.name);
+    }
 
     if (data.belongs_to_collection && typeof data.belongs_to_collection.id === "number") {
       movie.collection = {
@@ -549,7 +554,7 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
 export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = false): Promise<Movie | null> => {
   try {
     const data = await fetchTMDB(`/tv/${id}`, {
-      append_to_response: "credits,images,recommendations,videos",
+      append_to_response: "credits,images,recommendations,videos,keywords",
       include_image_language: "en,null",
     });
     if (!data) return null;
@@ -562,6 +567,11 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
       .filter((rec: TMDBMovie) => rec.id !== data.id)
       .map((item: TMDBMovie) => mapTmdbToMovie(item, 'tv'))
       .slice(0, 16);
+
+    // Add keywords (TV shows return keywords.results instead of keywords.keywords)
+    if (data.keywords?.results) {
+      movie.keywords = data.keywords.results.map((k: { name: string }) => k.name);
+    }
 
     // Lazy-load seasons: only fetch first 3 by default, all if fetchAllSeasons is true
     if (data.seasons && data.seasons.length > 0) {

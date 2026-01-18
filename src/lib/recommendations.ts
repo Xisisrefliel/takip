@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { userMovies, reviews } from "@/db/schema";
+import { userMovies, reviews, negativeSignals, userBehaviorPatterns } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { Movie } from "@/types";
 import {
@@ -33,6 +33,7 @@ const RECENCY_DECAY_DAYS = 180; // Half-life for recency weighting
 const MAX_RECOMMENDATIONS_PER_SOURCE = 30;
 
 interface UserPreferences {
+  // Existing preferences
   favoriteGenres: Map<string, number>;
   favoriteDirectors: Map<string, number>;
   favoriteActors: Map<string, number>;
@@ -46,6 +47,27 @@ interface UserPreferences {
   topLikedMovieIds: string[];
   watchlistMovieIds: string[];
   watchlistCollectionIds: Set<number>;
+
+  // Production analysis (NEW)
+  favoriteProductionCompanies: Map<string, number>;
+  favoriteProductionCountries: Map<string, number>;
+  favoriteWatchProviders: Map<string, number>;
+
+  // Negative patterns (NEW)
+  dislikedGenres: Map<string, number>;
+  dislikedDirectors: Set<string>;
+  dislikedProductionCompanies: Set<string>;
+  dislikedThemes: Set<string>;
+
+  // Behavioral patterns (NEW)
+  watchingVelocity: number; // Movies per week
+  explorationScore: number; // 0-1: genre diversity seeking
+  qualityThreshold: number; // Minimum rating user typically enjoys (0-10 scale)
+  complexityPreference: number; // 0-1: narrative complexity tolerance
+
+  // Temporal patterns (NEW)
+  recentGenreShift: string[]; // Genres watched in last 30 days
+  bingeBehavior: boolean; // Does user watch series in batches?
 }
 
 interface ScoredMovie {
@@ -123,18 +145,29 @@ function isQualityContent(movie: Movie): boolean {
 
 export async function getUserPreferences(userId: string): Promise<UserPreferences> {
   // Fetch user's movie data with all fields
-  const userMoviesData = await db
-    .select()
-    .from(userMovies)
-    .where(eq(userMovies.userId, userId))
-    .orderBy(desc(userMovies.watchedDate));
-
-  const userReviews = await db
-    .select()
-    .from(reviews)
-    .where(eq(reviews.userId, userId));
+  const [userMoviesData, userReviews, negativeSignalsData, behaviorCache] = await Promise.all([
+    db
+      .select()
+      .from(userMovies)
+      .where(eq(userMovies.userId, userId))
+      .orderBy(desc(userMovies.watchedDate)),
+    db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.userId, userId)),
+    db
+      .select()
+      .from(negativeSignals)
+      .where(eq(negativeSignals.userId, userId)),
+    db
+      .select()
+      .from(userBehaviorPatterns)
+      .where(eq(userBehaviorPatterns.userId, userId))
+      .limit(1),
+  ]);
 
   const preferences: UserPreferences = {
+    // Existing preferences
     favoriteGenres: new Map(),
     favoriteDirectors: new Map(),
     favoriteActors: new Map(),
@@ -148,6 +181,25 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     topLikedMovieIds: [],
     watchlistMovieIds: [],
     watchlistCollectionIds: new Set(),
+
+    // NEW: Production analysis
+    favoriteProductionCompanies: new Map(),
+    favoriteProductionCountries: new Map(),
+    favoriteWatchProviders: new Map(),
+
+    // NEW: Negative patterns
+    dislikedGenres: new Map(),
+    dislikedDirectors: new Set(),
+    dislikedProductionCompanies: new Set(),
+    dislikedThemes: new Set(),
+
+    // NEW: Behavioral defaults
+    watchingVelocity: 0,
+    explorationScore: 0.5,
+    qualityThreshold: 6.5,
+    complexityPreference: 0.5,
+    recentGenreShift: [],
+    bingeBehavior: false,
   };
 
   let totalRuntime = 0;
@@ -221,6 +273,40 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
       }
     }
 
+    // NEW: Process production companies from liked movies
+    if (isLiked) {
+      const companies = parseJsonSafely<Array<{ id: number; name: string }>>(
+        movie.productionCompanies,
+        []
+      );
+      for (const company of companies.slice(0, 3)) {
+        const current = preferences.favoriteProductionCompanies.get(company.name) || 0;
+        preferences.favoriteProductionCompanies.set(company.name, current + 2 * recencyWeight);
+      }
+
+      // NEW: Process production countries
+      const countries = parseJsonSafely<Array<{ iso: string; name: string }>>(
+        movie.productionCountries,
+        []
+      );
+      for (const country of countries) {
+        const current = preferences.favoriteProductionCountries.get(country.name) || 0;
+        preferences.favoriteProductionCountries.set(country.name, current + recencyWeight);
+      }
+
+      // NEW: Process watch providers
+      const providers = parseJsonSafely<Record<string, unknown>>(movie.watchProviders, {});
+      const userRegion = "US"; // TODO: Get from user settings
+      const regionProviders = providers[userRegion];
+
+      if (regionProviders?.flatrate) {
+        for (const provider of regionProviders.flatrate) {
+          const current = preferences.favoriteWatchProviders.get(provider.provider_name) || 0;
+          preferences.favoriteWatchProviders.set(provider.provider_name, current + recencyWeight);
+        }
+      }
+    }
+
     // Process decades
     if (movie.year && movie.year > 1900 && isLiked) {
       const decade = `${Math.floor(movie.year / 10) * 10}s`;
@@ -267,6 +353,98 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
 
   // Limit top liked movies to most recent 20
   preferences.topLikedMovieIds = preferences.topLikedMovieIds.slice(0, 20);
+
+  // NEW: Process negative signals
+  for (const signal of negativeSignalsData) {
+    if (signal.signalType === "low_rating" && signal.signalValue && signal.signalValue <= 2) {
+      const context = parseJsonSafely<Record<string, unknown>>(signal.context, {});
+
+      // Track disliked genres
+      const genres = parseJsonSafely<string[]>(context.genres, []);
+      for (const genre of genres) {
+        const current = preferences.dislikedGenres.get(genre) || 0;
+        preferences.dislikedGenres.set(genre, current + 1);
+      }
+
+      // Track disliked production companies
+      const companies = parseJsonSafely<Array<{ name: string }>>(
+        context.productionCompanies,
+        []
+      );
+      for (const company of companies) {
+        preferences.dislikedProductionCompanies.add(company.name);
+      }
+    }
+  }
+
+  // Filter out false negatives: If user has watched genre many times,
+  // a few dislikes don't mean true aversion
+  preferences.dislikedGenres.forEach((dislikeCount, genre) => {
+    const likeCount = preferences.favoriteGenres.get(genre) || 0;
+    const totalExposure = dislikeCount + likeCount;
+
+    // Only consider it a true dislike if <30% positive rate
+    if (totalExposure > 5 && dislikeCount / totalExposure < 0.7) {
+      preferences.dislikedGenres.delete(genre);
+    }
+  });
+
+  // NEW: Calculate behavioral metrics
+  const watchedMovies = userMoviesData.filter((m) => m.watched && m.watchedDate);
+
+  // Watching velocity (movies per week over last 90 days)
+  const recentWatched = watchedMovies.filter((m) => {
+    const daysSince = (Date.now() - m.watchedDate!.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSince <= 90;
+  });
+  preferences.watchingVelocity = recentWatched.length / (90 / 7);
+
+  // Exploration score: How diverse are their genres?
+  const genreCount = preferences.favoriteGenres.size;
+  const totalWatched = watchedMovies.length;
+  preferences.explorationScore =
+    totalWatched > 0 ? Math.min(1, genreCount / (totalWatched * 0.3)) : 0.5;
+
+  // Quality threshold: What's the minimum rating they typically enjoy?
+  const ratings = userReviews.filter((r) => r.rating).map((r) => r.rating as number);
+  if (ratings.length >= 5) {
+    ratings.sort((a, b) => a - b);
+    const p25 = ratings[Math.floor(ratings.length * 0.25)];
+    // Map 1-5 rating scale to 0-10 TMDB scale
+    preferences.qualityThreshold = p25 * 2;
+  }
+
+  // Recent genre shift (last 30 days vs overall)
+  const last30Days = watchedMovies.filter((m) => {
+    const daysSince = (Date.now() - m.watchedDate!.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSince <= 30;
+  });
+
+  const recentGenres = new Map<string, number>();
+  for (const movie of last30Days) {
+    const genres = parseJsonSafely<string[]>(movie.genres, []);
+    for (const genre of genres) {
+      recentGenres.set(genre, (recentGenres.get(genre) || 0) + 1);
+    }
+  }
+
+  preferences.recentGenreShift = Array.from(recentGenres.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([genre]) => genre);
+
+  // Use cached behavioral patterns if available
+  if (behaviorCache.length > 0) {
+    const cached = behaviorCache[0];
+    if (cached.watchingVelocity !== null) {
+      preferences.watchingVelocity = cached.watchingVelocity / 100; // Convert from stored integer
+    }
+    if (cached.explorationScore !== null) {
+      preferences.explorationScore = cached.explorationScore / 100; // Convert from stored integer
+    }
+    preferences.bingeBehavior =
+      parseJsonSafely(cached.bingePatterns, {}).isBinger || false;
+  }
 
   return preferences;
 }
@@ -380,6 +558,170 @@ function calculateMovieScore(
   };
 }
 
+/**
+ * Enhanced movie scoring with production company, country, and advanced behavioral analysis
+ */
+function calculateEnhancedMovieScore(
+  movie: Movie,
+  preferences: UserPreferences,
+  source: string
+): number {
+  let score = 0;
+
+  // === GENRE MATCHING (0-10 points) ===
+  let genreScore = 0;
+  for (const genre of movie.genre || []) {
+    const preference = preferences.favoriteGenres.get(genre) || 0;
+    genreScore += preference * 0.5;
+
+    // Penalty for disliked genres
+    const dislikeScore = preferences.dislikedGenres.get(genre) || 0;
+    if (dislikeScore > 2) {
+      genreScore -= dislikeScore * 2; // Heavy penalty
+    }
+  }
+  score += Math.min(10, genreScore);
+
+  // === DIRECTOR MATCHING (0-8 points) ===
+  const directors = movie.crew?.filter((c) => c.job === "Director") || [];
+  for (const director of directors) {
+    const preference = preferences.favoriteDirectors.get(director.name) || 0;
+    if (preference > 0) {
+      score += Math.min(8, preference * 2);
+    }
+    // Strong penalty for disliked directors
+    if (preferences.dislikedDirectors.has(director.name)) {
+      score -= 10;
+    }
+  }
+
+  // === ACTOR MATCHING (0-6 points) ===
+  const topCast = movie.cast?.slice(0, 10) || [];
+  for (const actor of topCast) {
+    const preference = preferences.favoriteActors.get(actor.name) || 0;
+    if (preference > 0) {
+      score += Math.min(1, preference * 0.3);
+    }
+  }
+
+  // === PRODUCTION COMPANY MATCHING (0-7 points) ===
+  const companies = movie.productionCompanies || [];
+  for (const company of companies.slice(0, 3)) {
+    const preference = preferences.favoriteProductionCompanies.get(company.name) || 0;
+    if (preference > 1) {
+      score += Math.min(4, preference);
+    }
+    // Penalty for disliked studios
+    if (preferences.dislikedProductionCompanies.has(company.name)) {
+      score -= 5;
+    }
+  }
+
+  // === PRODUCTION COUNTRY MATCHING (0-4 points) ===
+  const countries = movie.productionCountries || [];
+  for (const country of countries) {
+    const preference = preferences.favoriteProductionCountries.get(country.name) || 0;
+    if (preference > 0.5) {
+      score += Math.min(4, preference * 1.5);
+    }
+  }
+
+  // === QUALITY ALIGNMENT (0-8 points) ===
+  if (movie.rating) {
+    const ratingDiff = movie.rating - preferences.qualityThreshold;
+
+    if (ratingDiff >= 1.5) {
+      score += 8; // Significantly above threshold
+    } else if (ratingDiff >= 0.5) {
+      score += 5; // Above threshold
+    } else if (ratingDiff >= -0.5) {
+      score += 3; // At threshold
+    } else {
+      score -= 3; // Below threshold
+    }
+  }
+
+  // === RUNTIME FIT (0-3 points) ===
+  if (movie.runtime) {
+    if (
+      movie.runtime >= preferences.runtimeRange.min &&
+      movie.runtime <= preferences.runtimeRange.max
+    ) {
+      score += 3;
+    } else {
+      const diff = Math.min(
+        Math.abs(movie.runtime - preferences.runtimeRange.min),
+        Math.abs(movie.runtime - preferences.runtimeRange.max)
+      );
+      score -= Math.min(2, diff / 30);
+    }
+  }
+
+  // === DECADE PREFERENCE (0-2 points) ===
+  if (movie.year && movie.year > 1900) {
+    const decade = `${Math.floor(movie.year / 10) * 10}s`;
+    const preference = preferences.preferredDecades.get(decade) || 0;
+    score += Math.min(2, preference);
+  }
+
+  // === KEYWORD/THEME MATCHING (0-5 points) ===
+  const keywords = movie.keywords || [];
+  for (const keyword of keywords) {
+    const preference = preferences.favoriteKeywords.get(keyword) || 0;
+    if (preference > 0) {
+      score += Math.min(0.5, preference * 0.2);
+    }
+    // Penalty for disliked themes
+    if (preferences.dislikedThemes.has(keyword)) {
+      score -= 2;
+    }
+  }
+
+  // === RECENT TREND BONUS (0-3 points) ===
+  if (preferences.recentGenreShift.length > 0) {
+    const recentGenreMatches =
+      movie.genre?.filter((g) => preferences.recentGenreShift.includes(g)).length || 0;
+    if (recentGenreMatches > 0) {
+      score += recentGenreMatches * 1.5;
+    }
+  }
+
+  // === POPULARITY BALANCE (0-3 points) ===
+  if (movie.voteCount) {
+    if (preferences.watchingVelocity > 5) {
+      // High velocity: prefer popular
+      if (movie.voteCount > 5000) score += 2;
+    } else {
+      // Low velocity: prefer quality hidden gems
+      if (movie.voteCount < 3000 && movie.rating && movie.rating > 7.5) {
+        score += 3;
+      }
+    }
+  }
+
+  // === EXPLORATION BONUS (0-2 points) ===
+  if (preferences.explorationScore > 0.7) {
+    const unfamiliarGenres =
+      movie.genre?.filter(
+        (g) => !preferences.favoriteGenres.has(g) || preferences.favoriteGenres.get(g)! < 1
+      ).length || 0;
+    if (unfamiliarGenres > 0 && movie.rating && movie.rating > 7.0) {
+      score += 2;
+    }
+  }
+
+  // === SOURCE MULTIPLIER ===
+  const sourceMultipliers: Record<string, number> = {
+    similar: 1.2,
+    trending: 1.0,
+    keyword: 1.1,
+    seasonal: 0.9,
+  };
+  score *= sourceMultipliers[source] || 1.0;
+
+  return score;
+}
+
 // ==========================================
 // Diversity Control
 // ==========================================
@@ -470,6 +812,65 @@ function applyDiversityFilter(
   }
 
   return result;
+}
+
+/**
+ * Enhanced diversity filter with production company and country diversity
+ */
+function applyEnhancedDiversityFilter(
+  scoredMovies: ScoredMovie[],
+  preferences: UserPreferences,
+  limit: number
+): ScoredMovie[] {
+  const selected: ScoredMovie[] = [];
+  const genreCounts = new Map<string, number>();
+  const decadeCounts = new Map<string, number>();
+  const directorCounts = new Map<string, number>();
+  const studioCounts = new Map<string, number>();
+  const countryCounts = new Map<string, number>();
+
+  // Constraints
+  const MAX_PER_GENRE = Math.ceil(limit / 3);
+  const MAX_PER_DECADE = Math.ceil(limit / 3);
+  const MAX_PER_DIRECTOR = 2;
+  const MAX_PER_STUDIO = 4;
+  const MAX_PER_COUNTRY = Math.ceil(limit / 2);
+
+  for (const scored of scoredMovies) {
+    if (selected.length >= limit) break;
+
+    // Check constraints
+    const genreOk =
+      scored.movie.genre?.every((g) => (genreCounts.get(g) || 0) < MAX_PER_GENRE) ?? true;
+
+    const decade = scored.movie.year
+      ? `${Math.floor(scored.movie.year / 10) * 10}s`
+      : "unknown";
+    const decadeOk = (decadeCounts.get(decade) || 0) < MAX_PER_DECADE;
+
+    const directors =
+      scored.movie.crew?.filter((c) => c.job === "Director").map((d) => d.name) || [];
+    const directorOk = directors.every((d) => (directorCounts.get(d) || 0) < MAX_PER_DIRECTOR);
+
+    const studios = scored.movie.productionCompanies?.map((c) => c.name) || [];
+    const studioOk = studios.every((s) => (studioCounts.get(s) || 0) < MAX_PER_STUDIO);
+
+    const countries = scored.movie.productionCountries?.map((c) => c.name) || [];
+    const countryOk = countries.every((c) => (countryCounts.get(c) || 0) < MAX_PER_COUNTRY);
+
+    if (genreOk && decadeOk && directorOk && studioOk && countryOk) {
+      selected.push(scored);
+
+      // Update counts
+      scored.movie.genre?.forEach((g) => genreCounts.set(g, (genreCounts.get(g) || 0) + 1));
+      decadeCounts.set(decade, (decadeCounts.get(decade) || 0) + 1);
+      directors.forEach((d) => directorCounts.set(d, (directorCounts.get(d) || 0) + 1));
+      studios.forEach((s) => studioCounts.set(s, (studioCounts.get(s) || 0) + 1));
+      countries.forEach((c) => countryCounts.set(c, (countryCounts.get(c) || 0) + 1));
+    }
+  }
+
+  return selected;
 }
 
 // ==========================================
@@ -680,7 +1081,7 @@ async function getKeywordBasedRecommendations(
 
 export async function getPersonalizedRecommendations(
   userId: string,
-  limit: number = 12
+  limit: number = 20
 ): Promise<Movie[]> {
   try {
     const [preferences, seenIds] = await Promise.all([
@@ -714,17 +1115,25 @@ export async function getPersonalizedRecommendations(
       ...keywordBased,
     ];
 
-    // Deduplicate by movie ID, keeping highest score
-    const deduped = new Map<string, ScoredMovie>();
-    for (const scored of allScored) {
-      const existing = deduped.get(scored.movie.id);
-      if (!existing || scored.score > existing.score) {
-        deduped.set(scored.movie.id, scored);
+    // Deduplicate by movie ID, merging scores from multiple sources
+    const movieScores = new Map<string, ScoredMovie>();
+    for (const candidate of allScored) {
+      const existing = movieScores.get(candidate.movie.id);
+      if (existing) {
+        // Multiple sources recommend this - boost score
+        existing.score += candidate.score * 0.3;
+        existing.sources = new Set([...existing.sources, ...candidate.sources]);
+        existing.reasons = [...new Set([...existing.reasons, ...candidate.reasons])];
+      } else {
+        movieScores.set(candidate.movie.id, candidate);
       }
     }
 
-    // Apply diversity filter and return
-    return applyDiversityFilter(Array.from(deduped.values()), limit);
+    // Sort by score and apply enhanced diversity filter
+    const rankedCandidates = Array.from(movieScores.values()).sort((a, b) => b.score - a.score);
+    const diverseResults = applyEnhancedDiversityFilter(rankedCandidates, preferences, limit);
+
+    return diverseResults.map((r) => r.movie);
   } catch (error) {
     console.error("Error getting personalized recommendations:", error);
     return [];

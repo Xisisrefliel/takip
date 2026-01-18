@@ -94,6 +94,8 @@ export interface Movie {
   productionCompanies?: ProductionCompany[];
   productionCountries?: { iso: string; name: string }[];
   releaseDates?: CountryRelease[];
+  keywords?: string[]; // Keyword strings for theme matching
+  watchProviders?: Record<string, WatchProvidersData>; // Watch providers by region (e.g., 'US', 'GB')
 }
 
 export interface WatchProvider {
@@ -132,3 +134,76 @@ export interface Book {
   watchlist?: boolean;
   readDate?: string;
 }
+
+export interface Album {
+  id: string; // Spotify album ID
+  title: string;
+  artist: string; // Primary artist
+  artists: string[]; // All artists
+  year: number;
+  coverUrl: string;
+  genres: string[];
+  totalTracks: number;
+  spotifyUrl: string;
+  albumType?: 'album' | 'single' | 'compilation';
+  // User interaction fields
+  liked?: boolean;
+  addedDate?: string;
+  syncSource?: string;
+  tracks?: SpotifyTrack[];
+  averageRating?: number;
+  userRating?: number;
+  userReview?: string;
+}
+
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  albumId: string;
+  albumName: string;
+  artistName: string;
+  artists?: string[];
+  durationMs: number;
+  playedAt?: string;
+  playCount?: number;
+  spotifyUrl: string;
+  previewUrl?: string;
+  trackNumber?: number;
+}
+
+export interface SpotifyArtist {
+  id: string;
+  name: string;
+  genres: string[];
+  imageUrl?: string;
+  spotifyUrl: string;
+  popularity?: number;
+  followers?: number;
+}
+
+export interface MusicStats {
+  topArtists: {
+    short_term: SpotifyArtist[];
+    medium_term: SpotifyArtist[];
+    long_term: SpotifyArtist[];
+  };
+  topTracks: {
+    short_term: SpotifyTrack[];
+    medium_term: SpotifyTrack[];
+    long_term: SpotifyTrack[];
+  };
+  topGenres: { genre: string; count: number }[];
+  listeningByMonth: { month: string; count: number }[];
+}
+
+export interface CurrentlyPlaying {
+  track: SpotifyTrack;
+  album: Album;
+  artist: SpotifyArtist;
+  progressMs: number;
+  durationMs: number;
+  isPlaying: boolean;
+  timestamp: number;
+}
+
+export type TimeRange = 'short_term' | 'medium_term' | 'long_term';
