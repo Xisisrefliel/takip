@@ -177,8 +177,76 @@ export async function invalidateRecommendations(userId: string): Promise<void> {
 }
 
 /**
+ * Filter out watched movies from recommendations and optionally replace them
+ */
+async function filterWatchedMovies(
+  userId: string,
+  movies: Movie[],
+  sectionType: 'personalized' | 'exploration' | 'hiddenGems',
+  replaceCount?: number
+): Promise<Movie[]> {
+  const { getSeenMovieIds } = await import("./recommendations");
+  const seenIds = await getSeenMovieIds(userId);
+
+  const unwatchedMovies = movies.filter(m => !seenIds.has(m.id));
+  const watchedCount = movies.length - unwatchedMovies.length;
+
+  // If no movies were watched, return as-is
+  if (watchedCount === 0) {
+    return movies;
+  }
+
+  console.log(`[RecommendationCache] Found ${watchedCount} watched movies in ${sectionType}`);
+
+  // If we don't need replacements or don't have a count, just return filtered
+  if (!replaceCount || replaceCount === 0) {
+    return unwatchedMovies;
+  }
+
+  // Try to fetch replacements
+  try {
+    const {
+      getPersonalizedRecommendations,
+      getExplorationRecommendations,
+      getHiddenGems
+    } = await import("./recommendations");
+
+    let candidates: Movie[] = [];
+    const fetchCount = Math.min(replaceCount, watchedCount) * 2; // Fetch extra to ensure we get enough
+
+    switch (sectionType) {
+      case 'personalized':
+        candidates = await getPersonalizedRecommendations(userId, fetchCount);
+        break;
+      case 'exploration':
+        candidates = await getExplorationRecommendations(userId, fetchCount);
+        break;
+      case 'hiddenGems':
+        candidates = await getHiddenGems(userId, fetchCount);
+        break;
+    }
+
+    // Filter candidates to exclude already displayed and watched movies
+    const existingIds = new Set(unwatchedMovies.map(m => m.id));
+    const replacements = candidates
+      .filter(m => !seenIds.has(m.id) && !existingIds.has(m.id))
+      .slice(0, replaceCount);
+
+    if (replacements.length > 0) {
+      console.log(`[RecommendationCache] Replacing ${replacements.length} movies in ${sectionType}`);
+      return [...unwatchedMovies, ...replacements];
+    }
+  } catch (error) {
+    console.error(`Error fetching replacements for ${sectionType}:`, error);
+  }
+
+  return unwatchedMovies;
+}
+
+/**
  * Get recommendations with stale-while-revalidate pattern
  * Returns cached data immediately, triggers background refresh if stale
+ * Automatically filters out watched movies and replaces them
  */
 export async function getRecommendationsWithSWR(
   userId: string
@@ -186,7 +254,37 @@ export async function getRecommendationsWithSWR(
   const cached = await getCachedRecommendations(userId);
 
   if (cached && !cached.isStale) {
-    // Cache is fresh, return it
+    // Cache is fresh, but check for watched movies and replace them
+    const [personalizedFiltered, explorationFiltered, hiddenGemsFiltered] = await Promise.all([
+      filterWatchedMovies(userId, cached.personalized, 'personalized', 3),
+      filterWatchedMovies(userId, cached.exploration, 'exploration', 2),
+      filterWatchedMovies(userId, cached.hiddenGems, 'hiddenGems', 2),
+    ]);
+
+    // Update cache if any movies were replaced
+    const hasChanges =
+      personalizedFiltered.length !== cached.personalized.length ||
+      explorationFiltered.length !== cached.exploration.length ||
+      hiddenGemsFiltered.length !== cached.hiddenGems.length;
+
+    if (hasChanges) {
+      await db
+        .update(userRecommendations)
+        .set({
+          personalized: personalizedFiltered,
+          exploration: explorationFiltered,
+          hiddenGems: hiddenGemsFiltered,
+        })
+        .where(eq(userRecommendations.userId, userId));
+
+      return {
+        ...cached,
+        personalized: personalizedFiltered,
+        exploration: explorationFiltered,
+        hiddenGems: hiddenGemsFiltered,
+      };
+    }
+
     return cached;
   }
 
@@ -205,6 +303,7 @@ export async function getRecommendationsWithSWR(
 
 /**
  * Get a specific mood's recommendations from cache
+ * Automatically replaces watched movies with new recommendations
  */
 export async function getCachedMoodRecommendations(
   userId: string,
@@ -213,7 +312,52 @@ export async function getCachedMoodRecommendations(
   const cached = await getCachedRecommendations(userId);
 
   if (cached?.moods?.[moodId]?.length) {
-    return { movies: cached.moods[moodId], fromCache: true };
+    const cachedMovies = cached.moods[moodId];
+
+    // Check if any cached movies have been watched since caching
+    const { getSeenMovieIds, getMoodRecommendations } = await import("./recommendations");
+    const seenIds = await getSeenMovieIds(userId);
+
+    const watchedMovies = cachedMovies.filter(m => seenIds.has(m.id));
+
+    // If some movies have been watched, replace them
+    if (watchedMovies.length > 0) {
+      console.log(`[MoodCache] Replacing ${watchedMovies.length} watched movies in ${moodId} mood`);
+
+      try {
+        // Get current movie IDs (excluding watched ones)
+        const remainingMovies = cachedMovies.filter(m => !seenIds.has(m.id));
+        const excludeIds = remainingMovies.map(m => m.id);
+
+        // Fetch fresh recommendations to find replacements
+        const freshCandidates = await getMoodRecommendations(userId, moodId, 20);
+
+        // Find movies that aren't in our current list and aren't watched
+        const replacements = freshCandidates
+          .filter(m => !seenIds.has(m.id) && !excludeIds.includes(m.id))
+          .slice(0, watchedMovies.length);
+
+        if (replacements.length > 0) {
+          // Combine remaining + replacements
+          const updatedMovies = [...remainingMovies, ...replacements];
+
+          // Update cache
+          const updatedMoods = { ...cached.moods, [moodId]: updatedMovies };
+          await db
+            .update(userRecommendations)
+            .set({ moods: updatedMoods })
+            .where(eq(userRecommendations.userId, userId));
+
+          console.log(`[MoodCache] Replaced ${replacements.length} movies in ${moodId} mood`);
+          return { movies: updatedMovies, fromCache: true };
+        }
+      } catch (error) {
+        console.error(`Error replacing watched movies in ${moodId}:`, error);
+        // Fall through to return original cache
+      }
+    }
+
+    return { movies: cachedMovies, fromCache: true };
   }
 
   // Not in cache, generate just this mood

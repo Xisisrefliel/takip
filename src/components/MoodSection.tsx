@@ -163,6 +163,22 @@ export function MoodSection({
     setSelectedMood(mood);
   };
 
+  // Handle when a movie is marked as watched
+  // Just remove it from display - replacement will happen on next page load
+  const handleMovieWatched = useCallback((movieId: string, newValue: boolean) => {
+    if (!newValue) return; // Only act when marking as watched (not unwatching)
+
+    // Optimistically remove the movie from the list
+    setMovies(prevMovies => prevMovies.filter(m => m.id !== movieId));
+
+    // Update local cache to remove the movie
+    const updatedMovies = movies.filter(m => m.id !== movieId);
+    moodCache.current.set(selectedMood, {
+      movies: updatedMovies,
+      timestamp: Date.now()
+    });
+  }, [selectedMood, movies]);
+
   // Hide section only if all moods are unavailable and we have no cached data
   if (availableMoods.length === 0 && Object.keys(cachedMoodMovies).length === 0 && hasLoadedOnce) {
     return null;
@@ -191,7 +207,7 @@ export function MoodSection({
                 key={movie.id}
                 className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
               >
-                <MovieCard movie={movie} />
+                <MovieCard movie={movie} onWatchedChange={handleMovieWatched} />
               </div>
             ))}
       </Carousel>

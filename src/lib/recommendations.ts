@@ -4,6 +4,7 @@ import { eq, and, sql, desc } from "drizzle-orm";
 import { Movie } from "@/types";
 import {
   getMovieRecommendations,
+  getSimilarMovies,
   discoverMoviesByGenres,
   discoverMoviesByKeywords,
   getTrendingMovies,
@@ -27,10 +28,21 @@ export const MOOD_MAP: Record<string, string[]> = {
 
 export type MoodKey = keyof typeof MOOD_MAP;
 
-const MIN_VOTE_COUNT = 50;
-const MIN_RATING = 5.5;
+// Dynamic quality thresholds based on user preference (Phase 1)
+// These are defaults - actual thresholds are calculated per-user
+const DEFAULT_MIN_VOTE_COUNT = 500; // Raised from 50 to filter obscure films
+const DEFAULT_MIN_RATING = 6.0; // Raised from 5.5 for better quality
 const RECENCY_DECAY_DAYS = 180; // Half-life for recency weighting
 const MAX_RECOMMENDATIONS_PER_SOURCE = 30;
+
+// Vote count thresholds by user preference
+const VOTE_THRESHOLDS = {
+  mainstream: 1000, // User prefers well-known films
+  balanced: 500,    // Default - mix of popular and lesser-known
+  niche: 200,       // User enjoys hidden gems
+} as const;
+
+type PopularityPreference = keyof typeof VOTE_THRESHOLDS;
 
 interface UserPreferences {
   // Existing preferences
@@ -68,6 +80,11 @@ interface UserPreferences {
   // Temporal patterns (NEW)
   recentGenreShift: string[]; // Genres watched in last 30 days
   bingeBehavior: boolean; // Does user watch series in batches?
+
+  // Popularity preference (Phase 1 & 3)
+  popularityPreference: PopularityPreference; // User's mainstream vs niche preference
+  averageVoteCount: number; // Average popularity of watched films
+  minVoteCountThreshold: number; // Dynamic quality threshold based on preference
 }
 
 interface ScoredMovie {
@@ -133,9 +150,19 @@ function getCurrentHoliday(): string | null {
   return null;
 }
 
-function isQualityContent(movie: Movie): boolean {
-  if (movie.voteCount !== undefined && movie.voteCount < MIN_VOTE_COUNT) return false;
-  if (movie.rating !== undefined && movie.rating < MIN_RATING) return false;
+/**
+ * Check if a movie meets quality thresholds
+ * @param movie - The movie to check
+ * @param minVotes - Minimum vote count (dynamic based on user preference)
+ * @param minRating - Minimum rating threshold
+ */
+function isQualityContent(
+  movie: Movie,
+  minVotes: number = DEFAULT_MIN_VOTE_COUNT,
+  minRating: number = DEFAULT_MIN_RATING
+): boolean {
+  if (movie.voteCount !== undefined && movie.voteCount < minVotes) return false;
+  if (movie.rating !== undefined && movie.rating < minRating) return false;
   return true;
 }
 
@@ -200,6 +227,11 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     complexityPreference: 0.5,
     recentGenreShift: [],
     bingeBehavior: false,
+
+    // NEW: Popularity preference (Phase 1 & 3)
+    popularityPreference: "balanced",
+    averageVoteCount: 0,
+    minVoteCountThreshold: VOTE_THRESHOLDS.balanced,
   };
 
   let totalRuntime = 0;
@@ -433,6 +465,46 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     .slice(0, 3)
     .map(([genre]) => genre);
 
+  // NEW: Calculate popularity preference (Phase 3)
+  // Use production companies as a proxy for mainstream vs niche preference
+  // Major studios typically distribute more mainstream films
+  const majorStudios = new Set([
+    "Warner Bros. Pictures", "Universal Pictures", "Paramount Pictures",
+    "20th Century Studios", "Sony Pictures", "Walt Disney Pictures",
+    "Columbia Pictures", "Metro-Goldwyn-Mayer", "Lionsgate", "Netflix",
+    "Amazon Studios", "Apple Studios", "A24", "Searchlight Pictures"
+  ]);
+
+  let mainstreamCount = 0;
+  let nicheCount = 0;
+
+  for (const movie of watchedMovies) {
+    if (movie.liked) {
+      const companies = parseJsonSafely<Array<{ name: string }>>(movie.productionCompanies, []);
+      const hasMajorStudio = companies.some(c => majorStudios.has(c.name));
+
+      if (hasMajorStudio) {
+        mainstreamCount++;
+      } else if (companies.length > 0) {
+        nicheCount++;
+      }
+    }
+  }
+
+  const totalCategorized = mainstreamCount + nicheCount;
+  if (totalCategorized >= 5) {
+    const mainstreamRatio = mainstreamCount / totalCategorized;
+    if (mainstreamRatio > 0.7) {
+      preferences.popularityPreference = "mainstream";
+    } else if (mainstreamRatio < 0.3) {
+      preferences.popularityPreference = "niche";
+    } else {
+      preferences.popularityPreference = "balanced";
+    }
+  }
+  // Set the vote count threshold based on preference
+  preferences.minVoteCountThreshold = VOTE_THRESHOLDS[preferences.popularityPreference];
+
   // Use cached behavioral patterns if available
   if (behaviorCache.length > 0) {
     const cached = behaviorCache[0];
@@ -467,7 +539,7 @@ function calculateMovieScore(
   seenIds: Set<string>
 ): ScoredMovie | null {
   if (seenIds.has(movie.id)) return null;
-  if (!isQualityContent(movie)) return null;
+  if (!isQualityContent(movie, preferences.minVoteCountThreshold)) return null;
 
   let score = 0;
   const reasons: string[] = [];
@@ -538,9 +610,32 @@ function calculateMovieScore(
     score += 1;
   }
 
-  // Popularity bonus (ensures some mainstream appeal)
-  if (movie.voteCount && movie.voteCount >= 5000) {
-    score += 0.5;
+  // Popularity alignment scoring (Phase 5) - replaces simple popularity bonus
+  if (movie.voteCount && preferences.popularityPreference) {
+    if (preferences.popularityPreference === "mainstream") {
+      // Mainstream user: boost popular films, penalize obscure
+      if (movie.voteCount > 10000) {
+        score += 2;
+        reasons.push("Popular choice");
+      } else if (movie.voteCount > 5000) {
+        score += 1;
+      } else if (movie.voteCount < 1000) {
+        score -= 1;
+      }
+    } else if (preferences.popularityPreference === "niche") {
+      // Niche user: boost hidden gems
+      if (movie.voteCount < 3000 && movie.rating && movie.rating > 7.0) {
+        score += 2;
+        reasons.push("Hidden gem");
+      } else if (movie.voteCount < 5000) {
+        score += 0.5;
+      }
+    } else {
+      // Balanced: small bonus for moderately popular
+      if (movie.voteCount >= 5000) {
+        score += 0.5;
+      }
+    }
   }
 
   // Rating style adjustment
@@ -708,6 +803,39 @@ function calculateEnhancedMovieScore(
     if (unfamiliarGenres > 0 && movie.rating && movie.rating > 7.0) {
       score += 2;
     }
+  }
+
+  // === WATCH PROVIDER COMPATIBILITY (0-4 points) - Phase 4 ===
+  // Scoring boost only - still shows good recommendations regardless of platform
+  if (preferences.favoriteWatchProviders.size > 0) {
+    const watchProviders = movie.watchProviders as Record<string, { flatrate?: Array<{ provider_name: string }> }> | undefined;
+    const userRegion = "US"; // TODO: Get from user settings
+    const movieProviders = watchProviders?.[userRegion]?.flatrate || [];
+
+    let providerScore = 0;
+    for (const provider of movieProviders) {
+      const preference = preferences.favoriteWatchProviders.get(provider.provider_name) || 0;
+      if (preference > 1) {
+        providerScore += Math.min(2, preference * 0.5);
+      }
+    }
+    score += Math.min(4, providerScore);
+    // No penalty for unavailable platforms - just don't add bonus
+  }
+
+  // === POPULARITY ALIGNMENT (bonus/penalty based on user preference) - Phase 5 ===
+  if (movie.voteCount && preferences.popularityPreference) {
+    if (preferences.popularityPreference === "mainstream") {
+      // Mainstream user: boost popular films, penalize obscure
+      if (movie.voteCount > 10000) score += 3;
+      else if (movie.voteCount > 5000) score += 1;
+      else if (movie.voteCount < 1000) score -= 2;
+    } else if (preferences.popularityPreference === "niche") {
+      // Niche user: boost hidden gems, don't penalize popular
+      if (movie.voteCount < 3000 && movie.rating && movie.rating > 7.0) score += 3;
+      else if (movie.voteCount < 5000) score += 1;
+    }
+    // 'balanced' users get no additional adjustment
   }
 
   // === SOURCE MULTIPLIER ===
@@ -878,7 +1006,8 @@ function applyEnhancedDiversityFilter(
 // ==========================================
 
 /**
- * Get recommendations based on user's top liked movies (using TMDB's similar/recommendations)
+ * Get recommendations based on user's top liked movies (using TMDB's recommendations AND similar movies)
+ * Phase 2: Enhanced to fetch both endpoints for better "vibe" matching
  */
 async function getSimilarToLiked(
   preferences: UserPreferences,
@@ -886,24 +1015,46 @@ async function getSimilarToLiked(
 ): Promise<ScoredMovie[]> {
   const results: ScoredMovie[] = [];
 
-  // Get recommendations for top 5 most recently liked movies
-  const likedMovieIds = preferences.topLikedMovieIds.slice(0, 5);
+  // Increased from 5 to 8 for better coverage (Phase 2)
+  const likedMovieIds = preferences.topLikedMovieIds.slice(0, 8);
 
   const promises = likedMovieIds.map(async (movieId) => {
     try {
-      const recommendations = await getMovieRecommendations(movieId, 15);
-      return recommendations
-        .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      // Fetch BOTH recommendations AND similar movies (Phase 2)
+      const [recommendations, similar] = await Promise.all([
+        getMovieRecommendations(movieId, 15),
+        getSimilarMovies(movieId, 'movie').catch(() => []), // Graceful fallback
+      ]);
+
+      // Process TMDB recommendations with higher bonus
+      const recResults = recommendations
+        .filter((m) => !seenIds.has(m.id) && isQualityContent(m, preferences.minVoteCountThreshold))
         .map((movie) => {
           const scored = calculateMovieScore(movie, preferences, seenIds);
           if (scored) {
-            scored.score += 3; // Bonus for being similar to liked
+            scored.score += 4; // Higher bonus for TMDB recommendations
             scored.reasons.unshift("Similar to movies you loved");
             scored.sources.add("similar-to-liked");
           }
           return scored;
         })
         .filter((s): s is ScoredMovie => s !== null);
+
+      // Process similar movies with slightly lower bonus
+      const simResults = similar
+        .filter((m) => !seenIds.has(m.id) && isQualityContent(m, preferences.minVoteCountThreshold))
+        .map((movie) => {
+          const scored = calculateMovieScore(movie, preferences, seenIds);
+          if (scored) {
+            scored.score += 3; // Bonus for similar movies
+            scored.reasons.unshift("Shares themes with your favorites");
+            scored.sources.add("similar-content");
+          }
+          return scored;
+        })
+        .filter((s): s is ScoredMovie => s !== null);
+
+      return [...recResults, ...simResults];
     } catch {
       return [];
     }
@@ -915,6 +1066,79 @@ async function getSimilarToLiked(
   }
 
   return results;
+}
+
+/**
+ * Get recommendations based on user's 5-star rated movies (Phase 6)
+ * These get the HIGHEST scores since user explicitly rated them highest
+ */
+async function getRecommendationsFromTopRated(
+  userId: string,
+  preferences: UserPreferences,
+  seenIds: Set<string>
+): Promise<ScoredMovie[]> {
+  try {
+    // Get user's 5-star rated movies from reviews table
+    const topRated = await db
+      .select()
+      .from(reviews)
+      .where(and(eq(reviews.userId, userId), eq(reviews.rating, 5)))
+      .orderBy(desc(reviews.createdAt))
+      .limit(10);
+
+    const movieIds = topRated
+      .filter((r) => r.mediaId && r.mediaType === "movie")
+      .map((r) => r.mediaId as string);
+
+    if (movieIds.length === 0) {
+      return [];
+    }
+
+    // Fetch recommendations for each 5-star movie with highest weight
+    const results: ScoredMovie[] = [];
+
+    // Process top 5 five-star rated movies
+    const topFiveStarIds = movieIds.slice(0, 5);
+
+    const promises = topFiveStarIds.map(async (movieId) => {
+      try {
+        const [recs, similar] = await Promise.all([
+          getMovieRecommendations(movieId, 10),
+          getSimilarMovies(movieId, "movie").catch(() => []),
+        ]);
+
+        const scored: ScoredMovie[] = [];
+
+        // Process both recommendations and similar movies
+        for (const movie of [...recs, ...similar]) {
+          if (seenIds.has(movie.id)) continue;
+          if (!isQualityContent(movie, preferences.minVoteCountThreshold)) continue;
+
+          const movieScore = calculateMovieScore(movie, preferences, seenIds);
+          if (movieScore) {
+            movieScore.score += 6; // Strong bonus for 5-star based
+            movieScore.reasons.unshift("Based on a movie you rated 5 stars");
+            movieScore.sources.add("top-rated");
+            scored.push(movieScore);
+          }
+        }
+
+        return scored;
+      } catch {
+        return [];
+      }
+    });
+
+    const allResults = await Promise.all(promises);
+    for (const movies of allResults) {
+      results.push(...movies);
+    }
+
+    return results;
+  } catch (error) {
+    console.error("Error getting recommendations from top rated:", error);
+    return [];
+  }
 }
 
 /**
@@ -945,7 +1169,7 @@ async function getTrendingInGenres(
     });
 
     return movies
-      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m, preferences.minVoteCountThreshold))
       .map((movie) => {
         const scored = calculateMovieScore(movie, preferences, seenIds);
         if (scored) {
@@ -1006,7 +1230,7 @@ async function getSeasonalRecommendations(
     }
 
     return movies
-      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m, preferences.minVoteCountThreshold))
       .map((movie) => {
         const scored = calculateMovieScore(movie, preferences, seenIds);
         if (scored) {
@@ -1058,7 +1282,7 @@ async function getKeywordBasedRecommendations(
     });
 
     return movies
-      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+      .filter((m) => !seenIds.has(m.id) && isQualityContent(m, preferences.minVoteCountThreshold))
       .map((movie) => {
         const scored = calculateMovieScore(movie, preferences, seenIds);
         if (scored) {
@@ -1094,22 +1318,25 @@ export async function getPersonalizedRecommendations(
       return [];
     }
 
-    // Gather recommendations from multiple sources in parallel
+    // Gather recommendations from multiple sources in parallel (Phase 7)
     const [
       similarToLiked,
+      topRatedBased, // NEW: Based on 5-star rated movies
       trendingInGenres,
       seasonal,
       keywordBased,
     ] = await Promise.all([
       getSimilarToLiked(preferences, seenIds),
+      getRecommendationsFromTopRated(userId, preferences, seenIds), // NEW
       getTrendingInGenres(preferences, seenIds),
       getSeasonalRecommendations(preferences, seenIds),
       getKeywordBasedRecommendations(preferences, seenIds),
     ]);
 
-    // Combine all recommendations
+    // Combine all recommendations (including new top-rated source)
     const allScored: ScoredMovie[] = [
       ...similarToLiked,
+      ...topRatedBased, // NEW
       ...trendingInGenres,
       ...seasonal,
       ...keywordBased,
@@ -1160,19 +1387,57 @@ export async function getMoodRecommendations(
 
     if (genreIds.length === 0) return [];
 
-    // Fetch movies matching mood genres
-    const movies = await discoverMoviesByGenres(genreIds, {
-      minRating: 6.5,
-      minVotes: 100,
-      sortBy: "popularity.desc",
-    });
+    // Fetch multiple pages to ensure we have enough candidates
+    // Even if user has watched a lot, we should always find movies
+    const moviePromises = [];
+    const pagesToFetch = 3; // Fetch 3 pages = ~60 movies
 
-    const scored = movies
-      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
-      .map((movie) => calculateMovieScore(movie, preferences, seenIds))
+    for (let page = 1; page <= pagesToFetch; page++) {
+      moviePromises.push(
+        discoverMoviesByGenres(genreIds, {
+          minRating: 5.5, // Lower threshold for mood browsing
+          minVotes: 50,   // Lower threshold to include more movies
+          sortBy: page === 1 ? "popularity.desc" : "vote_average.desc", // Mix popular and highly rated
+          page,
+        })
+      );
+    }
+
+    const moviePages = await Promise.all(moviePromises);
+    const allMovies = moviePages.flat();
+
+    // If still no movies, try with even lower thresholds
+    let candidates = allMovies;
+    if (candidates.length === 0) {
+      console.log(`[MoodRecommendations] No movies found for ${mood}, trying relaxed filters`);
+      const relaxedMovies = await discoverMoviesByGenres(genreIds, {
+        minRating: 4.0,
+        minVotes: 10,
+        sortBy: "popularity.desc",
+        page: 1,
+      });
+      candidates = relaxedMovies;
+    }
+
+    // Filter and score
+    const scored = candidates
+      .filter((m) => !seenIds.has(m.id)) // Only filter out watched, not quality
+      .map((movie) => {
+        // Still score for quality, but don't filter out
+        const scored = calculateMovieScore(movie, preferences, seenIds);
+        return scored || { movie, score: 1, reasons: [], sources: new Set() };
+      })
       .filter((s): s is ScoredMovie => s !== null);
 
-    return applyDiversityFilter(scored, limit);
+    // If we still have nothing, log and return empty
+    if (scored.length === 0) {
+      console.warn(`[MoodRecommendations] No unwatched movies found for mood: ${mood}`);
+      return [];
+    }
+
+    const result = applyDiversityFilter(scored, limit);
+    console.log(`[MoodRecommendations] Returning ${result.length} movies for mood: ${mood} (from ${candidates.length} candidates)`);
+    return result;
   } catch (error) {
     console.error("Error getting mood recommendations:", error);
     return [];
@@ -1205,17 +1470,30 @@ export async function getExplorationRecommendations(
       return trending.filter((m) => !seenIds.has(m.id)).slice(0, limit);
     }
 
-    // Get highly rated movies from underexplored genres
-    const movies = await discoverMoviesByGenres(genreIds.slice(0, 3), {
-      minRating: 7.5,
-      minVotes: 500,
-      sortBy: "vote_average.desc",
-    });
+    // Fetch multiple pages to ensure enough candidates
+    const moviePromises = [
+      discoverMoviesByGenres(genreIds.slice(0, 3), {
+        minRating: 7.0, // Slightly lower to get more results
+        minVotes: 300,
+        sortBy: "vote_average.desc",
+        page: 1,
+      }),
+      discoverMoviesByGenres(genreIds.slice(0, 3), {
+        minRating: 7.0,
+        minVotes: 300,
+        sortBy: "vote_average.desc",
+        page: 2,
+      }),
+    ];
 
-    const filtered = movies
-      .filter((m) => !seenIds.has(m.id) && isQualityContent(m))
+    const moviePages = await Promise.all(moviePromises);
+    const allMovies = moviePages.flat();
+
+    const filtered = allMovies
+      .filter((m) => !seenIds.has(m.id))
       .slice(0, limit);
 
+    console.log(`[ExplorationRecommendations] Returning ${filtered.length} movies from ${allMovies.length} candidates`);
     return filtered;
   } catch (error) {
     console.error("Error getting exploration recommendations:", error);
@@ -1243,19 +1521,34 @@ export async function getHiddenGems(
       .map((g) => GENRE_IDS[g])
       .filter((id): id is number => id !== undefined);
 
-    // Hidden gems: high rating, moderate popularity
-    const movies = await discoverMoviesByGenres(
-      genreIds.length > 0 ? genreIds : [GENRE_IDS["Drama"]],
-      {
-        minRating: 7.0,
-        minVotes: 100,
-        maxVotes: 3000,
-        sortBy: "vote_average.desc",
-      }
-    );
+    // Fetch multiple pages of hidden gems
+    const moviePromises = [
+      discoverMoviesByGenres(
+        genreIds.length > 0 ? genreIds : [GENRE_IDS["Drama"]],
+        {
+          minRating: 6.5, // Lower threshold to get more hidden gems
+          minVotes: 100,
+          maxVotes: 3000,
+          sortBy: "vote_average.desc",
+          page: 1,
+        }
+      ),
+      discoverMoviesByGenres(
+        genreIds.length > 0 ? genreIds : [GENRE_IDS["Drama"]],
+        {
+          minRating: 6.5,
+          minVotes: 100,
+          maxVotes: 3000,
+          sortBy: "vote_average.desc",
+          page: 2,
+        }
+      ),
+    ];
 
-    const filtered = movies
-      .filter((m) => !seenIds.has(m.id) && isQualityContent(m));
+    const moviePages = await Promise.all(moviePromises);
+    const allMovies = moviePages.flat();
+
+    const filtered = allMovies.filter((m) => !seenIds.has(m.id));
 
     // Shuffle for variety
     const shuffled = [...filtered];
@@ -1264,7 +1557,9 @@ export async function getHiddenGems(
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    return shuffled.slice(0, limit);
+    const result = shuffled.slice(0, limit);
+    console.log(`[HiddenGems] Returning ${result.length} movies from ${filtered.length} candidates`);
+    return result;
   } catch (error) {
     console.error("Error getting hidden gems:", error);
     return [];

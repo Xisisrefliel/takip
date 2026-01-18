@@ -1946,6 +1946,56 @@ export async function getMoodRecommendationsAction(
   }
 }
 
+/**
+ * Get a replacement movie for mood section when a movie is watched
+ * Excludes already displayed movies from results
+ */
+export async function getReplacementMoodMovieAction(
+  mood: string,
+  excludeIds: string[]
+): Promise<{ movie?: Movie; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "Not authenticated" };
+  }
+
+  const userId = session.user.id;
+
+  const validMoods = ["uplifting", "mind-bending", "dark-intense", "feel-good", "adrenaline", "thought-provoking", "classic"];
+
+  if (!validMoods.includes(mood)) {
+    return { error: "Invalid mood" };
+  }
+
+  try {
+    const { getMoodRecommendations } = await import("@/lib/recommendations");
+    const { getSeenMovieIds } = await import("@/lib/recommendations");
+
+    type MoodKey = "uplifting" | "mind-bending" | "dark-intense" | "feel-good" | "adrenaline" | "thought-provoking" | "classic";
+
+    // Get seen IDs plus currently displayed IDs
+    const seenIds = await getSeenMovieIds(userId);
+    const allExcludedIds = new Set([...Array.from(seenIds), ...excludeIds]);
+
+    // Fetch fresh mood recommendations (more than we need)
+    const candidates = await getMoodRecommendations(userId, mood as MoodKey, 20);
+
+    // Find first movie not in excluded list
+    const replacement = candidates.find(m => !allExcludedIds.has(m.id));
+
+    if (!replacement) {
+      return { error: "No replacement found" };
+    }
+
+    // Enrich with user status
+    const enriched = await enrichMoviesWithUserStatusBatch([replacement]);
+    return { movie: enriched[0][0] };
+  } catch (error) {
+    console.error("Get replacement mood movie error:", error);
+    return { error: "Failed to get replacement movie" };
+  }
+}
+
 export async function getExplorationRecommendationsAction(): Promise<{
   movies?: Movie[];
   error?: string;
@@ -2772,6 +2822,35 @@ export async function deleteAlbumReviewAction(reviewId: string) {
   } catch (error) {
     console.error("Delete album review error:", error);
     return { error: "Failed to delete review" };
+  }
+}
+
+/**
+ * Manually refresh recommendations for the current user
+ * Regenerates all recommendations immediately (not in background)
+ */
+export async function refreshRecommendationsAction(): Promise<
+  { success: true; message: string } | { error: string }
+> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: "Not authenticated" };
+    }
+
+    const userId = session.user.id;
+
+    // Regenerate recommendations synchronously
+    const { generateAndCacheRecommendations } = await import("@/lib/recommendation-cache");
+    await generateAndCacheRecommendations(userId);
+
+    // Revalidate homepage to show fresh recommendations
+    revalidatePath("/");
+
+    return { success: true, message: "Recommendations refreshed successfully" };
+  } catch (error) {
+    console.error("Refresh recommendations error:", error);
+    return { error: "Failed to refresh recommendations" };
   }
 }
 

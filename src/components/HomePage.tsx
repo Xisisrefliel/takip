@@ -10,6 +10,7 @@ import Image from "next/image";
 import { MoodSection } from "@/components/MoodSection";
 import { ExplorationSection } from "@/components/ExplorationSection";
 import { HiddenGemsSection } from "@/components/HiddenGemsSection";
+import { RefreshRecommendations } from "@/components/RefreshRecommendations";
 
 interface HomePageProps {
   trendingMovies: Movie[];
@@ -130,7 +131,10 @@ export function HomePage({
       {/* Personalized Recommendations - only show for authenticated users */}
       {isAuthenticated && recommendedMovies && recommendedMovies.length > 0 && (
         <section>
-          <Carousel title="Recommended For You">
+          <Carousel
+            title="Recommended For You"
+            headerAction={<RefreshRecommendations />}
+          >
             {recommendedMovies.map((movie) => (
               <div
                 key={movie.id}

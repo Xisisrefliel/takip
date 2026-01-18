@@ -2,10 +2,10 @@
  * Manual script to analyze and cache user behavior patterns
  *
  * Usage:
- *   bun run scripts/analyze-user-behavior.ts <userId>
+ *   bun run analyze-behavior <userId>
  *
  * Example:
- *   bun run scripts/analyze-user-behavior.ts user_123abc
+ *   bun run analyze-behavior user_123abc
  */
 
 import { analyzeBehaviorPatterns } from "../src/lib/behavior-analysis";

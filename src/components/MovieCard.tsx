@@ -13,9 +13,19 @@ interface MovieCardProps {
   movie: Movie;
   aspectRatio?: "portrait" | "landscape";
   className?: string;
+  onWatchedChange?: (movieId: string, newValue: boolean) => void;
+  onLikedChange?: (movieId: string, newValue: boolean) => void;
+  onWatchlistChange?: (movieId: string, newValue: boolean) => void;
 }
 
-function MovieCardInner({ movie, aspectRatio = "portrait", className }: MovieCardProps) {
+function MovieCardInner({
+  movie,
+  aspectRatio = "portrait",
+  className,
+  onWatchedChange,
+  onLikedChange,
+  onWatchlistChange,
+}: MovieCardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isHovered, setIsHovered] = useState(false);
@@ -35,10 +45,11 @@ function MovieCardInner({ movie, aspectRatio = "portrait", className }: MovieCar
       if (result?.error) {
         setWatched(!newValue);
       } else {
+        onWatchedChange?.(movie.id, newValue);
         router.refresh();
       }
     });
-  }, [movie.id, mediaType, router, watched]);
+  }, [movie.id, mediaType, router, watched, onWatchedChange]);
 
   const handleWatchlist = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -50,10 +61,11 @@ function MovieCardInner({ movie, aspectRatio = "portrait", className }: MovieCar
       if (result?.error) {
         setWatchlist(!newValue);
       } else {
+        onWatchlistChange?.(movie.id, newValue);
         router.refresh();
       }
     });
-  }, [movie.id, mediaType, router, watchlist]);
+  }, [movie.id, mediaType, router, watchlist, onWatchlistChange]);
 
   const handleLiked = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -65,10 +77,11 @@ function MovieCardInner({ movie, aspectRatio = "portrait", className }: MovieCar
       if (result?.error) {
         setLiked(!newValue);
       } else {
+        onLikedChange?.(movie.id, newValue);
         router.refresh();
       }
     });
-  }, [movie.id, mediaType, router, liked]);
+  }, [movie.id, mediaType, router, liked, onLikedChange]);
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
@@ -178,7 +191,10 @@ export const MovieCard = memo(MovieCardInner, (prevProps, nextProps) => {
     prevProps.movie.liked === nextProps.movie.liked &&
     prevProps.movie.watchlist === nextProps.movie.watchlist &&
     prevProps.aspectRatio === nextProps.aspectRatio &&
-    prevProps.className === nextProps.className
+    prevProps.className === nextProps.className &&
+    prevProps.onWatchedChange === nextProps.onWatchedChange &&
+    prevProps.onLikedChange === nextProps.onLikedChange &&
+    prevProps.onWatchlistChange === nextProps.onWatchlistChange
   );
 });
 

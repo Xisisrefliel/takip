@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:generate": "bunx drizzle-kit generate",
     "db:migrate": "bunx tsx src/db/migrate.ts",
-    "analyze-behavior": "bunx tsx scripts/analyze-user-behavior.ts"
+    "analyze-behavior": "bun run scripts/analyze-user-behavior.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
@@ -37,6 +37,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "babel-plugin-react-compiler": "1.0.0",
+    "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.1",
     "eslint-config-next": "16.0.3",
