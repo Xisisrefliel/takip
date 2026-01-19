@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { WatchProvidersData } from "@/types";
 import {
   DEFAULT_REGION,
-  REGION_LABELS,
+  getRegionLabel,
   sortRegionsWithPreference,
 } from "@/data/regions";
 import { updatePreferredRegionAction } from "@/app/actions";
@@ -46,7 +46,7 @@ export function WatchProviders({
 
   // Keep labels deterministic between server and client to avoid hydration drift.
   const regionLabel = useMemo(
-    () => (code: string) => REGION_LABELS[code.toUpperCase()] || code.toUpperCase(),
+    () => (code: string) => getRegionLabel(code),
     []
   );
 

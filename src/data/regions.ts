@@ -1,67 +1,52 @@
-export const REGION_LABELS: Record<string, string> = {
-  US: "United States",
-  GB: "United Kingdom",
-  CA: "Canada",
-  AU: "Australia",
-  BE: "Belgium",
-  BR: "Brazil",
-  FI: "Finland",
-  GG: "Guernsey",
-  IN: "India",
-  IE: "Ireland",
-  IT: "Italy",
-  MX: "Mexico",
-  NL: "Netherlands",
-  NZ: "New Zealand",
-  PH: "Philippines",
-  PT: "Portugal",
-  SG: "Singapore",
-  ES: "Spain",
-  SE: "Sweden",
-  DE: "Germany",
-  FR: "France",
-  TR: "Turkey",
-  JP: "Japan",
-  KR: "South Korea",
-  NO: "Norway",
-  DK: "Denmark",
-  PL: "Poland",
-  RU: "Russia",
-  AR: "Argentina",
-  CL: "Chile",
-  CO: "Colombia",
-  PE: "Peru",
-  AT: "Austria",
-  CH: "Switzerland",
-  ZA: "South Africa",
-};
+// Use Intl.DisplayNames to get country names from ISO codes dynamically
+const regionDisplayNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+export function getRegionLabel(code: string): string {
+  try {
+    return regionDisplayNames.of(code.toUpperCase()) || code.toUpperCase();
+  } catch {
+    return code.toUpperCase();
+  }
+}
 
 export const DEFAULT_REGION = "US";
 
-// Ordered using the user-requested lineup to keep the selector familiar.
-export const FEATURED_REGION_ORDER = [
-  "AU",
-  "BE",
-  "BR",
-  "CA",
-  "FI",
-  "GG",
-  "IN",
-  "IE",
-  "IT",
-  "MX",
-  "NL",
-  "NZ",
-  "PH",
-  "PT",
-  "SG",
-  "ES",
-  "SE",
-  "GB",
-  "US",
+// Common regions for settings dropdown - curated list of regions with good TMDB coverage
+export const COMMON_REGIONS = [
+  "US", "GB", "CA", "AU", "NZ", // English-speaking
+  "DE", "FR", "IT", "ES", "PT", "NL", "BE", "AT", "CH", // Western Europe
+  "SE", "NO", "DK", "FI", // Nordic
+  "PL", "CZ", "HU", "RO", "GR", "TR", // Central/Eastern Europe
+  "BR", "MX", "AR", "CL", "CO", // Latin America
+  "JP", "KR", "IN", "SG", "PH", "TH", "MY", "ID", // Asia
+  "ZA", "EG", "NG", // Africa
+  "AE", "SA", "IL", // Middle East
+  "IE", "RU", "UA",
 ];
 
-export const SUPPORTED_REGION_CODES = Object.keys(REGION_LABELS);
+// Featured regions shown first in dropdowns
+export const FEATURED_REGION_ORDER = [
+  "US",
+  "GB",
+  "CA",
+  "AU",
+  "DE",
+  "FR",
+  "IT",
+  "ES",
+  "BR",
+  "MX",
+  "IN",
+  "JP",
+  "KR",
+  "NL",
+  "SE",
+  "NZ",
+  "IE",
+  "BE",
+  "PT",
+  "SG",
+];
 
 export function sortRegionsWithPreference(
   regions: string[],
@@ -87,8 +72,8 @@ export function sortRegionsWithPreference(
       const scoreA = priority.has(a) ? priority.get(a)! : 999;
       const scoreB = priority.has(b) ? priority.get(b)! : 999;
       if (scoreA !== scoreB) return scoreA - scoreB;
-      const nameA = REGION_LABELS[a] || a;
-      const nameB = REGION_LABELS[b] || b;
+      const nameA = getRegionLabel(a);
+      const nameB = getRegionLabel(b);
       return nameA.localeCompare(nameB);
     });
 }

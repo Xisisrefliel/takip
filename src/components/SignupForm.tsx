@@ -42,7 +42,7 @@ export function SignupForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+        <div className="p-3 rounded-[10px] bg-red-500/10 border border-red-500/20 text-red-500 text-sm shake">
           {error}
         </div>
       )}
@@ -50,7 +50,7 @@ export function SignupForm() {
       <div>
         <label
           htmlFor="email"
-          className="block text-sm font-medium text-foreground mb-2"
+          className="block text-sm font-medium text-foreground/80 mb-2"
         >
           Email
         </label>
@@ -61,7 +61,7 @@ export function SignupForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={isPending}
-          className="w-full px-4 py-2 rounded-lg bg-surface border border-border text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-50"
+          className="w-full px-4 py-2.5 rounded-[10px] bg-surface border border-border text-foreground placeholder:text-foreground/40 disabled:opacity-50"
           placeholder="you@example.com"
         />
       </div>
@@ -69,7 +69,7 @@ export function SignupForm() {
       <div>
         <label
           htmlFor="password"
-          className="block text-sm font-medium text-foreground mb-2"
+          className="block text-sm font-medium text-foreground/80 mb-2"
         >
           Password
         </label>
@@ -81,16 +81,16 @@ export function SignupForm() {
           required
           disabled={isPending}
           minLength={6}
-          className="w-full px-4 py-2 rounded-lg bg-surface border border-border text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-50"
+          className="w-full px-4 py-2.5 rounded-[10px] bg-surface border border-border text-foreground placeholder:text-foreground/40 disabled:opacity-50"
           placeholder="••••••••"
         />
-        <p className="text-xs text-foreground/50 mt-1">At least 6 characters</p>
+        <p className="text-xs text-foreground/50 mt-1.5">At least 6 characters</p>
       </div>
 
       <div>
         <label
           htmlFor="confirmPassword"
-          className="block text-sm font-medium text-foreground mb-2"
+          className="block text-sm font-medium text-foreground/80 mb-2"
         >
           Confirm Password
         </label>
@@ -101,7 +101,7 @@ export function SignupForm() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
           disabled={isPending}
-          className="w-full px-4 py-2 rounded-lg bg-surface border border-border text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-50"
+          className="w-full px-4 py-2.5 rounded-[10px] bg-surface border border-border text-foreground placeholder:text-foreground/40 disabled:opacity-50"
           placeholder="••••••••"
         />
       </div>
@@ -110,7 +110,7 @@ export function SignupForm() {
         type="submit"
         disabled={isPending}
         className={cn(
-          "w-full py-2.5 rounded-lg font-medium transition-colors",
+          "w-full py-2.5 rounded-[10px] font-medium transition-all duration-150 btn-press",
           "bg-foreground text-background hover:opacity-90",
           "disabled:opacity-50 disabled:cursor-not-allowed"
         )}

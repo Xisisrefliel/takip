@@ -8,8 +8,8 @@ import {
   updateProfileAction,
 } from "@/app/actions";
 import {
-  REGION_LABELS,
-  SUPPORTED_REGION_CODES,
+  COMMON_REGIONS,
+  getRegionLabel,
   sortRegionsWithPreference,
 } from "@/data/regions";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
   });
   const [isPending, startTransition] = useTransition();
 
-  const regionOptions = sortRegionsWithPreference(SUPPORTED_REGION_CODES, region);
+  const regionOptions = sortRegionsWithPreference(COMMON_REGIONS, region);
 
   const splitCsvLine = (line: string) => {
     const cells: string[] = [];
@@ -421,7 +421,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
             >
               {regionOptions.map((code) => (
                 <option key={code} value={code}>
-                  {REGION_LABELS[code] || code}
+                  {getRegionLabel(code)}
                 </option>
               ))}
             </select>

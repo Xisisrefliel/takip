@@ -10,22 +10,27 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --font-sans: var(--font-sans);
-  --font-serif: var(--font-display); /* Map serif to display/sans to avoid missing font issues */
-  --font-display: var(--font-display);
+
+  /* System font stack for native Apple feel */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-sans);
+  --font-display: var(--font-sans);
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 8px);
   --radius-sm: calc(var(--radius) - 12px);
-  
+
+  /* Animation tokens */
   --animate-fade-in: fade-in 0.4s ease-out forwards;
   --animate-slide-up: slide-up 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   --animate-scale-in: scale-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
 
   @keyframes fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
   }
-  
+
   @keyframes slide-up {
     from { transform: translate3d(0, 20px, 0); opacity: 0; }
     to { transform: translate3d(0, 0, 0); opacity: 1; }
@@ -35,33 +40,58 @@
     from { transform: scale3d(0.95, 0.95, 1); opacity: 0; }
     to { transform: scale3d(1, 1, 1); opacity: 1; }
   }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-2px); }
+    40%, 80% { transform: translateX(2px); }
+  }
 }
 
 :root,
 .light {
   color-scheme: light;
-  /* Airy Light Mode */
+  /* Airy Light Mode with muted blue accent */
   --background: #fafafa;
   --foreground: #1a1a1a;
   --surface: #ffffff;
   --surface-hover: #f4f4f5;
   --border: #e4e4e7;
-  --accent: #0ea5e9; /* brighter cyan for clearer affordance */
+  --accent: #4a7c9b; /* Muted blue - sophisticated, Apple-like */
+  --accent-rgb: 74, 124, 155;
   --accent-foreground: #ffffff;
-  --radius: 24px; /* High border radius */
+  --radius: 24px;
+
+  /* Multi-layer shadow system (Apple's signature) */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.04), 0 4px 6px rgba(0,0,0,0.06);
+  --shadow-xl: 0 20px 25px rgba(0,0,0,0.05), 0 8px 10px rgba(0,0,0,0.04);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
     color-scheme: dark;
-    /* Soft Dark Mode */
+    /* Soft Dark Mode with muted blue accent */
     --background: #050505;
     --foreground: #ededed;
     --surface: #111111;
     --surface-hover: #1c1c1f;
     --border: #26262b;
-    --accent: #38bdf8;
+    --accent: #6a9cbb; /* Slightly brighter for dark mode visibility */
+    --accent-rgb: 106, 156, 187;
     --accent-foreground: #ffffff;
+
+    /* Dark mode shadows - subtle glow effect */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2), 0 0 1px rgba(255,255,255,0.05);
+    --shadow-md: 0 4px 8px rgba(0,0,0,0.3), 0 0 1px rgba(255,255,255,0.05);
+    --shadow-lg: 0 10px 20px rgba(0,0,0,0.35), 0 0 1px rgba(255,255,255,0.05);
+    --shadow-xl: 0 20px 30px rgba(0,0,0,0.4), 0 0 1px rgba(255,255,255,0.05);
   }
 }
 
@@ -72,8 +102,14 @@
   --surface: #111111;
   --surface-hover: #1c1c1f;
   --border: #26262b;
-  --accent: #38bdf8;
+  --accent: #6a9cbb;
+  --accent-rgb: 106, 156, 187;
   --accent-foreground: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2), 0 0 1px rgba(255,255,255,0.05);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.3), 0 0 1px rgba(255,255,255,0.05);
+  --shadow-lg: 0 10px 20px rgba(0,0,0,0.35), 0 0 1px rgba(255,255,255,0.05);
+  --shadow-xl: 0 20px 30px rgba(0,0,0,0.4), 0 0 1px rgba(255,255,255,0.05);
 }
 
 /* Light-mode glass + chrome corrections so navbar stays legible */
@@ -121,15 +157,38 @@
   --tw-ring-color: var(--chrome-ring);
 }
 
+/* Base body styles with typography refinements */
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-feature-settings: "kern" 1, "liga" 1;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
+/* Typography hierarchy - Apple style */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
+  font-weight: 600; /* Semibold instead of bold */
+}
+
+h1 {
+  letter-spacing: -0.025em;
+}
+
+h2 {
+  letter-spacing: -0.02em;
+}
+
+h3, h4 {
+  letter-spacing: -0.015em;
+}
+
+/* Small text tracking for readability */
+.text-xs, .text-sm {
+  letter-spacing: 0.01em;
 }
 
 /* Utility classes for the new aesthetic */
@@ -144,13 +203,18 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Card hover with reduced elevation (Apple style) */
 .card-hover {
   transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
 }
 
 .card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px); /* Reduced from -4px */
+  box-shadow: var(--shadow-lg);
+}
+
+.dark .card-hover:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .hide-scrollbar::-webkit-scrollbar, .scrollbar-hide::-webkit-scrollbar {
@@ -168,7 +232,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .hover-border {
   border: 1px solid transparent;
-  transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: border-color;
 }
 
@@ -178,9 +242,54 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--accent);
 }
 
+/* Apple-style form inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
+  outline: none;
+}
+
+/* Shimmer loading effect */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 0%,
+    var(--surface-hover) 50%,
+    var(--surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Error shake animation */
+.shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* Button press effect - subtle scale */
+.btn-press {
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-press:active {
+  transform: scale(0.98);
+}
+
 /* Disable motion when the theme toggles to avoid jarring flashes */
-.theme-changing *, 
-.theme-changing *::before, 
+.theme-changing *,
+.theme-changing *::before,
 .theme-changing *::after {
   transition: none !important;
   animation-play-state: paused !important;

@@ -145,18 +145,21 @@ function ActionButton({
     <motion.button
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.98 }}
       style={{ willChange: "transform, opacity" }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
       onClick={onClick}
       className={cn(
-        "w-9 h-9 rounded-full flex items-center justify-center bg-black/60 text-white backdrop-blur-sm hover:bg-white hover:text-black transition-all shadow-xl border border-white/20",
-        active && "bg-white text-black",
+        "w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-150",
+        active
+          ? "bg-white/95 text-black shadow-md"
+          : "bg-black/50 text-white/90 hover:bg-black/60 hover:text-white",
         className
       )}
       title={label}
     >
-      <Icon size={16} fill={fill ? "currentColor" : "none"} />
+      <Icon size={15} fill={fill ? "currentColor" : "none"} />
     </motion.button>
   );
 }

@@ -18,7 +18,7 @@ import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes, reviews, users, negativeSignals } from "@/db/schema";
 import * as schema from "@/db/schema";
 import { eq, and, inArray, isNull, not } from "drizzle-orm";
-import { DEFAULT_REGION, SUPPORTED_REGION_CODES } from "@/data/regions";
+import { DEFAULT_REGION } from "@/data/regions";
 import { invalidateUserStats } from "@/lib/stats-cache";
 
 export type CsvImportRow = {
@@ -595,8 +595,9 @@ export async function updateProfileAction({
 
   if (preferredRegion) {
     const normalizedRegion = preferredRegion.toUpperCase();
-    if (!SUPPORTED_REGION_CODES.includes(normalizedRegion)) {
-      return { error: "Unsupported region" };
+    // Validate it's a 2-letter ISO code
+    if (!/^[A-Z]{2}$/.test(normalizedRegion)) {
+      return { error: "Invalid region code" };
     }
     updates.preferredRegion = normalizedRegion;
   }
@@ -641,8 +642,9 @@ export async function updatePreferredRegionAction(region: string) {
   }
 
   const normalizedRegion = region.toUpperCase();
-  if (!SUPPORTED_REGION_CODES.includes(normalizedRegion)) {
-    return { error: "Unsupported region" };
+  // Validate it's a 2-letter ISO code
+  if (!/^[A-Z]{2}$/.test(normalizedRegion)) {
+    return { error: "Invalid region code" };
   }
 
   try {

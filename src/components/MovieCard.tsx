@@ -222,17 +222,17 @@ const ActionButton = memo(function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-9 h-9 rounded-full flex items-center justify-center transition-colors shadow-lg border",
+        "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-150 backdrop-blur-sm btn-press",
         active
-          ? "bg-white text-black border-white/40 hover:bg-white hover:text-black"
-          : "bg-black/60 text-white border-white/20 hover:bg-black/70 hover:text-white hover:border-white/30",
+          ? "bg-white/95 text-black shadow-md"
+          : "bg-black/50 text-white/90 hover:bg-black/60 hover:text-white",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
       title={label}
     >
       <Icon
-        size={16}
+        size={15}
         {...(fill ? { fill: "currentColor" } : {})}
       />
     </button>

@@ -17,19 +17,22 @@ export function StatsCard({ title, subtitle, icon, children, className }: Props)
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={cn(
-        "flex h-full w-full flex-col gap-6 rounded-2xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 p-6 sm:p-8",
+        "flex h-full w-full flex-col gap-6 rounded-2xl border border-black/8 dark:border-white/8",
+        "bg-gradient-to-b from-white/80 to-white/60 dark:from-black/60 dark:to-black/40",
+        "backdrop-blur-sm p-6 sm:p-8",
+        "shadow-[0_1px_3px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.1)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2),0_0_1px_rgba(255,255,255,0.05)]",
         className
       )}
     >
       <div className="flex items-center gap-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/5 dark:bg-white/5 text-foreground/60 border border-black/10 dark:border-white/10">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent border border-accent/20">
           {icon}
         </div>
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground tracking-tight">{title}</h2>
-          {subtitle && <p className="text-sm text-foreground/50 mt-1">{subtitle}</p>}
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          {subtitle && <p className="text-sm text-foreground/50 mt-0.5">{subtitle}</p>}
         </div>
       </div>
       <div className="flex-1">{children}</div>

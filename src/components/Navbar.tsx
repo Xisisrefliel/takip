@@ -152,10 +152,11 @@ export function Navbar() {
           ref={navRef}
           className={cn(
             "pointer-events-auto flex items-center p-1 sm:p-1.5",
-            "bg-white/60 dark:bg-black/60 backdrop-blur-2xl",
+            "bg-white/60 dark:bg-black/60 backdrop-blur-xl",
             "border border-white/20 dark:border-white/10",
-            "rounded-full shadow-2xl shadow-black/20 transition-all duration-300 max-w-full",
-            isSearching ? "ring-2 ring-accent/30 border-accent/20 shadow-black/25" : ""
+            "rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]",
+            "transition-all duration-300 max-w-full",
+            isSearching ? "ring-2 ring-accent/30 border-accent/20" : ""
           )}
           onMouseLeave={() => setHoveredLink(null)}
         >
@@ -352,7 +353,7 @@ export function Navbar() {
                   left: dropdownCoords.left,
                   minWidth: 192,
                 }}
-                className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl shadow-2xl shadow-black/20 p-1.5 z-200 origin-top-left overflow-hidden"
+                className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] p-1.5 z-200 origin-top-left overflow-hidden"
               >
                 <div className="flex flex-col gap-1">
                   <Link
