@@ -4,32 +4,30 @@ import { useEffect, useState } from "react";
 import { Movie } from "@/types";
 import { MovieCard } from "@/components/MovieCard";
 import { Carousel } from "@/components/Carousel";
-import { getRecommendationsAction } from "@/app/actions";
+import { getSimilarMoviesAction } from "@/app/actions";
 
-interface RecommendationsSectionProps {
-  type: "personalized" | "similar";
-  mediaId?: string;
-  title: string;
+interface SimilarRecommendationsProps {
+  mediaId: string;
+  title?: string;
   className?: string;
 }
 
-export function RecommendationsSection({
-  type,
+export function SimilarRecommendations({
   mediaId,
-  title,
+  title = "You Might Also Like",
   className,
-}: RecommendationsSectionProps) {
+}: SimilarRecommendationsProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadRecommendations() {
+    async function loadSimilar() {
       setIsLoading(true);
       setError(null);
 
       try {
-        const result = await getRecommendationsAction(type, mediaId);
+        const result = await getSimilarMoviesAction(mediaId);
 
         if (result.error) {
           setError(result.error);
@@ -37,15 +35,15 @@ export function RecommendationsSection({
           setMovies(result.movies);
         }
       } catch (err) {
-        setError("Failed to load recommendations");
-        console.error("Error loading recommendations:", err);
+        setError("Failed to load similar movies");
+        console.error("Error loading similar movies:", err);
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadRecommendations();
-  }, [type, mediaId]);
+    loadSimilar();
+  }, [mediaId]);
 
   if (isLoading) {
     return (
@@ -65,11 +63,7 @@ export function RecommendationsSection({
     );
   }
 
-  if (error) {
-    return null;
-  }
-
-  if (movies.length === 0) {
+  if (error || movies.length === 0) {
     return null;
   }
 
@@ -86,32 +80,5 @@ export function RecommendationsSection({
         ))}
       </Carousel>
     </div>
-  );
-}
-
-export function PersonalizedRecommendations({ className }: { className?: string }) {
-  return (
-    <RecommendationsSection
-      type="personalized"
-      title="Recommended For You"
-      className={className}
-    />
-  );
-}
-
-export function SimilarRecommendations({
-  mediaId,
-  className,
-}: {
-  mediaId: string;
-  className?: string;
-}) {
-  return (
-    <RecommendationsSection
-      type="similar"
-      mediaId={mediaId}
-      title="Because You Liked This"
-      className={className}
-    />
   );
 }

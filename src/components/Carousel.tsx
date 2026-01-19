@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface CarouselProps {
   title?: string;
   headerLeft?: React.ReactNode; // Custom left side content (replaces title if provided)
+  headerAction?: React.ReactNode; // Custom action content (placed to the right of title)
   children: React.ReactNode;
   className?: string;
   hideHeader?: boolean;
@@ -16,6 +17,7 @@ interface CarouselProps {
 export function Carousel({
   title,
   headerLeft,
+  headerAction,
   children,
   className,
   hideHeader = false,
@@ -52,15 +54,18 @@ export function Carousel({
     <div className={cn("py-6 sm:py-8 w-full", className)}>
       {!hideHeader && (
         <div className="flex items-center justify-between mb-4 sm:mb-6 px-2">
-          {headerLeft ? (
-            headerLeft
-          ) : title ? (
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-foreground">
-              {title}
-            </h2>
-          ) : (
-            <div />
-          )}
+          <div className="flex items-center gap-3 sm:gap-4">
+            {headerLeft ? (
+              headerLeft
+            ) : title ? (
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                {title}
+              </h2>
+            ) : (
+              <div />
+            )}
+            {headerAction && <div className="ml-2">{headerAction}</div>}
+          </div>
           {!hideControls && (
             <div className="flex gap-1.5 sm:gap-2">
               {renderButton("left")}

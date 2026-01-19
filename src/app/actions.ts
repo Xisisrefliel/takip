@@ -8,15 +8,16 @@ import {
   searchTvSeries,
   getMediaById,
   getEnhancedMovieData,
+  getWatchProviders,
 } from "@/lib/tmdb";
 import { Book, Movie, Season } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
 import { createUser, getUserByEmail, hashPassword } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { userMovies, userBooks, userEpisodes, reviews, users } from "@/db/schema";
+import { userMovies, userBooks, userEpisodes, reviews, users, negativeSignals } from "@/db/schema";
 import * as schema from "@/db/schema";
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull, not } from "drizzle-orm";
 import { DEFAULT_REGION, SUPPORTED_REGION_CODES } from "@/data/regions";
 import { invalidateUserStats } from "@/lib/stats-cache";
 
@@ -147,6 +148,9 @@ type UserMovieMetadata = {
   keywords: string | null;
   collectionId: number | null;
   collectionName: string | null;
+  productionCompanies: string | null;
+  productionCountries: string | null;
+  watchProviders: string | null;
 };
 
 const toNullableNumber = (value: unknown) =>
@@ -182,6 +186,28 @@ const fetchUserMovieMetadata = async (
   const castJson = media.cast && media.cast.length > 0 ? JSON.stringify(media.cast) : null;
   const crewJson = media.crew && media.crew.length > 0 ? JSON.stringify(media.crew) : null;
 
+  // Production metadata from media object
+  const productionCompaniesJson =
+    media.productionCompanies && media.productionCompanies.length > 0
+      ? JSON.stringify(media.productionCompanies)
+      : null;
+
+  const productionCountriesJson =
+    media.productionCountries && media.productionCountries.length > 0
+      ? JSON.stringify(media.productionCountries)
+      : null;
+
+  // Fetch watch providers
+  let watchProvidersJson: string | null = null;
+  try {
+    const providers = await getWatchProviders(mediaId, mediaType);
+    if (providers && Object.keys(providers).length > 0) {
+      watchProvidersJson = JSON.stringify(providers);
+    }
+  } catch (error) {
+    console.error("Error fetching watch providers:", error);
+  }
+
   // Fetch enhanced data (keywords, collection) for movies only
   let keywordsJson: string | null = null;
   let collectionId: number | null = null;
@@ -200,6 +226,11 @@ const fetchUserMovieMetadata = async (
     } catch (error) {
       console.error("Error fetching enhanced movie data:", error);
     }
+  } else {
+    // For TV shows, keywords are already in media object
+    if (media.keywords && media.keywords.length > 0) {
+      keywordsJson = JSON.stringify(media.keywords);
+    }
   }
 
   return {
@@ -213,6 +244,9 @@ const fetchUserMovieMetadata = async (
     keywords: keywordsJson,
     collectionId,
     collectionName,
+    productionCompanies: productionCompaniesJson,
+    productionCountries: productionCountriesJson,
+    watchProviders: watchProvidersJson,
   };
 };
 
@@ -232,6 +266,9 @@ const buildMetadataPatch = (
     keywords: metadata.keywords ?? existing?.keywords ?? null,
     collectionId: metadata.collectionId ?? existing?.collectionId ?? null,
     collectionName: metadata.collectionName ?? existing?.collectionName ?? null,
+    productionCompanies: metadata.productionCompanies ?? existing?.productionCompanies ?? null,
+    productionCountries: metadata.productionCountries ?? existing?.productionCountries ?? null,
+    watchProviders: metadata.watchProviders ?? existing?.watchProviders ?? null,
   };
 };
 
@@ -329,6 +366,9 @@ export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvIm
         keywords: null,
         collectionId: null,
         collectionName: null,
+        productionCompanies: null,
+        productionCountries: null,
+        watchProviders: null,
       } satisfies UserMovieMetadata);
 
     const existing = await db
@@ -706,11 +746,6 @@ export async function toggleWatchedAction(
     revalidatePath("/profile");
     invalidateUserStats(userId);
 
-    // Mark recommendations as stale (will refresh in background on next request)
-    import("@/lib/recommendation-cache").then(({ markRecommendationsStale }) => {
-      markRecommendationsStale(userId);
-    });
-
     return { success: true };
   } catch (error) {
     console.error("Toggle watched error:", error);
@@ -798,11 +833,6 @@ export async function toggleWatchlistAction(
     revalidatePath("/profile");
     invalidateUserStats(userId);
 
-    // Mark recommendations as stale (will refresh in background on next request)
-    import("@/lib/recommendation-cache").then(({ markRecommendationsStale }) => {
-      markRecommendationsStale(userId);
-    });
-
     return { success: true };
   } catch (error) {
     console.error("Toggle watchlist error:", error);
@@ -889,11 +919,6 @@ export async function toggleLikedAction(
     // Revalidate user-specific pages only (not homepage - user status is fetched fresh)
     revalidatePath("/profile");
     invalidateUserStats(userId);
-
-    // Mark recommendations as stale (will refresh in background on next request)
-    import("@/lib/recommendation-cache").then(({ markRecommendationsStale }) => {
-      markRecommendationsStale(userId);
-    });
 
     return { success: true };
   } catch (error) {
@@ -1507,6 +1532,44 @@ export async function createReviewAction(
       });
     }
 
+    // Track negative signals for low ratings (1-2 stars) on movies/TV
+    if (rating <= 2 && mediaId && mediaType) {
+      try {
+        // Fetch metadata to include in context
+        const [userMovie] = await db
+          .select()
+          .from(userMovies)
+          .where(
+            and(
+              eq(userMovies.userId, userId),
+              eq(userMovies.movieId, mediaId),
+              eq(userMovies.mediaType, mediaType)
+            )
+          )
+          .limit(1);
+
+        const context = {
+          ratedAt: now.toISOString(),
+          genres: userMovie?.genres || null,
+          productionCompanies: userMovie?.productionCompanies || null,
+        };
+
+        await db.insert(negativeSignals).values({
+          id: crypto.randomUUID(),
+          userId,
+          movieId: mediaId,
+          mediaType,
+          signalType: "low_rating",
+          signalValue: rating,
+          context: JSON.stringify(context),
+          createdAt: now,
+        });
+      } catch (error) {
+        console.error("Error tracking negative signal:", error);
+        // Don't fail the review creation if negative signal tracking fails
+      }
+    }
+
     // Revalidate the specific media page where review is shown
     if (mediaId && mediaType) {
       revalidatePath(`/${mediaType}/${mediaId}`);
@@ -1814,147 +1877,16 @@ export async function loadRemainingSeasonsAction(seriesId: string, loadedSeasonC
   }
 }
 
-export async function getRecommendationsAction(
-  type: "personalized" | "similar",
-  mediaId?: string
+export async function getSimilarMoviesAction(
+  mediaId: string
 ): Promise<{ movies?: Movie[]; error?: string }> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Not authenticated" };
-  }
-
-  const userId = session.user.id;
-
   try {
-    if (type === "personalized") {
-      const { getPersonalizedRecommendations } = await import("@/lib/recommendations");
-      const movies = await getPersonalizedRecommendations(userId, 12);
-      return { movies };
-    } else if (type === "similar" && mediaId) {
-      // Use TMDB recommendations for similar movies
-      const { getMovieRecommendations } = await import("@/lib/tmdb");
-      const movies = await getMovieRecommendations(mediaId, 6);
-      return { movies };
-    }
-
-    return { error: "Invalid request" };
-  } catch (error) {
-    console.error("Get recommendations error:", error);
-    return { error: "Failed to get recommendations" };
-  }
-}
-
-export async function getMoodRecommendationsAction(
-  mood: string
-): Promise<{ movies?: Movie[]; error?: string }> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Not authenticated" };
-  }
-
-  const userId = session.user.id;
-
-  const validMoods = ["uplifting", "mind-bending", "dark-intense", "feel-good", "adrenaline", "thought-provoking", "classic"];
-
-  if (!validMoods.includes(mood)) {
-    return { error: "Invalid mood" };
-  }
-
-  try {
-    // Try to get from cache first
-    const { getCachedMoodRecommendations } = await import("@/lib/recommendation-cache");
-    const { movies } = await getCachedMoodRecommendations(userId, mood);
+    const { getMovieRecommendations } = await import("@/lib/tmdb");
+    const movies = await getMovieRecommendations(mediaId, 12);
     return { movies };
   } catch (error) {
-    console.error("Get mood recommendations error:", error);
-    return { error: "Failed to get mood recommendations" };
-  }
-}
-
-export async function getExplorationRecommendationsAction(): Promise<{
-  movies?: Movie[];
-  error?: string;
-}> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Not authenticated" };
-  }
-
-  const userId = session.user.id;
-
-  try {
-    // Try cache first
-    const { getCachedRecommendations } = await import("@/lib/recommendation-cache");
-    const cached = await getCachedRecommendations(userId);
-    if (cached?.exploration?.length) {
-      return { movies: cached.exploration };
-    }
-    // Fall back to generating
-    const { getExplorationRecommendations } = await import("@/lib/recommendations");
-    const movies = await getExplorationRecommendations(userId, 12);
-    return { movies };
-  } catch (error) {
-    console.error("Get exploration recommendations error:", error);
-    return { error: "Failed to get exploration recommendations" };
-  }
-}
-
-export async function getHiddenGemsAction(): Promise<{ movies?: Movie[]; error?: string }> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Not authenticated" };
-  }
-
-  const userId = session.user.id;
-
-  try {
-    // Try cache first
-    const { getCachedRecommendations } = await import("@/lib/recommendation-cache");
-    const cached = await getCachedRecommendations(userId);
-    if (cached?.hiddenGems?.length) {
-      return { movies: cached.hiddenGems };
-    }
-    // Fall back to generating
-    const { getHiddenGems } = await import("@/lib/recommendations");
-    const movies = await getHiddenGems(userId, 12);
-    return { movies };
-  } catch (error) {
-    console.error("Get hidden gems error:", error);
-    return { error: "Failed to get hidden gems" };
-  }
-}
-
-// Get all cached recommendations at once (for homepage SSR)
-export async function getAllCachedRecommendationsAction(): Promise<{
-  personalized?: Movie[];
-  exploration?: Movie[];
-  hiddenGems?: Movie[];
-  moods?: Record<string, Movie[]>;
-  defaultMood?: string;
-  isStale?: boolean;
-  error?: string;
-}> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Not authenticated" };
-  }
-
-  const userId = session.user.id;
-
-  try {
-    const { getRecommendationsWithSWR } = await import("@/lib/recommendation-cache");
-    const cached = await getRecommendationsWithSWR(userId);
-    return {
-      personalized: cached.personalized,
-      exploration: cached.exploration,
-      hiddenGems: cached.hiddenGems,
-      moods: cached.moods,
-      defaultMood: cached.defaultMood,
-      isStale: cached.isStale,
-    };
-  } catch (error) {
-    console.error("Get all cached recommendations error:", error);
-    return { error: "Failed to get recommendations" };
+    console.error("Get similar movies error:", error);
+    return { error: "Failed to get similar movies" };
   }
 }
 
@@ -1976,21 +1908,5 @@ export async function getWatchedCountAction(): Promise<{ count?: number; error?:
   }
 }
 
-export async function getDefaultMoodAction(): Promise<{ mood?: string; error?: string }> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Not authenticated" };
-  }
 
-  const userId = session.user.id;
-
-  try {
-    const { getDefaultMood } = await import("@/lib/recommendations");
-    const mood = await getDefaultMood(userId);
-    return { mood };
-  } catch (error) {
-    console.error("Get default mood error:", error);
-    return { error: "Failed to get default mood" };
-  }
-}
 

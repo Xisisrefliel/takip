@@ -8,7 +8,8 @@
     "start": "bun run --bun next start",
     "lint": "eslint",
     "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bunx tsx src/db/migrate.ts"
+    "db:migrate": "bunx tsx src/db/migrate.ts",
+    "analyze-behavior": "bun run scripts/analyze-user-behavior.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
@@ -18,6 +19,7 @@
     "colorthief": "^2.6.0",
     "drizzle-orm": "^0.44.7",
     "framer-motion": "^12.23.25",
+    "groq-sdk": "^0.37.0",
     "lucide-react": "^0.554.0",
     "motion": "^12.23.25",
     "next": "16.0.10",
@@ -36,6 +38,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "babel-plugin-react-compiler": "1.0.0",
+    "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.1",
     "eslint-config-next": "16.0.3",
