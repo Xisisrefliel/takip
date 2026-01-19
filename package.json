@@ -19,6 +19,7 @@
     "colorthief": "^2.6.0",
     "drizzle-orm": "^0.44.7",
     "framer-motion": "^12.23.25",
+    "groq-sdk": "^0.37.0",
     "lucide-react": "^0.554.0",
     "motion": "^12.23.25",
     "next": "16.0.10",

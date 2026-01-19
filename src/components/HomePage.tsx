@@ -7,33 +7,24 @@ import { motion } from "framer-motion";
 import { Play, Plus } from "lucide-react";
 import { Movie } from "@/types";
 import Image from "next/image";
-import { MoodSection } from "@/components/MoodSection";
-import { ExplorationSection } from "@/components/ExplorationSection";
-import { HiddenGemsSection } from "@/components/HiddenGemsSection";
-import { RefreshRecommendations } from "@/components/RefreshRecommendations";
 
 interface HomePageProps {
   trendingMovies: Movie[];
   popularSeries: Movie[];
-  recommendedMovies?: Movie[];
-  explorationMovies?: Movie[];
-  hiddenGemsMovies?: Movie[];
-  moodMovies?: Record<string, Movie[]>;
+  nowPlaying: Movie[];
+  upcoming: Movie[];
+  topRated: Movie[];
+  hiddenGems: Movie[];
   isAuthenticated?: boolean;
-  watchedCount?: number;
-  defaultMood?: string;
 }
 
 export function HomePage({
   trendingMovies,
   popularSeries,
-  recommendedMovies,
-  explorationMovies,
-  hiddenGemsMovies,
-  moodMovies,
-  isAuthenticated,
-  watchedCount = 0,
-  defaultMood = "uplifting",
+  nowPlaying,
+  upcoming,
+  topRated,
+  hiddenGems,
 }: HomePageProps) {
   const orderedTrending = useMemo(() => trendingMovies, [trendingMovies]);
 
@@ -54,9 +45,6 @@ export function HomePage({
   const trailerUrl =
     heroMovie.trailerUrl ||
     `https://www.youtube.com/results?search_query=${encodeURIComponent(`${heroMovie.title} trailer`)}`;
-
-  const showExploration = isAuthenticated && watchedCount >= 100;
-  const showHiddenGems = isAuthenticated && watchedCount >= 50;
 
   return (
     <div className="space-y-8 sm:space-y-12 pb-20">
@@ -128,14 +116,11 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Personalized Recommendations - only show for authenticated users */}
-      {isAuthenticated && recommendedMovies && recommendedMovies.length > 0 && (
+      {/* Now Playing */}
+      {nowPlaying.length > 0 && (
         <section>
-          <Carousel
-            title="Recommended For You"
-            headerAction={<RefreshRecommendations />}
-          >
-            {recommendedMovies.map((movie) => (
+          <Carousel title="Now Playing">
+            {nowPlaying.map((movie) => (
               <div
                 key={movie.id}
                 className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
@@ -145,25 +130,6 @@ export function HomePage({
             ))}
           </Carousel>
         </section>
-      )}
-
-      {/* Mood Section - only show for authenticated users */}
-      {isAuthenticated && (
-        <MoodSection
-          defaultMood={defaultMood}
-          cachedMoodMovies={moodMovies}
-          className="pt-4"
-        />
-      )}
-
-      {/* Try Something New - only show if watched >= 100 */}
-      {showExploration && (
-        <ExplorationSection cachedMovies={explorationMovies} />
-      )}
-
-      {/* Hidden Gems - only show if watched >= 50 */}
-      {showHiddenGems && (
-        <HiddenGemsSection cachedMovies={hiddenGemsMovies} />
       )}
 
       {/* Trending Movies Carousel */}
@@ -187,6 +153,54 @@ export function HomePage({
           ))}
         </Carousel>
       </section>
+
+      {/* Top Rated */}
+      {topRated.length > 0 && (
+        <section>
+          <Carousel title="Top Rated">
+            {topRated.map((movie) => (
+              <div
+                key={movie.id}
+                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+              >
+                <MovieCard movie={movie} />
+              </div>
+            ))}
+          </Carousel>
+        </section>
+      )}
+
+      {/* Hidden Gems */}
+      {hiddenGems.length > 0 && (
+        <section>
+          <Carousel title="Hidden Gems">
+            {hiddenGems.map((movie) => (
+              <div
+                key={movie.id}
+                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+              >
+                <MovieCard movie={movie} />
+              </div>
+            ))}
+          </Carousel>
+        </section>
+      )}
+
+      {/* Upcoming */}
+      {upcoming.length > 0 && (
+        <section>
+          <Carousel title="Coming Soon">
+            {upcoming.map((movie) => (
+              <div
+                key={movie.id}
+                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+              >
+                <MovieCard movie={movie} />
+              </div>
+            ))}
+          </Carousel>
+        </section>
+      )}
     </div>
   );
 }
