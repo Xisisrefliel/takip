@@ -7,8 +7,8 @@ import {
   getNowPlayingMovies,
   getUpcomingMovies,
   discoverMoviesByGenres,
-  GENRE_IDS,
 } from "./tmdb";
+import { GENRE_IDS } from "./constants";
 
 // ==========================================
 // User Data Helpers

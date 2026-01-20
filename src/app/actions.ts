@@ -9,6 +9,8 @@ import {
   getMediaById,
   getEnhancedMovieData,
   getWatchProviders,
+  discoverMovies,
+  discoverTv,
 } from "@/lib/tmdb";
 import { Book, Movie, Season } from "@/types";
 import { signIn, signOut, auth } from "@/auth";
@@ -1910,5 +1912,23 @@ export async function getWatchedCountAction(): Promise<{ count?: number; error?:
   }
 }
 
+export async function discoverMediaAction(filters: {
+  mediaType: "movie" | "tv";
+  params: Record<string, string>;
+}) {
+  const session = await auth();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  try {
+    const discoverFn = filters.mediaType === "movie" ? discoverMovies : discoverTv;
+    const results = await discoverFn(filters.params);
+    return { results };
+  } catch (error) {
+    console.error("Discover media error:", error);
+    return { error: "Failed to discover media" };
+  }
+}
 
 

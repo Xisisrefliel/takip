@@ -18,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className="antialiased bg-background text-foreground"
+        className="antialiased bg-background text-foreground overflow-x-hidden"
       >
         <SessionProvider>
           <MediaProvider>

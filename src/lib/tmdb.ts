@@ -1206,48 +1206,5 @@ export const searchKeywords = async (query: string): Promise<{ id: number; name:
   }
 };
 
-// Genre ID mapping for discover API
-export const GENRE_IDS: Record<string, number> = {
-  "Action": 28,
-  "Adventure": 12,
-  "Animation": 16,
-  "Comedy": 35,
-  "Crime": 80,
-  "Documentary": 99,
-  "Drama": 18,
-  "Family": 10751,
-  "Fantasy": 14,
-  "History": 36,
-  "Horror": 27,
-  "Music": 10402,
-  "Mystery": 9648,
-  "Romance": 10749,
-  "Science Fiction": 878,
-  "TV Movie": 10770,
-  "Thriller": 53,
-  "War": 10752,
-  "Western": 37,
-};
-
-// Common keyword IDs for theme-based discovery
-export const THEME_KEYWORD_IDS: Record<string, number[]> = {
-  "time-travel": [4379, 156421],
-  "heist": [10051, 186373],
-  "revenge": [10084, 162365],
-  "dystopia": [4565, 156177],
-  "space": [14909, 4379],
-  "artificial-intelligence": [310, 9951],
-  "based-on-true-story": [9672, 818],
-  "psychological": [11003, 10683],
-  "twist-ending": [1931, 163084],
-  "friendship": [1510, 9840],
-  "coming-of-age": [9799, 9714],
-  "survival": [11002, 10683],
-  "conspiracy": [3133, 10919],
-  "underdog": [9823, 190212],
-  "redemption": [10683, 4344],
-  "christmas": [207317, 1510],
-  "halloween": [9715, 162846],
-  "summer": [10683, 9799],
-  "holiday": [207317, 2837],
-};
+// Re-export constants for backwards compatibility (prefer importing from @/lib/constants)
+export { GENRE_IDS, THEME_KEYWORD_IDS } from "./constants";
