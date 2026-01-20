@@ -10,17 +10,26 @@ import {
   sortRegionsWithPreference,
 } from "@/data/regions";
 import { updatePreferredRegionAction } from "@/app/actions";
+import { getProviderLink } from "@/lib/provider-links";
 
 interface WatchProvidersProps {
   providers: Record<string, WatchProvidersData> | null;
   preferredRegion?: string | null;
   isAuthenticated?: boolean;
+  title: string;
+  year: number;
+  mediaType: 'movie' | 'tv';
+  tmdbId: string;
 }
 
 export function WatchProviders({
   providers,
   preferredRegion,
   isAuthenticated = false,
+  title,
+  year,
+  mediaType,
+  tmdbId,
 }: WatchProvidersProps) {
   const [, startTransition] = useTransition();
   const safeDefaultRegion = useMemo(() => {
@@ -182,13 +191,19 @@ export function WatchProviders({
               Stream
             </h4>
             <div className="flex flex-wrap gap-2 sm:gap-3">
-              {data.flatrate.map((provider) => (
-                <div
-                  key={provider.provider_id}
-                  className="relative"
-                  title={provider.provider_name}
-                >
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
+              {data.flatrate.map((provider) => {
+                const providerUrl = getProviderLink({
+                  providerId: provider.provider_id,
+                  providerName: provider.provider_name,
+                  title,
+                  year,
+                  mediaType,
+                  region: currentRegion,
+                  tmdbId,
+                });
+
+                const imageContent = (
+                  <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
                     {provider.logo_path && (
                       <Image
                         src={provider.logo_path}
@@ -199,8 +214,33 @@ export function WatchProviders({
                       />
                     )}
                   </div>
-                </div>
-              ))}
+                );
+
+                if (providerUrl) {
+                  return (
+                    <a
+                      key={provider.provider_id}
+                      href={providerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block group cursor-pointer"
+                      aria-label={`Watch on ${provider.provider_name}`}
+                    >
+                      {imageContent}
+                    </a>
+                  );
+                }
+
+                return (
+                  <div
+                    key={provider.provider_id}
+                    className="relative"
+                    title={provider.provider_name}
+                  >
+                    {imageContent}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -211,13 +251,19 @@ export function WatchProviders({
               Rent
             </h4>
             <div className="flex flex-wrap gap-2 sm:gap-3">
-              {data.rent.map((provider) => (
-                <div
-                  key={provider.provider_id}
-                  className="relative"
-                  title={provider.provider_name}
-                >
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
+              {data.rent.map((provider) => {
+                const providerUrl = getProviderLink({
+                  providerId: provider.provider_id,
+                  providerName: provider.provider_name,
+                  title,
+                  year,
+                  mediaType,
+                  region: currentRegion,
+                  tmdbId,
+                });
+
+                const imageContent = (
+                  <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
                     {provider.logo_path && (
                       <Image
                         src={provider.logo_path}
@@ -228,8 +274,33 @@ export function WatchProviders({
                       />
                     )}
                   </div>
-                </div>
-              ))}
+                );
+
+                if (providerUrl) {
+                  return (
+                    <a
+                      key={provider.provider_id}
+                      href={providerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block group cursor-pointer"
+                      aria-label={`Watch on ${provider.provider_name}`}
+                    >
+                      {imageContent}
+                    </a>
+                  );
+                }
+
+                return (
+                  <div
+                    key={provider.provider_id}
+                    className="relative"
+                    title={provider.provider_name}
+                  >
+                    {imageContent}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -240,13 +311,19 @@ export function WatchProviders({
               Buy
             </h4>
             <div className="flex flex-wrap gap-2 sm:gap-3">
-              {data.buy.map((provider) => (
-                <div
-                  key={provider.provider_id}
-                  className="relative"
-                  title={provider.provider_name}
-                >
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10">
+              {data.buy.map((provider) => {
+                const providerUrl = getProviderLink({
+                  providerId: provider.provider_id,
+                  providerName: provider.provider_name,
+                  title,
+                  year,
+                  mediaType,
+                  region: currentRegion,
+                  tmdbId,
+                });
+
+                const imageContent = (
+                  <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
                     {provider.logo_path && (
                       <Image
                         src={provider.logo_path}
@@ -257,8 +334,33 @@ export function WatchProviders({
                       />
                     )}
                   </div>
-                </div>
-              ))}
+                );
+
+                if (providerUrl) {
+                  return (
+                    <a
+                      key={provider.provider_id}
+                      href={providerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block group cursor-pointer"
+                      aria-label={`Watch on ${provider.provider_name}`}
+                    >
+                      {imageContent}
+                    </a>
+                  );
+                }
+
+                return (
+                  <div
+                    key={provider.provider_id}
+                    className="relative"
+                    title={provider.provider_name}
+                  >
+                    {imageContent}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

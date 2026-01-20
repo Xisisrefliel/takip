@@ -112,6 +112,16 @@ export interface WatchProvidersData {
   buy?: WatchProvider[];
 }
 
+export interface ProviderLinkParams {
+  providerId: number;
+  providerName: string;
+  title: string;
+  year: number;
+  mediaType: 'movie' | 'tv';
+  region: string;
+  tmdbId: string;
+}
+
 export interface Book {
   id: string;
   title: string;

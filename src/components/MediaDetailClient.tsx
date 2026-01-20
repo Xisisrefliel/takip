@@ -106,6 +106,10 @@ export function MediaDetailClient({
                 providers={providers}
                 preferredRegion={user?.preferredRegion}
                 isAuthenticated={Boolean(user?.id)}
+                title={item.title}
+                year={item.year}
+                mediaType={mediaType as 'movie' | 'tv'}
+                tmdbId={id}
               />
             )}
           </div>
