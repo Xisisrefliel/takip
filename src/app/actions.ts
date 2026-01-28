@@ -19,7 +19,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { userMovies, userBooks, userEpisodes, reviews, users, negativeSignals } from "@/db/schema";
 import * as schema from "@/db/schema";
-import { eq, and, inArray, isNull, not } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import { DEFAULT_REGION } from "@/data/regions";
 import { invalidateUserStats } from "@/lib/stats-cache";
 
@@ -49,29 +49,33 @@ export type CsvImportResult = {
   reason?: string;
 };
 
-const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^a-z0-9]/g, "");
+function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
-const popularityComparator = (a: Movie, b: Movie) =>
-  (b.popularity ?? 0) - (a.popularity ?? 0) || (b.voteCount ?? 0) - (a.voteCount ?? 0);
+function popularityComparator(a: Movie, b: Movie): number {
+  return (b.popularity ?? 0) - (a.popularity ?? 0) || (b.voteCount ?? 0) - (a.voteCount ?? 0);
+}
 
-const pickBestMatch = (results: Movie[], targetTitle: string, targetYear?: number) => {
+function pickBestMatch(
+  results: Movie[],
+  targetTitle: string,
+  targetYear?: number
+): Movie | null {
   if (!results.length) return null;
 
   const normalizedTarget = normalizeTitle(targetTitle);
   const hasTargetYear = typeof targetYear === "number" && Number.isFinite(targetYear);
 
-  const exactTitleYearMatches = hasTargetYear
-    ? results
-        .filter(
-          (movie) =>
-            movie.year === targetYear && normalizeTitle(movie.title) === normalizedTarget
-        )
-        .sort(popularityComparator)
-    : [];
-  if (exactTitleYearMatches.length > 0) return exactTitleYearMatches[0];
+  if (hasTargetYear) {
+    const exactMatches = results
+      .filter(m => m.year === targetYear && normalizeTitle(m.title) === normalizedTarget)
+      .sort(popularityComparator);
+    if (exactMatches.length > 0) return exactMatches[0];
+  }
 
   const scoredMatches = results
-    .map((movie) => {
+    .map(movie => {
       const normalizedMovieTitle = normalizeTitle(movie.title);
       const titleExact = normalizedMovieTitle === normalizedTarget;
       const titleOverlap =
@@ -81,16 +85,10 @@ const pickBestMatch = (results: Movie[], targetTitle: string, targetYear?: numbe
 
       if (!titleOverlap) return null;
 
-      const movieYear = movie.year;
-      const yearDiff =
-        hasTargetYear && typeof movieYear === "number" && Number.isFinite(movieYear)
-          ? Math.abs(movieYear - (targetYear as number))
-          : null;
+      let score = titleExact ? 60 : 35;
 
-      let score = 0;
-      score += titleExact ? 60 : 35;
-
-      if (yearDiff !== null) {
+      if (hasTargetYear && typeof movie.year === "number") {
+        const yearDiff = Math.abs(movie.year - targetYear!);
         if (yearDiff === 0) score += 40;
         else if (yearDiff === 1) score += 25;
         else if (yearDiff === 2) score += 10;
@@ -102,42 +100,34 @@ const pickBestMatch = (results: Movie[], targetTitle: string, targetYear?: numbe
 
       return { movie, score };
     })
-    .flatMap((entry) => (entry ? [entry] : []))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        popularityComparator(a.movie, b.movie)
-    );
+    .filter((entry): entry is { movie: Movie; score: number } => entry !== null)
+    .sort((a, b) => b.score - a.score || popularityComparator(a.movie, b.movie));
 
-  if (scoredMatches.length > 0) {
-    return scoredMatches[0].movie;
-  }
+  if (scoredMatches.length > 0) return scoredMatches[0].movie;
 
   return [...results].sort(popularityComparator)[0];
-};
+}
 
-const findBestTmdbMatch = async (title: string, year: number) => {
+async function findBestTmdbMatch(
+  title: string,
+  year: number
+): Promise<{ match: Movie | null; usedFallback: boolean }> {
   const hasYear = Number.isFinite(year);
 
-  const searchPipelines: Array<() => Promise<Movie[]>> = [];
+  const searchStrategies = [
+    hasYear ? () => searchMoviesWithYear(title, year) : null,
+    () => searchMoviesOnly(`${title} ${hasYear ? year : ""}`.trim()),
+    () => searchMoviesOnly(title),
+  ].filter((s): s is () => Promise<Movie[]> => s !== null);
 
-  if (hasYear) {
-    searchPipelines.push(() => searchMoviesWithYear(title, year));
-  }
-
-  searchPipelines.push(() => searchMoviesOnly(`${title} ${hasYear ? year : ""}`.trim()));
-  searchPipelines.push(() => searchMoviesOnly(title));
-
-  for (let i = 0; i < searchPipelines.length; i++) {
-    const results = await searchPipelines[i]();
+  for (let i = 0; i < searchStrategies.length; i++) {
+    const results = await searchStrategies[i]();
     const match = pickBestMatch(results, title, hasYear ? year : undefined);
-    if (match) {
-      return { match, usedFallback: i > 0 };
-    }
+    if (match) return { match, usedFallback: i > 0 };
   }
 
-  return { match: null, usedFallback: searchPipelines.length > 1 };
-};
+  return { match: null, usedFallback: searchStrategies.length > 1 };
+}
 
 type UserMovieMetadata = {
   title: string | null;
@@ -155,84 +145,54 @@ type UserMovieMetadata = {
   watchProviders: string | null;
 };
 
-const toNullableNumber = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
+function toNullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
-const shouldBackfillMetadata = (record?: typeof userMovies.$inferSelect) => {
+function shouldBackfillMetadata(record?: typeof userMovies.$inferSelect): boolean {
   if (!record) return true;
   return (
     !record.title ||
     !record.posterUrl ||
-    record.year === null ||
-    record.year === undefined ||
-    record.runtime === null ||
-    record.runtime === undefined ||
+    record.year == null ||
+    record.runtime == null ||
     !record.genres ||
     !record.cast ||
     !record.crew
   );
-};
+}
 
-const fetchUserMovieMetadata = async (
+async function fetchUserMovieMetadata(
   mediaId: string,
   mediaType: "movie" | "tv"
-): Promise<UserMovieMetadata | null> => {
+): Promise<UserMovieMetadata | null> {
   const media = await getMediaById(mediaId, mediaType);
   if (!media) return null;
 
-  const genresJson =
-    Array.isArray(media.genre) && media.genre.length > 0
-      ? JSON.stringify(media.genre)
-      : null;
+  const toJson = <T>(arr?: T[] | null): string | null =>
+    arr && arr.length > 0 ? JSON.stringify(arr) : null;
 
-  const castJson = media.cast && media.cast.length > 0 ? JSON.stringify(media.cast) : null;
-  const crewJson = media.crew && media.crew.length > 0 ? JSON.stringify(media.crew) : null;
+  const providers = await getWatchProviders(mediaId, mediaType).catch(() => null);
+  const watchProvidersJson = providers && Object.keys(providers).length > 0
+    ? JSON.stringify(providers)
+    : null;
 
-  // Production metadata from media object
-  const productionCompaniesJson =
-    media.productionCompanies && media.productionCompanies.length > 0
-      ? JSON.stringify(media.productionCompanies)
-      : null;
-
-  const productionCountriesJson =
-    media.productionCountries && media.productionCountries.length > 0
-      ? JSON.stringify(media.productionCountries)
-      : null;
-
-  // Fetch watch providers
-  let watchProvidersJson: string | null = null;
-  try {
-    const providers = await getWatchProviders(mediaId, mediaType);
-    if (providers && Object.keys(providers).length > 0) {
-      watchProvidersJson = JSON.stringify(providers);
-    }
-  } catch (error) {
-    console.error("Error fetching watch providers:", error);
-  }
-
-  // Fetch enhanced data (keywords, collection) for movies only
   let keywordsJson: string | null = null;
   let collectionId: number | null = null;
   let collectionName: string | null = null;
 
   if (mediaType === "movie") {
-    try {
-      const enhancedData = await getEnhancedMovieData(mediaId);
-      if (enhancedData.keywords.length > 0) {
-        keywordsJson = JSON.stringify(enhancedData.keywords);
-      }
-      if (enhancedData.collection) {
-        collectionId = enhancedData.collection.id;
-        collectionName = enhancedData.collection.name;
-      }
-    } catch (error) {
-      console.error("Error fetching enhanced movie data:", error);
+    const enhancedData = await getEnhancedMovieData(mediaId).catch(() => ({
+      keywords: [],
+      collection: undefined,
+    }));
+    keywordsJson = toJson(enhancedData.keywords);
+    if (enhancedData.collection) {
+      collectionId = enhancedData.collection.id;
+      collectionName = enhancedData.collection.name;
     }
   } else {
-    // For TV shows, keywords are already in media object
-    if (media.keywords && media.keywords.length > 0) {
-      keywordsJson = JSON.stringify(media.keywords);
-    }
+    keywordsJson = toJson(media.keywords);
   }
 
   return {
@@ -240,39 +200,36 @@ const fetchUserMovieMetadata = async (
     year: toNullableNumber(media.year),
     runtime: toNullableNumber(media.runtime),
     posterUrl: media.posterUrl || null,
-    genres: genresJson,
-    cast: castJson,
-    crew: crewJson,
+    genres: toJson(media.genre),
+    cast: toJson(media.cast),
+    crew: toJson(media.crew),
     keywords: keywordsJson,
     collectionId,
     collectionName,
-    productionCompanies: productionCompaniesJson,
-    productionCountries: productionCountriesJson,
+    productionCompanies: toJson(media.productionCompanies),
+    productionCountries: toJson(media.productionCountries),
     watchProviders: watchProvidersJson,
   };
-};
+}
 
-const buildMetadataPatch = (
+function buildMetadataPatch(
   metadata: UserMovieMetadata | null,
   existing?: typeof userMovies.$inferSelect
-) => {
+): Partial<UserMovieMetadata> {
   if (!metadata) return {};
-  return {
-    title: metadata.title ?? existing?.title ?? null,
-    year: metadata.year ?? existing?.year ?? null,
-    runtime: metadata.runtime ?? existing?.runtime ?? null,
-    posterUrl: metadata.posterUrl ?? existing?.posterUrl ?? null,
-    genres: metadata.genres ?? existing?.genres ?? null,
-    cast: metadata.cast ?? existing?.cast ?? null,
-    crew: metadata.crew ?? existing?.crew ?? null,
-    keywords: metadata.keywords ?? existing?.keywords ?? null,
-    collectionId: metadata.collectionId ?? existing?.collectionId ?? null,
-    collectionName: metadata.collectionName ?? existing?.collectionName ?? null,
-    productionCompanies: metadata.productionCompanies ?? existing?.productionCompanies ?? null,
-    productionCountries: metadata.productionCountries ?? existing?.productionCountries ?? null,
-    watchProviders: metadata.watchProviders ?? existing?.watchProviders ?? null,
-  };
-};
+
+  const fields: (keyof UserMovieMetadata)[] = [
+    "title", "year", "runtime", "posterUrl", "genres", "cast", "crew",
+    "keywords", "collectionId", "collectionName", "productionCompanies",
+    "productionCountries", "watchProviders"
+  ];
+
+  const result: Record<string, unknown> = {};
+  for (const field of fields) {
+    result[field] = metadata[field] ?? existing?.[field as keyof typeof existing] ?? null;
+  }
+  return result as Partial<UserMovieMetadata>;
+}
 
 export async function searchBooksAction(query: string): Promise<Book[]> {
   if (!query.trim()) return [];
@@ -321,17 +278,16 @@ export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvIm
     };
   }
 
-  const shouldMarkWatched = row.watched !== false; // default: mark as watched unless explicitly false
+  const shouldMarkWatched = row.watched !== false;
   const watchlistRequested = Boolean(row.watchlist);
-  const parseRating = (value?: number | null) => {
-    if (value === null || value === undefined) return null;
+
+  function parseRating(value?: number | null): number | null {
+    if (value == null) return null;
     const numeric = Number(value);
     if (Number.isNaN(numeric)) return null;
-    const clampedHalf = Math.min(5, Math.max(0.5, numeric));
-    const roundedHalf = Math.round(clampedHalf * 2) / 2;
-    const normalized = Math.round(roundedHalf);
-    return normalized < 1 ? 1 : normalized > 5 ? 5 : normalized;
-  };
+    return Math.max(1, Math.min(5, Math.round(numeric)));
+  }
+
   const rating = parseRating(row.rating);
 
   try {
@@ -459,12 +415,11 @@ export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvIm
     }
 
     const noteParts = [
-        watchlistValue ? "watchlist" : null,
-        watchedValue ? "watched" : null,
-        rating ? `rating ${rating}` : null,
-    ].flatMap((item) => (item ? [item] : []));
+      watchlistValue && "watchlist",
+      watchedValue && "watched",
+      rating && `rating ${rating}`,
+    ].filter(Boolean) as string[];
 
-    // Keep profile data fresh
     revalidatePath("/profile");
     invalidateUserStats(session.user.id);
 
@@ -492,7 +447,6 @@ export async function importWatchedMovieAction(row: CsvImportRow): Promise<CsvIm
   }
 }
 
-// Auth Actions
 export async function signUpAction(email: string, password: string) {
   if (!email || !password) {
     return { error: "Email and password are required" };
@@ -597,7 +551,6 @@ export async function updateProfileAction({
 
   if (preferredRegion) {
     const normalizedRegion = preferredRegion.toUpperCase();
-    // Validate it's a 2-letter ISO code
     if (!/^[A-Z]{2}$/.test(normalizedRegion)) {
       return { error: "Invalid region code" };
     }
@@ -644,7 +597,6 @@ export async function updatePreferredRegionAction(region: string) {
   }
 
   const normalizedRegion = region.toUpperCase();
-  // Validate it's a 2-letter ISO code
   if (!/^[A-Z]{2}$/.test(normalizedRegion)) {
     return { error: "Invalid region code" };
   }
@@ -665,7 +617,6 @@ export async function updatePreferredRegionAction(region: string) {
   }
 }
 
-// Media Actions
 export async function toggleWatchedAction(
   mediaId: string,
   mediaType: "movie" | "tv" | "book",
@@ -746,7 +697,6 @@ export async function toggleWatchedAction(
       }
     }
 
-    // Revalidate user-specific pages only (not homepage - user status is fetched fresh)
     revalidatePath("/profile");
     invalidateUserStats(userId);
 
@@ -833,7 +783,6 @@ export async function toggleWatchlistAction(
       }
     }
 
-    // Revalidate user-specific pages only (not homepage - user status is fetched fresh)
     revalidatePath("/profile");
     invalidateUserStats(userId);
 
@@ -920,7 +869,6 @@ export async function toggleLikedAction(
       }
     }
 
-    // Revalidate user-specific pages only (not homepage - user status is fetched fresh)
     revalidatePath("/profile");
     invalidateUserStats(userId);
 
@@ -959,10 +907,7 @@ export async function getUserMediaAction(
         .from(userBooks)
         .where(and(...conditions));
 
-      // Create Book objects from cached database data, only fetch from API if absolutely necessary
       const books: Book[] = userBooksData.map((userBook) => {
-        // Create book from cached database data (we'd need to extend the schema to store more metadata)
-        // For now, create a basic book object
         const book: Book = {
           id: userBook.bookId,
           title: `Book ${userBook.bookId}`, // This should come from cached metadata
@@ -1009,9 +954,7 @@ export async function getUserMediaAction(
         return Number.isNaN(time) ? 0 : time;
       };
 
-      // Create Movie objects from cached database data instead of making API calls
       const movies: Movie[] = userMoviesData.map((userMovie) => {
-        // Use cached metadata from database instead of fetching from TMDB API
         const movie: Movie = {
           id: userMovie.movieId,
           title: userMovie.title || `Movie ${userMovie.movieId}`,
@@ -1042,7 +985,6 @@ export async function getUserMediaAction(
           numberOfEpisodes: undefined,
         };
 
-        // Calculate sort timestamp for ordering
         const watchedDateMs = userMovie.watched ? toMillis(userMovie.watchedDate) : 0;
         const updatedMs = toMillis(userMovie.updatedAt) || toMillis(userMovie.createdAt);
         const sortMs = userMovie.watched
@@ -1175,7 +1117,6 @@ export async function markSeasonAsWatchedAction(episodeIds: number[]) {
   }
 
   try {
-    // Get existing watched episodes for this user
     const existing = await db
       .select()
       .from(userEpisodes)
@@ -1190,7 +1131,6 @@ export async function markSeasonAsWatchedAction(episodeIds: number[]) {
     const episodesToInsert = episodeIds.filter(id => !existingEpisodeIds.has(id));
     const episodesToUpdate = existing.filter(e => !e.watched);
 
-    // Update existing records that aren't watched
     if (episodesToUpdate.length > 0) {
       await Promise.all(
         episodesToUpdate.map(ep => 
@@ -1206,7 +1146,6 @@ export async function markSeasonAsWatchedAction(episodeIds: number[]) {
       );
     }
 
-    // Insert new records for episodes that don't exist
     if (episodesToInsert.length > 0) {
       await db.insert(userEpisodes).values(
         episodesToInsert.map(episodeId => ({
@@ -1262,14 +1201,12 @@ export async function enrichMoviesWithUserStatus(movies: Movie[]): Promise<Movie
   return enrichMoviesWithUserStatusInternal(movies, session.user.id);
 }
 
-// Internal function that skips auth check - used by batch version
 async function enrichMoviesWithUserStatusInternal(movies: Movie[], userId: string): Promise<Movie[]> {
   if (!movies || movies.length === 0) {
     return movies;
   }
 
   try {
-    // Group movies by mediaType and collect their IDs
     const movieIds: string[] = [];
     const tvIds: string[] = [];
 
@@ -1281,7 +1218,6 @@ async function enrichMoviesWithUserStatusInternal(movies: Movie[], userId: strin
       }
     });
 
-    // Fetch all user statuses in parallel
     const [movieStatuses, tvStatuses] = await Promise.all([
       movieIds.length > 0
         ? db
@@ -1309,7 +1245,6 @@ async function enrichMoviesWithUserStatusInternal(movies: Movie[], userId: strin
         : [],
     ]);
 
-    // Create a map for quick lookup
     const statusMap = new Map<string, { watched: boolean; liked: boolean; watchlist: boolean }>();
 
     [...movieStatuses, ...tvStatuses].forEach(status => {
@@ -1320,7 +1255,6 @@ async function enrichMoviesWithUserStatusInternal(movies: Movie[], userId: strin
       });
     });
 
-    // Enrich movies with user status
     return movies.map(movie => {
       const status = statusMap.get(movie.id);
       if (status) {
@@ -1344,7 +1278,6 @@ async function enrichMoviesWithUserStatusInternal(movies: Movie[], userId: strin
   }
 }
 
-// Batch version: enriches multiple movie arrays with a single auth check and DB query
 export async function enrichMoviesWithUserStatusBatch<T extends Movie[][]>(
   ...movieArrays: T
 ): Promise<T> {
@@ -1355,14 +1288,12 @@ export async function enrichMoviesWithUserStatusBatch<T extends Movie[][]>(
 
   const userId = session.user.id;
 
-  // Combine all movies for a single DB query
   const allMovies = movieArrays.flat();
   if (allMovies.length === 0) {
     return movieArrays;
   }
 
   try {
-    // Group all movies by mediaType
     const movieIds: string[] = [];
     const tvIds: string[] = [];
 
@@ -1374,7 +1305,6 @@ export async function enrichMoviesWithUserStatusBatch<T extends Movie[][]>(
       }
     });
 
-    // Single batch query for all statuses
     const [movieStatuses, tvStatuses] = await Promise.all([
       movieIds.length > 0
         ? db
@@ -1402,7 +1332,6 @@ export async function enrichMoviesWithUserStatusBatch<T extends Movie[][]>(
         : [],
     ]);
 
-    // Create a shared map for quick lookup
     const statusMap = new Map<string, { watched: boolean; liked: boolean; watchlist: boolean }>();
 
     [...movieStatuses, ...tvStatuses].forEach(status => {
@@ -1413,7 +1342,6 @@ export async function enrichMoviesWithUserStatusBatch<T extends Movie[][]>(
       });
     });
 
-    // Enrich each array while preserving structure
     return movieArrays.map(movies =>
       movies.map(movie => {
         const status = statusMap.get(movie.id);
@@ -1439,7 +1367,6 @@ export async function enrichMoviesWithUserStatusBatch<T extends Movie[][]>(
   }
 }
 
-// Review Actions
 export interface Review {
   id: string;
   userId: string;
@@ -1482,7 +1409,6 @@ export async function createReviewAction(
   const now = new Date();
 
   try {
-    // Check if user already has a review for this item
     let existingReview;
     if (episodeId) {
       const [review] = await db
@@ -1514,7 +1440,6 @@ export async function createReviewAction(
     }
 
     if (existingReview) {
-      // Update existing review
       await db
         .update(reviews)
         .set({
@@ -1524,7 +1449,6 @@ export async function createReviewAction(
         })
         .where(eq(reviews.id, existingReview.id));
     } else {
-      // Create new review
       await db.insert(reviews).values({
         id: crypto.randomUUID(),
         userId,
@@ -1536,10 +1460,8 @@ export async function createReviewAction(
       });
     }
 
-    // Track negative signals for low ratings (1-2 stars) on movies/TV
     if (rating <= 2 && mediaId && mediaType) {
       try {
-        // Fetch metadata to include in context
         const [userMovie] = await db
           .select()
           .from(userMovies)
@@ -1570,11 +1492,9 @@ export async function createReviewAction(
         });
       } catch (error) {
         console.error("Error tracking negative signal:", error);
-        // Don't fail the review creation if negative signal tracking fails
       }
     }
 
-    // Revalidate the specific media page where review is shown
     if (mediaId && mediaType) {
       revalidatePath(`/${mediaType}/${mediaId}`);
     }
@@ -1604,7 +1524,6 @@ export async function updateReviewAction(
   const now = new Date();
 
   try {
-    // Verify the review belongs to the user
     const [existingReview] = await db
       .select()
       .from(reviews)
@@ -1624,7 +1543,6 @@ export async function updateReviewAction(
       })
       .where(eq(reviews.id, reviewId));
 
-    // Revalidate the specific media page where review is shown
     if (existingReview.mediaId && existingReview.mediaType) {
       revalidatePath(`/${existingReview.mediaType}/${existingReview.mediaId}`);
     }
@@ -1645,7 +1563,6 @@ export async function deleteReviewAction(reviewId: string) {
   const userId = session.user.id;
 
   try {
-    // Verify the review belongs to the user
     const [existingReview] = await db
       .select()
       .from(reviews)
@@ -1658,7 +1575,6 @@ export async function deleteReviewAction(reviewId: string) {
 
     await db.delete(reviews).where(eq(reviews.id, reviewId));
 
-    // Revalidate the specific media page where review is shown
     if (existingReview.mediaId && existingReview.mediaType) {
       revalidatePath(`/${existingReview.mediaType}/${existingReview.mediaId}`);
     }
@@ -1882,11 +1798,12 @@ export async function loadRemainingSeasonsAction(seriesId: string, loadedSeasonC
 }
 
 export async function getSimilarMoviesAction(
-  mediaId: string
+  mediaId: string,
+  sourceCountries?: { iso: string; name: string }[]
 ): Promise<{ movies?: Movie[]; error?: string }> {
   try {
     const { getMovieRecommendations } = await import("@/lib/tmdb");
-    const movies = await getMovieRecommendations(mediaId, 12);
+    const movies = await getMovieRecommendations(mediaId, 12, sourceCountries);
     return { movies };
   } catch (error) {
     console.error("Get similar movies error:", error);

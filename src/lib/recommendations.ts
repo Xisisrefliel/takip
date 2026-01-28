@@ -10,11 +10,7 @@ import {
 } from "./tmdb";
 import { GENRE_IDS } from "./constants";
 
-// ==========================================
-// User Data Helpers
-// ==========================================
-
-export async function getSeenMovieIds(userId: string): Promise<Set<string>> {
+export async function getUserWatchedIds(userId: string): Promise<Set<string>> {
   const userMoviesData = await db
     .select({ movieId: userMovies.movieId })
     .from(userMovies)
@@ -22,33 +18,72 @@ export async function getSeenMovieIds(userId: string): Promise<Set<string>> {
   return new Set(userMoviesData.map((m) => m.movieId));
 }
 
-export async function getWatchedCount(userId: string): Promise<number> {
-  try {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(userMovies)
-      .where(and(eq(userMovies.userId, userId), eq(userMovies.watched, true)));
-    return result[0]?.count || 0;
-  } catch (error) {
-    console.error("Error getting watched count:", error);
-    return 0;
+export const getSeenMovieIds = getUserWatchedIds;
+
+export async function getUserLikedGenres(userId: string): Promise<string[]> {
+  const likedMoviesData = await db
+    .select({ genres: userMovies.genres })
+    .from(userMovies)
+    .where(and(eq(userMovies.userId, userId), eq(userMovies.liked, true)))
+    .catch(() => []);
+
+  const genreCounts = new Map<string, number>();
+
+  for (const row of likedMoviesData) {
+    if (!row.genres) continue;
+    const genres = JSON.parse(row.genres) as string[];
+    for (const genre of genres) {
+      genreCounts.set(genre, (genreCounts.get(genre) || 0) + 1);
+    }
   }
+
+  return Array.from(genreCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([genre]) => genre);
 }
 
-// ==========================================
-// TMDB-Based Discovery Functions
-// ==========================================
+export function personalizeRecommendations(
+  movies: Movie[],
+  watchedIds: Set<string>,
+  preferredGenres: string[]
+): Movie[] {
+  const unseen = movies.filter(m => !watchedIds.has(m.id));
 
-/**
- * Filter out movies the user has already seen
- */
+  if (preferredGenres.length === 0) {
+    return unseen;
+  }
+
+  const preferredSet = new Set(preferredGenres.map(g => g.toLowerCase()));
+
+  const scored = unseen.map(movie => {
+    let genreBoost = 0;
+    for (const genre of movie.genre || []) {
+      if (preferredSet.has(genre.toLowerCase())) {
+        genreBoost += 1;
+      }
+    }
+    return { movie, genreBoost };
+  });
+
+  return scored
+    .sort((a, b) => b.genreBoost - a.genreBoost)
+    .map(s => s.movie);
+}
+
+export async function getWatchedCount(userId: string): Promise<number> {
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(userMovies)
+    .where(and(eq(userMovies.userId, userId), eq(userMovies.watched, true)))
+    .catch(() => [{ count: 0 }]);
+  return result[0]?.count || 0;
+}
+
 function filterSeenMovies(movies: Movie[], seenIds: Set<string>): Movie[] {
   return movies.filter((m) => !seenIds.has(m.id));
 }
 
-/**
- * Get popular movies from TMDB, filtered for user
- */
 export async function getPopularMovies(
   userId: string | null,
   limit: number = 20
@@ -69,9 +104,6 @@ export async function getPopularMovies(
   }
 }
 
-/**
- * Get top rated movies from TMDB, filtered for user
- */
 export async function getTopRatedMovies(
   userId: string | null,
   limit: number = 20
@@ -92,9 +124,6 @@ export async function getTopRatedMovies(
   }
 }
 
-/**
- * Get now playing movies from TMDB, filtered for user
- */
 export async function getNowPlaying(
   userId: string | null,
   limit: number = 20
@@ -112,9 +141,6 @@ export async function getNowPlaying(
   }
 }
 
-/**
- * Get upcoming movies from TMDB, filtered for user
- */
 export async function getUpcoming(
   userId: string | null,
   limit: number = 20
@@ -132,9 +158,6 @@ export async function getUpcoming(
   }
 }
 
-/**
- * Get movies by genre from TMDB, filtered for user
- */
 export async function getMoviesByGenre(
   genreName: string,
   userId: string | null,
@@ -159,9 +182,6 @@ export async function getMoviesByGenre(
   }
 }
 
-/**
- * Get critically acclaimed movies (high rating, decent vote count)
- */
 export async function getCriticallyAcclaimed(
   userId: string | null,
   limit: number = 20
@@ -183,9 +203,6 @@ export async function getCriticallyAcclaimed(
   }
 }
 
-/**
- * Get hidden gems (high rating but lower vote count)
- */
 export async function getHiddenGems(
   userId: string | null,
   limit: number = 20
@@ -208,9 +225,6 @@ export async function getHiddenGems(
   }
 }
 
-/**
- * Get classic movies (older but highly rated)
- */
 export async function getClassicMovies(
   userId: string | null,
   limit: number = 20
@@ -233,9 +247,6 @@ export async function getClassicMovies(
   }
 }
 
-/**
- * Get recent releases (last 2 years, well-rated)
- */
 export async function getRecentReleases(
   userId: string | null,
   limit: number = 20

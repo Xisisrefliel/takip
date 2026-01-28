@@ -17,18 +17,21 @@ import { MediaDetailClient } from "@/components/MediaDetailClient";
 import { db } from "@/db";
 import { userMovies, userBooks } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import {
+  getUserLikedGenres,
+  getUserWatchedIds,
+  personalizeRecommendations,
+} from "@/lib/recommendations";
 
-// Revalidate media details every 24 hours (static content rarely changes)
 export const revalidate = 86400;
 
 interface PageProps {
-  params: Promise<{
-    mediaType: string;
-    id: string;
-  }>;
+  params: Promise<{ mediaType: string; id: string }>;
 }
 
-const isBook = (item: Movie | Book): item is Book => "author" in item;
+function isBook(item: Movie | Book): item is Book {
+  return "author" in item;
+}
 
 export async function generateMetadata({
   params,
@@ -86,55 +89,43 @@ export default async function MediaDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  let session;
-  try {
-    session = await auth();
-  } catch (e) {
-    console.error("Auth error:", e);
-    session = null;
-  }
+  const session = await auth().catch(() => null);
 
-  // Fetch user's media tracking data from database if authenticated
   if (session?.user?.id) {
-    try {
-      if (mediaType === "book") {
-        const userBook = await db
-          .select()
-          .from(userBooks)
-          .where(
-            and(
-              eq(userBooks.userId, session.user.id),
-              eq(userBooks.bookId, id)
-            )
-          )
-          .limit(1);
+    const userId = session.user.id;
 
-        if (userBook.length > 0) {
-          item.watched = userBook[0].watched || false;
-          item.watchlist = userBook[0].watchlist || false;
-          item.liked = userBook[0].liked || false;
-        }
-      } else {
-        const userMovie = await db
-          .select()
-          .from(userMovies)
-          .where(
-            and(
-              eq(userMovies.userId, session.user.id),
-              eq(userMovies.movieId, id),
-              eq(userMovies.mediaType, mediaType as "movie" | "tv")
-            )
-          )
-          .limit(1);
+    if (mediaType === "book") {
+      const [userBook] = await db
+        .select()
+        .from(userBooks)
+        .where(and(eq(userBooks.userId, userId), eq(userBooks.bookId, id)))
+        .limit(1)
+        .catch(() => []);
 
-        if (userMovie.length > 0) {
-          item.watched = userMovie[0].watched || false;
-          item.watchlist = userMovie[0].watchlist || false;
-          item.liked = userMovie[0].liked || false;
-        }
+      if (userBook) {
+        item.watched = userBook.watched ?? false;
+        item.watchlist = userBook.watchlist ?? false;
+        item.liked = userBook.liked ?? false;
       }
-    } catch (e) {
-      console.error("Error fetching user media data:", e);
+    } else {
+      const [userMovie] = await db
+        .select()
+        .from(userMovies)
+        .where(
+          and(
+            eq(userMovies.userId, userId),
+            eq(userMovies.movieId, id),
+            eq(userMovies.mediaType, mediaType as "movie" | "tv")
+          )
+        )
+        .limit(1)
+        .catch(() => []);
+
+      if (userMovie) {
+        item.watched = userMovie.watched ?? false;
+        item.watchlist = userMovie.watchlist ?? false;
+        item.liked = userMovie.liked ?? false;
+      }
     }
   }
 
@@ -142,15 +133,34 @@ export default async function MediaDetailPage({ params }: PageProps) {
   let initialUserReview: Review | null = null;
 
   if (mediaType !== "book") {
-    try {
-      const [reviewsResult, userReviewResult] = await Promise.all([
-        getReviewsAction(id, mediaType as "movie" | "tv"),
-        getUserReviewAction(id, mediaType as "movie" | "tv"),
-      ]);
-      initialReviews = reviewsResult.reviews;
-      initialUserReview = userReviewResult.review;
-    } catch (e) {
-      console.error("Error fetching reviews:", e);
+    const [reviewsResult, userReviewResult] = await Promise.all([
+      getReviewsAction(id, mediaType as "movie" | "tv"),
+      getUserReviewAction(id, mediaType as "movie" | "tv"),
+    ]).catch(() => [{ reviews: [] }, { review: null }]);
+
+    initialReviews = reviewsResult.reviews;
+    initialUserReview = userReviewResult.review;
+  }
+
+  if (session?.user?.id && mediaType !== "book") {
+    const movieItem = item as Movie;
+    const userId = session.user.id;
+
+    const [userPrefs, watchedIds] = await Promise.all([
+      getUserLikedGenres(userId),
+      getUserWatchedIds(userId),
+    ]).catch(() => [[], new Set<string>()]);
+
+    if (movieItem.recommendations) {
+      movieItem.recommendations = personalizeRecommendations(
+        movieItem.recommendations,
+        watchedIds,
+        userPrefs
+      );
+    }
+
+    if (movieItem.similar) {
+      movieItem.similar = movieItem.similar.filter(m => !watchedIds.has(m.id));
     }
   }
 

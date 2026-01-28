@@ -3,138 +3,47 @@ import { Movie, WatchProvider, WatchProvidersData } from "@/types";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_IMAGE_BASE_URL_ORIGINAL = "https://image.tmdb.org/t/p/original";
-const TMDB_IMAGE_BASE_URL_W500 = "https://image.tmdb.org/t/p/w500";
-const TMDB_IMAGE_BASE_URL_W1280 = "https://image.tmdb.org/t/p/w1280";
-const TMDB_IMAGE_BASE_URL_W185 = "https://image.tmdb.org/t/p/w185";
+
+const IMAGE_SIZES = {
+  ORIGINAL: "https://image.tmdb.org/t/p/original",
+  W500: "https://image.tmdb.org/t/p/w500",
+  W1280: "https://image.tmdb.org/t/p/w1280",
+  W185: "https://image.tmdb.org/t/p/w185",
+} as const;
 
 if (!TMDB_API_KEY) {
   console.warn("TMDB_API_KEY is not defined in environment variables.");
 }
 
 const GENRES: Record<number, string> = {
-  28: "Action",
-  12: "Adventure",
-  16: "Animation",
-  35: "Comedy",
-  80: "Crime",
-  99: "Documentary",
-  18: "Drama",
-  21: "Family",
-  22: "Fantasy",
-  36: "History",
-  24: "Horror",
-  25: "Music",
-  26: "Mystery",
-  27: "Romance",
-  878: "Science Fiction",
-  29: "TV Movie",
-  53: "Thriller",
-  31: "War",
-  32: "Western",
-  33: "Action & Adventure",
-  34: "Kids",
-  37: "Sci-Fi & Fantasy",
-  38: "Soap",
-  39: "Talk",
-  40: "War & Politics",
+  28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
+  99: "Documentary", 18: "Drama", 21: "Family", 22: "Fantasy", 36: "History",
+  24: "Horror", 25: "Music", 26: "Mystery", 27: "Romance", 878: "Science Fiction",
+  29: "TV Movie", 53: "Thriller", 31: "War", 32: "Western", 33: "Action & Adventure",
+  34: "Kids", 37: "Sci-Fi & Fantasy", 38: "Soap", 39: "Talk", 40: "War & Politics",
   41: "Family",
 };
 
 const COUNTRY_NAMES: Record<string, string> = {
-  US: "United States",
-  GB: "United Kingdom",
-  DE: "Germany",
-  FR: "France",
-  JP: "Japan",
-  CN: "China",
-  KR: "South Korea",
-  IN: "India",
-  IT: "Italy",
-  ES: "Spain",
-  CA: "Canada",
-  AU: "Australia",
-  BR: "Brazil",
-  MX: "Mexico",
-  RU: "Russia",
-  HK: "Hong Kong",
-  NL: "Netherlands",
-  SE: "Sweden",
-  NO: "Norway",
-  DK: "Denmark",
-  FI: "Finland",
-  PL: "Poland",
-  CZ: "Czech Republic",
-  HU: "Hungary",
-  GR: "Greece",
-  PT: "Portugal",
-  BE: "Belgium",
-  AT: "Austria",
-  CH: "Switzerland",
-  IE: "Ireland",
-  NZ: "New Zealand",
-  SG: "Singapore",
-  TH: "Thailand",
-  PH: "Philippines",
-  ID: "Indonesia",
-  MY: "Malaysia",
-  VN: "Vietnam",
-  TW: "Taiwan",
-  AR: "Argentina",
-  CL: "Chile",
-  CO: "Colombia",
-  PE: "Peru",
-  VE: "Venezuela",
-  ZA: "South Africa",
-  EG: "Egypt",
-  NG: "Nigeria",
-  IL: "Israel",
-  AE: "United Arab Emirates",
-  SA: "Saudi Arabia",
-  TR: "Turkey",
-  UA: "Ukraine",
-  RO: "Romania",
-  BG: "Bulgaria",
-  SK: "Slovakia",
-  HR: "Croatia",
-  SI: "Slovenia",
-  RS: "Serbia",
-  LT: "Lithuania",
-  LV: "Latvia",
-  EE: "Estonia",
-  IS: "Iceland",
-  CY: "Cyprus",
-  LU: "Luxembourg",
-  MT: "Malta",
-  KW: "Kuwait",
-  QA: "Qatar",
-  BH: "Bahrain",
-  OM: "Oman",
-  LB: "Lebanon",
-  JO: "Jordan",
-  SY: "Syria",
-  IQ: "Iraq",
-  AF: "Afghanistan",
-  PK: "Pakistan",
-  BD: "Bangladesh",
-  LK: "Sri Lanka",
-  NP: "Nepal",
-  MM: "Myanmar",
-  KH: "Cambodia",
-  LA: "Laos",
-  MN: "Mongolia",
-  UZ: "Uzbekistan",
-  KZ: "Kazakhstan",
-  GE: "Georgia",
-  AM: "Armenia",
-  AZ: "Azerbaijan",
-  BY: "Belarus",
-  MD: "Moldova",
-  AL: "Albania",
-  MK: "North Macedonia",
-  ME: "Montenegro",
-  BA: "Bosnia and Herzegovina",
-  XW: "Kosovo",
+  US: "United States", GB: "United Kingdom", DE: "Germany", FR: "France",
+  JP: "Japan", CN: "China", KR: "South Korea", IN: "India", IT: "Italy",
+  ES: "Spain", CA: "Canada", AU: "Australia", BR: "Brazil", MX: "Mexico",
+  RU: "Russia", HK: "Hong Kong", NL: "Netherlands", SE: "Sweden", NO: "Norway",
+  DK: "Denmark", FI: "Finland", PL: "Poland", CZ: "Czech Republic", HU: "Hungary",
+  GR: "Greece", PT: "Portugal", BE: "Belgium", AT: "Austria", CH: "Switzerland",
+  IE: "Ireland", NZ: "New Zealand", SG: "Singapore", TH: "Thailand", PH: "Philippines",
+  ID: "Indonesia", MY: "Malaysia", VN: "Vietnam", TW: "Taiwan", AR: "Argentina",
+  CL: "Chile", CO: "Colombia", PE: "Peru", VE: "Venezuela", ZA: "South Africa",
+  EG: "Egypt", NG: "Nigeria", IL: "Israel", AE: "United Arab Emirates",
+  SA: "Saudi Arabia", TR: "Turkey", UA: "Ukraine", RO: "Romania", BG: "Bulgaria",
+  SK: "Slovakia", HR: "Croatia", SI: "Slovenia", RS: "Serbia", LT: "Lithuania",
+  LV: "Latvia", EE: "Estonia", IS: "Iceland", CY: "Cyprus", LU: "Luxembourg",
+  MT: "Malta", KW: "Kuwait", QA: "Qatar", BH: "Bahrain", OM: "Oman", LB: "Lebanon",
+  JO: "Jordan", SY: "Syria", IQ: "Iraq", AF: "Afghanistan", PK: "Pakistan",
+  BD: "Bangladesh", LK: "Sri Lanka", NP: "Nepal", MM: "Myanmar", KH: "Cambodia",
+  LA: "Laos", MN: "Mongolia", UZ: "Uzbekistan", KZ: "Kazakhstan", GE: "Georgia",
+  AM: "Armenia", AZ: "Azerbaijan", BY: "Belarus", MD: "Moldova", AL: "Albania",
+  MK: "North Macedonia", ME: "Montenegro", BA: "Bosnia and Herzegovina", XW: "Kosovo",
 };
 
 function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
@@ -298,20 +207,18 @@ export interface ActorDetails {
   knownForDepartment?: string;
 }
 
-// Cache TTLs (in seconds) differentiated by data type
 const CACHE_TTL = {
-  TRENDING: 3600,       // 1 hour - changes frequently
-  POPULAR: 14400,       // 4 hours - changes moderately
-  DETAILS: 86400,       // 24 hours - rarely changes
-  PERSON: 86400,        // 24 hours - rarely changes
-  SEARCH: 300,          // 5 min - user-initiated, fresh results preferred
-  DISCOVER: 14400,      // 4 hours - changes moderately
-  PROVIDERS: 43200,     // 12 hours - changes occasionally
-  COLLECTION: 86400,    // 24 hours - rarely changes
-  DEFAULT: 3600,        // 1 hour default
+  TRENDING: 3600,
+  POPULAR: 14400,
+  DETAILS: 86400,
+  PERSON: 86400,
+  SEARCH: 300,
+  DISCOVER: 14400,
+  PROVIDERS: 43200,
+  COLLECTION: 86400,
+  DEFAULT: 3600,
 } as const;
 
-// Determine appropriate cache TTL based on endpoint pattern
 function getCacheTTL(endpoint: string): number {
   if (endpoint.startsWith('/trending/')) return CACHE_TTL.TRENDING;
   if (endpoint.startsWith('/search/')) return CACHE_TTL.SEARCH;
@@ -324,7 +231,6 @@ function getCacheTTL(endpoint: string): number {
   return CACHE_TTL.DEFAULT;
 }
 
-// Internal fetch function with dynamic TTL
 const _fetchTMDB = async (endpoint: string, params: Record<string, string> = {}) => {
   const queryParams = new URLSearchParams({
     api_key: TMDB_API_KEY || "",
@@ -336,7 +242,6 @@ const _fetchTMDB = async (endpoint: string, params: Record<string, string> = {})
   const res = await fetch(url, { next: { revalidate: ttl } });
 
   if (!res.ok) {
-    // If 404, just return null if possible, but throwing is okay for now
     if (res.status === 404) return null;
     throw new Error(`Failed to fetch data from TMDB: ${res.statusText}`);
   }
@@ -344,35 +249,33 @@ const _fetchTMDB = async (endpoint: string, params: Record<string, string> = {})
   return res.json();
 };
 
-// Request deduplication: identical calls within the same request are cached
 export const fetchTMDB = cache(async (endpoint: string, params: Record<string, string> = {}) => {
   return _fetchTMDB(endpoint, params);
 });
 
-const pickTrailer = (videos?: TMDBVideo[]) => {
-  if (!videos || videos.length === 0) return { trailerKey: undefined, trailerUrl: undefined };
+function pickTrailer(videos?: TMDBVideo[]): { trailerKey?: string; trailerUrl?: string } {
+  if (!videos?.length) return {};
 
-  const byPriority = videos.find(
-    (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
-  ) || videos.find(
-    (video) => video.site === "YouTube" && video.type === "Trailer"
-  ) || videos.find((video) => video.site === "YouTube");
+  const trailer =
+    videos.find(v => v.site === "YouTube" && v.type === "Trailer" && v.official) ||
+    videos.find(v => v.site === "YouTube" && v.type === "Trailer") ||
+    videos.find(v => v.site === "YouTube");
 
-  if (!byPriority) return { trailerKey: undefined, trailerUrl: undefined };
+  if (!trailer) return {};
 
-  const trailerUrl = `https://www.youtube.com/watch?v=${byPriority.key}`;
-  return { trailerKey: byPriority.key, trailerUrl };
-};
+  return {
+    trailerKey: trailer.key,
+    trailerUrl: `https://www.youtube.com/watch?v=${trailer.key}`,
+  };
+}
 
-const fetchTrailerForMedia = async (id: string, mediaType: 'movie' | 'tv') => {
-  try {
-    const data = await fetchTMDB(`/${mediaType}/${id}/videos`);
-    return pickTrailer(data?.results);
-  } catch (error) {
-    console.error(`Error fetching trailer for ${mediaType} ${id}:`, error);
-    return { trailerKey: undefined, trailerUrl: undefined };
-  }
-};
+async function fetchTrailerForMedia(
+  id: string,
+  mediaType: "movie" | "tv"
+): Promise<{ trailerKey?: string; trailerUrl?: string }> {
+  const data = await fetchTMDB(`/${mediaType}/${id}/videos`).catch(() => null);
+  return pickTrailer(data?.results);
+}
 
 const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
   const title = item.title || item.name || "Unknown Title";
@@ -392,7 +295,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     id: c.id,
     name: c.name,
     character: c.character,
-    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined,
+    profilePath: c.profile_path ? `${IMAGE_SIZES.W500}${c.profile_path}` : undefined,
     order: c.order
   })) || [];
 
@@ -402,7 +305,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     id: c.id,
     name: c.name,
     job: c.job,
-    profilePath: c.profile_path ? `${TMDB_IMAGE_BASE_URL_W500}${c.profile_path}` : undefined,
+    profilePath: c.profile_path ? `${IMAGE_SIZES.W500}${c.profile_path}` : undefined,
     department: c.department
   })) || [];
 
@@ -411,7 +314,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
   const productionCompanies = item.production_companies?.map(c => ({
     id: c.id,
     name: c.name,
-    logoPath: c.logo_path ? `${TMDB_IMAGE_BASE_URL_W185}${c.logo_path}` : undefined,
+    logoPath: c.logo_path ? `${IMAGE_SIZES.W185}${c.logo_path}` : undefined,
     originCountry: c.origin_country
   })) || [];
 
@@ -431,7 +334,7 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     }))
   })) || [];
 
-  const images = item.images?.backdrops?.slice(0, 20).map(img => `${TMDB_IMAGE_BASE_URL_W1280}${img.file_path}`) || [];
+  const images = item.images?.backdrops?.slice(0, 20).map(img => `${IMAGE_SIZES.W1280}${img.file_path}`) || [];
 
   let backdropPath = item.backdrop_path;
   if (item.images?.backdrops && item.images.backdrops.length > 0) {
@@ -452,10 +355,10 @@ const mapTmdbToMovie = (item: TMDBMovie, mediaType: 'movie' | 'tv'): Movie => {
     year,
     releaseDate: date,
     posterUrl: item.poster_path
-      ? `${TMDB_IMAGE_BASE_URL_W500}${item.poster_path}`
+      ? `${IMAGE_SIZES.W500}${item.poster_path}`
       : "/placeholder.jpg",
     backdropUrl: backdropPath
-      ? `${TMDB_IMAGE_BASE_URL_ORIGINAL}${backdropPath}`
+      ? `${IMAGE_SIZES.ORIGINAL}${backdropPath}`
       : undefined,
     rating: safeVoteAverage,
     voteCount: item.vote_count,
@@ -522,27 +425,31 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
     const { trailerKey, trailerUrl } = pickTrailer(data.videos?.results);
     movie.trailerKey = trailerKey;
     movie.trailerUrl = trailerUrl;
-    movie.recommendations = (data.recommendations?.results || [])
-      .filter((rec: TMDBMovie) => rec.id !== data.id)
-      .map((item: TMDBMovie) => mapTmdbToMovie(item, "movie"))
-      .slice(0, 16);
 
-    // Add keywords
     if (data.keywords?.keywords) {
       movie.keywords = data.keywords.keywords.map((k: { name: string }) => k.name);
     }
 
+    let collectionPromise: Promise<Movie[]> | null = null;
     if (data.belongs_to_collection && typeof data.belongs_to_collection.id === "number") {
       movie.collection = {
         id: data.belongs_to_collection.id,
         name: data.belongs_to_collection.name,
       };
-      const collectionMovies = await getCollectionById(String(data.belongs_to_collection.id));
-      movie.collectionMovies = collectionMovies.filter(m => m.id !== id);
+      collectionPromise = getCollectionById(String(data.belongs_to_collection.id));
     }
 
-    const similar = await getSimilarMovies(id, 'movie');
-    movie.similar = similar;
+    const [enhancedSimilar, enhancedRecs, collectionMovies] = await Promise.all([
+      getEnhancedSimilarTitles(movie),
+      getEnhancedRecommendations(movie),
+      collectionPromise || Promise.resolve([]),
+    ]);
+
+    movie.similar = enhancedSimilar;
+    movie.recommendations = enhancedRecs;
+    if (collectionMovies.length > 0) {
+      movie.collectionMovies = collectionMovies.filter(m => m.id !== id);
+    }
 
     return movie;
   } catch (error) {
@@ -563,23 +470,18 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
     const { trailerKey, trailerUrl } = pickTrailer(data.videos?.results);
     movie.trailerKey = trailerKey;
     movie.trailerUrl = trailerUrl;
-    movie.recommendations = (data.recommendations?.results || [])
-      .filter((rec: TMDBMovie) => rec.id !== data.id)
-      .map((item: TMDBMovie) => mapTmdbToMovie(item, 'tv'))
-      .slice(0, 16);
 
-    // Add keywords (TV shows return keywords.results instead of keywords.keywords)
     if (data.keywords?.results) {
       movie.keywords = data.keywords.results.map((k: { name: string }) => k.name);
     }
 
-    // Lazy-load seasons: only fetch first 3 by default, all if fetchAllSeasons is true
+    let seasonsPromise: Promise<typeof movie.seasons> = Promise.resolve([]);
     if (data.seasons && data.seasons.length > 0) {
       const seasonsToFetch = fetchAllSeasons
         ? data.seasons.slice(0, 20)
         : data.seasons.slice(0, 3);
 
-      const seasonsWithEpisodes = await Promise.all(
+      seasonsPromise = Promise.all(
         seasonsToFetch.map(async (season: TMDBSeasonSummary) => {
           try {
             const seasonDetail = await fetchTMDB(`/tv/${id}/season/${season.season_number}`);
@@ -587,7 +489,7 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
               id: season.id,
               name: season.name,
               overview: season.overview,
-              posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+              posterPath: season.poster_path ? `${IMAGE_SIZES.W500}${season.poster_path}` : undefined,
               seasonNumber: season.season_number,
               episodeCount: season.episode_count,
               airDate: season.air_date,
@@ -598,7 +500,7 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
                 airDate: ep.air_date,
                 episodeNumber: ep.episode_number,
                 seasonNumber: ep.season_number,
-                stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+                stillPath: ep.still_path ? `${IMAGE_SIZES.W500}${ep.still_path}` : undefined,
                 voteAverage: ep.vote_average,
                 runtime: ep.runtime
               })) || []
@@ -609,7 +511,7 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
               id: season.id,
               name: season.name,
               overview: season.overview,
-              posterPath: season.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${season.poster_path}` : undefined,
+              posterPath: season.poster_path ? `${IMAGE_SIZES.W500}${season.poster_path}` : undefined,
               seasonNumber: season.season_number,
               episodeCount: season.episode_count,
               airDate: season.air_date,
@@ -618,13 +520,18 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
           }
         })
       );
-      movie.seasons = seasonsWithEpisodes;
-      // Store total season count for lazy loading indicator
       movie.numberOfSeasons = data.number_of_seasons || data.seasons.length;
     }
 
-    const similar = await getSimilarMovies(id, 'tv');
-    movie.similar = similar;
+    const [seasonsWithEpisodes, enhancedSimilar, enhancedRecs] = await Promise.all([
+      seasonsPromise,
+      getEnhancedSimilarTitles(movie),
+      getEnhancedRecommendations(movie),
+    ]);
+
+    movie.seasons = seasonsWithEpisodes;
+    movie.similar = enhancedSimilar;
+    movie.recommendations = enhancedRecs;
 
     return movie;
   } catch (error) {
@@ -633,7 +540,6 @@ export const getTvSeriesById = async (id: string, fetchAllSeasons: boolean = fal
   }
 };
 
-// Helper to fetch based on type
 export const getMediaById = async (id: string, type: 'movie' | 'tv', fetchAllSeasons?: boolean): Promise<Movie | null> => {
   if (type === 'movie') {
     return getMovieById(id);
@@ -642,7 +548,6 @@ export const getMediaById = async (id: string, type: 'movie' | 'tv', fetchAllSea
   }
 };
 
-// Fetch a single season on demand for lazy loading
 export const getSeasonByNumber = async (seriesId: string, seasonNumber: number) => {
   try {
     const seasonDetail = await fetchTMDB(`/tv/${seriesId}/season/${seasonNumber}`);
@@ -652,7 +557,7 @@ export const getSeasonByNumber = async (seriesId: string, seasonNumber: number) 
       id: seasonDetail.id,
       name: seasonDetail.name || `Season ${seasonNumber}`,
       overview: seasonDetail.overview || "",
-      posterPath: seasonDetail.poster_path ? `${TMDB_IMAGE_BASE_URL_W500}${seasonDetail.poster_path}` : undefined,
+      posterPath: seasonDetail.poster_path ? `${IMAGE_SIZES.W500}${seasonDetail.poster_path}` : undefined,
       seasonNumber,
       episodeCount: seasonDetail.episodes.length,
       airDate: seasonDetail.air_date,
@@ -663,7 +568,7 @@ export const getSeasonByNumber = async (seriesId: string, seasonNumber: number) 
         airDate: ep.air_date,
         episodeNumber: ep.episode_number,
         seasonNumber: ep.season_number,
-        stillPath: ep.still_path ? `${TMDB_IMAGE_BASE_URL_W500}${ep.still_path}` : undefined,
+        stillPath: ep.still_path ? `${IMAGE_SIZES.W500}${ep.still_path}` : undefined,
         voteAverage: ep.vote_average,
         runtime: ep.runtime
       }))
@@ -701,19 +606,19 @@ export const getWatchProviders = async (
         flatrate: providerData.flatrate?.map((provider) => ({
           ...provider,
           logo_path: provider.logo_path
-            ? `${TMDB_IMAGE_BASE_URL_W500}${provider.logo_path}`
+            ? `${IMAGE_SIZES.W500}${provider.logo_path}`
             : provider.logo_path,
         })),
         rent: providerData.rent?.map((provider) => ({
           ...provider,
           logo_path: provider.logo_path
-            ? `${TMDB_IMAGE_BASE_URL_W500}${provider.logo_path}`
+            ? `${IMAGE_SIZES.W500}${provider.logo_path}`
             : provider.logo_path,
         })),
         buy: providerData.buy?.map((provider) => ({
           ...provider,
           logo_path: provider.logo_path
-            ? `${TMDB_IMAGE_BASE_URL_W500}${provider.logo_path}`
+            ? `${IMAGE_SIZES.W500}${provider.logo_path}`
             : provider.logo_path,
         })),
       };
@@ -773,7 +678,7 @@ export const getActorMovies = async (
       id: personData.id,
       name: personData.name,
       profileUrl: personData.profile_path
-        ? `${TMDB_IMAGE_BASE_URL_W500}${personData.profile_path}`
+        ? `${IMAGE_SIZES.W500}${personData.profile_path}`
         : undefined,
       biography: personData.biography,
       birthday: personData.birthday,
@@ -911,10 +816,10 @@ export const getCollectionById = async (collectionId: string): Promise<Movie[]> 
         year: part.release_date ? new Date(part.release_date).getFullYear() : 0,
         releaseDate: part.release_date || undefined,
         posterUrl: part.poster_path
-          ? `${TMDB_IMAGE_BASE_URL_W500}${part.poster_path}`
+          ? `${IMAGE_SIZES.W500}${part.poster_path}`
           : "/placeholder.jpg",
         backdropUrl: part.backdrop_path
-          ? `${TMDB_IMAGE_BASE_URL_ORIGINAL}${part.backdrop_path}`
+          ? `${IMAGE_SIZES.ORIGINAL}${part.backdrop_path}`
           : undefined,
         rating: typeof part.vote_average === "number" ? Number(part.vote_average.toFixed(1)) : undefined,
         overview: part.overview || undefined,
@@ -939,15 +844,33 @@ export const getCollectionById = async (collectionId: string): Promise<Movie[]> 
   }
 };
 
-export const getSimilarMovies = async (id: string, mediaType: 'movie' | 'tv'): Promise<Movie[]> => {
+export const getSimilarMovies = async (
+  id: string,
+  mediaType: 'movie' | 'tv',
+  sourceCountries?: { iso: string; name: string }[]
+): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB(`/${mediaType}/${id}/similar`);
     const results = Array.isArray(data?.results)
       ? (data.results as TMDBMovie[])
       : [];
-    return results
-      .map((item) => mapTmdbToMovie(item, mediaType))
-      .slice(0, 12);
+
+    const mappedMovies = results.map((item) => mapTmdbToMovie(item, mediaType));
+
+    if (sourceCountries && sourceCountries.length > 0) {
+      const sourceCountryCodes = new Set(sourceCountries.map((c) => c.iso));
+
+      const filtered = mappedMovies.filter((movie) => {
+        const movieCountries = movie.productionCountries || [];
+        return movieCountries.some((c) => sourceCountryCodes.has(c.iso));
+      });
+
+      if (filtered.length >= 6) {
+        return filtered.slice(0, 12);
+      }
+    }
+
+    return mappedMovies.slice(0, 12);
   } catch (error) {
     console.error(`Error fetching similar ${mediaType} ${id}:`, error);
     return [];
@@ -1001,10 +924,6 @@ export const getTrendingDirectors = async (): Promise<{ id: number; name: string
   }
 };
 
-// ==========================================
-// Enhanced TMDB functions for recommendations
-// ==========================================
-
 export interface MovieKeywords {
   id: string;
   keywords: string[];
@@ -1024,9 +943,6 @@ export interface EnhancedMovieData {
   similar: Movie[];
 }
 
-/**
- * Fetch keywords for a movie
- */
 export const getMovieKeywords = async (movieId: string): Promise<string[]> => {
   try {
     const data = await fetchTMDB(`/movie/${movieId}/keywords`);
@@ -1038,23 +954,37 @@ export const getMovieKeywords = async (movieId: string): Promise<string[]> => {
   }
 };
 
-/**
- * Fetch TMDB's own recommendations for a movie
- */
-export const getMovieRecommendations = async (movieId: string, limit: number = 20): Promise<Movie[]> => {
+export const getMovieRecommendations = async (
+  movieId: string,
+  limit: number = 20,
+  sourceCountries?: { iso: string; name: string }[]
+): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB(`/movie/${movieId}/recommendations`);
     const results = Array.isArray(data?.results) ? (data.results as TMDBMovie[]) : [];
-    return results.map((item) => mapTmdbToMovie(item, "movie")).slice(0, limit);
+
+    const mappedMovies = results.map((item) => mapTmdbToMovie(item, "movie"));
+
+    if (sourceCountries && sourceCountries.length > 0) {
+      const sourceCountryCodes = new Set(sourceCountries.map((c) => c.iso));
+
+      const filtered = mappedMovies.filter((movie) => {
+        const movieCountries = movie.productionCountries || [];
+        return movieCountries.some((c) => sourceCountryCodes.has(c.iso));
+      });
+
+      if (filtered.length >= limit / 2) {
+        return filtered.slice(0, limit);
+      }
+    }
+
+    return mappedMovies.slice(0, limit);
   } catch (error) {
     console.error(`Error fetching recommendations for movie ${movieId}:`, error);
     return [];
   }
 };
 
-/**
- * Fetch enhanced movie data including keywords, collection, recommendations, and similar
- */
 export const getEnhancedMovieData = async (movieId: string): Promise<EnhancedMovieData> => {
   try {
     const [keywordsData, movieData] = await Promise.all([
@@ -1072,10 +1002,10 @@ export const getEnhancedMovieData = async (movieId: string): Promise<EnhancedMov
         id: movieData.belongs_to_collection.id,
         name: movieData.belongs_to_collection.name,
         posterPath: movieData.belongs_to_collection.poster_path
-          ? `${TMDB_IMAGE_BASE_URL_W500}${movieData.belongs_to_collection.poster_path}`
+          ? `${IMAGE_SIZES.W500}${movieData.belongs_to_collection.poster_path}`
           : undefined,
         backdropPath: movieData.belongs_to_collection.backdrop_path
-          ? `${TMDB_IMAGE_BASE_URL_W500}${movieData.belongs_to_collection.backdrop_path}`
+          ? `${IMAGE_SIZES.W500}${movieData.belongs_to_collection.backdrop_path}`
           : undefined,
       };
     }
@@ -1095,9 +1025,6 @@ export const getEnhancedMovieData = async (movieId: string): Promise<EnhancedMov
   }
 };
 
-/**
- * Discover movies with specific genre combinations
- */
 export const discoverMoviesByGenres = async (
   genreIds: number[],
   options: {
@@ -1132,9 +1059,6 @@ export const discoverMoviesByGenres = async (
   }
 };
 
-/**
- * Get upcoming movies (for new release recommendations)
- */
 export const getUpcomingMovies = async (page: number = 1): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/movie/upcoming", { page: String(page) });
@@ -1145,9 +1069,6 @@ export const getUpcomingMovies = async (page: number = 1): Promise<Movie[]> => {
   }
 };
 
-/**
- * Get now playing movies
- */
 export const getNowPlayingMovies = async (page: number = 1): Promise<Movie[]> => {
   try {
     const data = await fetchTMDB("/movie/now_playing", { page: String(page) });
@@ -1158,9 +1079,6 @@ export const getNowPlayingMovies = async (page: number = 1): Promise<Movie[]> =>
   }
 };
 
-/**
- * Discover movies with keyword filter
- */
 export const discoverMoviesByKeywords = async (
   keywordIds: number[],
   options: {
@@ -1190,9 +1108,6 @@ export const discoverMoviesByKeywords = async (
   }
 };
 
-/**
- * Search for keyword IDs by name
- */
 export const searchKeywords = async (query: string): Promise<{ id: number; name: string }[]> => {
   try {
     const data = await fetchTMDB("/search/keyword", { query });
@@ -1206,5 +1121,114 @@ export const searchKeywords = async (query: string): Promise<{ id: number; name:
   }
 };
 
-// Re-export constants for backwards compatibility (prefer importing from @/lib/constants)
+const QUALITY_THRESHOLDS = {
+  SIMILAR: { minRating: 6.0, minVotes: 1000 },
+  RECOMMENDED: { minRating: 7.0, minVotes: 2000 },
+} as const;
+
+function isQualityMovie(movie: Movie): boolean {
+  const rating = movie.rating ?? 0;
+  const voteCount = movie.voteCount ?? 0;
+  return rating >= QUALITY_THRESHOLDS.SIMILAR.minRating &&
+         voteCount >= QUALITY_THRESHOLDS.SIMILAR.minVotes;
+}
+
+function isHighQualityMovie(movie: Movie): boolean {
+  const rating = movie.rating ?? 0;
+  const voteCount = movie.voteCount ?? 0;
+  return rating >= QUALITY_THRESHOLDS.RECOMMENDED.minRating &&
+         voteCount >= QUALITY_THRESHOLDS.RECOMMENDED.minVotes;
+}
+
+function scoreSimilarMovie(movie: Movie, sourceGenres: string[]): number {
+  const rating = movie.rating ?? 0;
+  const voteCount = movie.voteCount ?? 0;
+  const popularity = movie.popularity ?? 0;
+
+  const ratingScore = rating * 3;
+  const popularityScore = Math.min(40, Math.log10(popularity + 1) * 13);
+  const voteScore = Math.min(20, Math.log10(voteCount + 1) * 3.3);
+
+  let genreBonus = 0;
+  if (sourceGenres.length > 0 && movie.genre) {
+    const movieGenres = new Set(movie.genre.map(g => g.toLowerCase()));
+    for (const genre of sourceGenres) {
+      if (movieGenres.has(genre.toLowerCase())) {
+        genreBonus += 5;
+        if (genreBonus >= 10) break;
+      }
+    }
+  }
+
+  return ratingScore + popularityScore + voteScore + genreBonus;
+}
+
+export async function getEnhancedSimilarTitles(
+  sourceMovie: Movie,
+  limit: number = 12
+): Promise<Movie[]> {
+  try {
+    const pagePromises = [1, 2, 3].map(page =>
+      fetchTMDB(`/${sourceMovie.mediaType}/${sourceMovie.id}/similar`, { page: String(page) })
+        .then(data => Array.isArray(data?.results) ? data.results : [])
+        .catch(() => [])
+    );
+
+    const pages = await Promise.all(pagePromises);
+    const allResults = pages.flat();
+
+    const seen = new Set<number>();
+    const uniqueResults = allResults.filter((item: TMDBMovie) => {
+      if (seen.has(item.id) || String(item.id) === sourceMovie.id) return false;
+      seen.add(item.id);
+      return true;
+    });
+
+    const candidates = uniqueResults.map((item: TMDBMovie) =>
+      mapTmdbToMovie(item, sourceMovie.mediaType)
+    );
+
+    const qualityMovies: Movie[] = candidates.filter(isQualityMovie);
+
+    const sourceGenres = sourceMovie.genre || [];
+    const scored = qualityMovies
+      .map((movie: Movie) => ({ movie, score: scoreSimilarMovie(movie, sourceGenres) }))
+      .sort((a, b) => b.score - a.score);
+
+    return scored.slice(0, limit).map(s => s.movie);
+  } catch (error) {
+    console.error(`Error fetching similar titles:`, error);
+    return [];
+  }
+}
+
+export async function getEnhancedRecommendations(
+  sourceMovie: Movie,
+  limit: number = 16
+): Promise<Movie[]> {
+  try {
+    const data = await fetchTMDB(`/${sourceMovie.mediaType}/${sourceMovie.id}/recommendations`);
+    const results = Array.isArray(data?.results) ? data.results : [];
+
+    const candidates = results
+      .filter((item: TMDBMovie) => String(item.id) !== sourceMovie.id)
+      .map((item: TMDBMovie) => mapTmdbToMovie(item, sourceMovie.mediaType));
+
+    const highQuality: Movie[] = candidates.filter(isHighQualityMovie);
+    const qualityMovies: Movie[] = highQuality.length >= limit / 2
+      ? highQuality
+      : candidates.filter(isQualityMovie);
+
+    const sourceGenres = sourceMovie.genre || [];
+    const scored = qualityMovies
+      .map((movie: Movie) => ({ movie, score: scoreSimilarMovie(movie, sourceGenres) }))
+      .sort((a, b) => b.score - a.score);
+
+    return scored.slice(0, limit).map(s => s.movie);
+  } catch (error) {
+    console.error(`Error fetching recommendations:`, error);
+    return [];
+  }
+}
+
 export { GENRE_IDS, THEME_KEYWORD_IDS } from "./constants";
