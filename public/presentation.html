@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Takip - Präsentation</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+      --r-background-color: #09090b;
+      --r-main-font: 'Inter', system-ui, sans-serif;
+      --r-heading-font: 'Inter', system-ui, sans-serif;
+      --r-main-color: #fafafa;
+      --r-heading-color: #ffffff;
+      --r-link-color: #3b82f6;
+      --r-link-color-hover: #60a5fa;
+      --r-selection-background-color: #3b82f6;
+      --r-main-font-size: 32px;
+    }
+
+    .reveal {
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .reveal h1 {
+      font-size: 3em;
+      font-weight: 800;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.03em;
+    }
+
+    .reveal h2 {
+      font-size: 1.8em;
+      font-weight: 700;
+      color: #fafafa;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.8em;
+    }
+
+    .reveal h3 {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: #a1a1aa;
+      letter-spacing: -0.01em;
+    }
+
+    .reveal p, .reveal li {
+      color: #d4d4d8;
+    }
+
+    .reveal ul, .reveal ol {
+      text-align: left;
+      display: block;
+    }
+
+    .reveal li {
+      margin-bottom: 0.5em;
+      line-height: 1.5;
+    }
+
+    .reveal section {
+      padding: 20px;
+    }
+
+    /* Utility classes */
+    .text-blue { color: #3b82f6; }
+    .text-purple { color: #8b5cf6; }
+    .text-green { color: #22c55e; }
+    .text-yellow { color: #eab308; }
+    .text-muted { color: #71717a; }
+    .text-white { color: #fafafa; }
+    .font-medium { font-weight: 500; }
+    .font-semibold { font-weight: 600; }
+
+    /* Cards */
+    .card {
+      background: linear-gradient(145deg, rgba(39, 39, 42, 0.8), rgba(24, 24, 27, 0.9));
+      border: 1px solid rgba(63, 63, 70, 0.5);
+      border-radius: 16px;
+      padding: 1.25em;
+      backdrop-filter: blur(10px);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      margin-bottom: 0.75em;
+    }
+
+    .card-header h3 {
+      margin: 0;
+      color: #fafafa;
+      font-size: 1em;
+    }
+
+    .card-header i {
+      width: 20px;
+      height: 20px;
+      color: #3b82f6;
+    }
+
+    /* Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5em;
+      text-align: left;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1em;
+      text-align: left;
+    }
+
+    /* Movie posters */
+    .poster-grid {
+      display: flex;
+      gap: 1em;
+      justify-content: center;
+      margin: 1em 0;
+    }
+
+    .poster {
+      width: 120px;
+      height: 180px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      transition: transform 0.3s ease;
+    }
+
+    .poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .poster:hover {
+      transform: scale(1.05);
+    }
+
+    .poster-showcase {
+      display: flex;
+      gap: 0.75em;
+      justify-content: center;
+      perspective: 1000px;
+    }
+
+    .poster-showcase .poster {
+      width: 100px;
+      height: 150px;
+      transform: rotateY(0deg);
+    }
+
+    .poster-showcase .poster:nth-child(1) { transform: rotateY(15deg) translateZ(-20px); }
+    .poster-showcase .poster:nth-child(2) { transform: rotateY(5deg) translateZ(-10px); }
+    .poster-showcase .poster:nth-child(3) { transform: scale(1.1) translateZ(20px); z-index: 10; }
+    .poster-showcase .poster:nth-child(4) { transform: rotateY(-5deg) translateZ(-10px); }
+    .poster-showcase .poster:nth-child(5) { transform: rotateY(-15deg) translateZ(-20px); }
+
+    /* Tables */
+    .reveal table {
+      margin: 0 auto;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.7em;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .reveal table th {
+      background: rgba(59, 130, 246, 0.2);
+      color: #3b82f6;
+      padding: 0.75em 1.25em;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    .reveal table td {
+      background: rgba(39, 39, 42, 0.5);
+      padding: 0.6em 1.25em;
+      border-top: 1px solid rgba(63, 63, 70, 0.3);
+    }
+
+    /* Architecture */
+    .architecture-box {
+      background: rgba(24, 24, 27, 0.8);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 16px;
+      padding: 1.5em;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.5em;
+      text-align: left;
+      line-height: 1.6;
+      color: #a1a1aa;
+    }
+
+    /* Stats */
+    .stat-card {
+      background: linear-gradient(145deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 16px;
+      padding: 1.5em;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2.5em;
+      font-weight: 800;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      color: #71717a;
+      font-size: 0.8em;
+      margin-top: 0.25em;
+    }
+
+    /* Progress bar */
+    .progress-container {
+      background: rgba(39, 39, 42, 0.8);
+      border-radius: 12px;
+      padding: 1em 1.5em;
+      margin-top: 1em;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      font-size: 0.75em;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      background: rgba(63, 63, 70, 0.5);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      border-radius: 4px;
+      width: 75%;
+    }
+
+    /* Info box */
+    .info-box {
+      background: rgba(39, 39, 42, 0.6);
+      border-left: 3px solid #3b82f6;
+      border-radius: 0 12px 12px 0;
+      padding: 1em 1.25em;
+      margin-top: 1.25em;
+      font-size: 0.75em;
+      text-align: left;
+    }
+
+    /* Slide number */
+    .reveal .slide-number {
+      background: rgba(39, 39, 42, 0.8) !important;
+      color: #71717a !important;
+      font-size: 12px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+
+    .reveal .progress {
+      background: rgba(39, 39, 42, 0.5);
+      height: 3px;
+    }
+
+    .reveal .progress span {
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    }
+
+    /* Code */
+    .reveal code {
+      background: rgba(39, 39, 42, 0.8);
+      padding: 0.15em 0.4em;
+      border-radius: 6px;
+      font-size: 0.85em;
+      color: #3b82f6;
+    }
+
+    /* Icon with text */
+    .icon-text {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+
+    .icon-text i {
+      width: 18px;
+      height: 18px;
+      color: #3b82f6;
+    }
+
+    /* Subtitle */
+    .subtitle {
+      color: #71717a;
+      font-size: 1.2em;
+      font-weight: 400;
+      margin-top: 0.5em;
+    }
+
+    /* Logo */
+    .logo-text {
+      font-size: 4em !important;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    /* Feature list */
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6em;
+      margin-bottom: 0.6em;
+      font-size: 0.7em;
+    }
+
+    .feature-list i {
+      width: 16px;
+      height: 16px;
+      color: #22c55e;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Question section */
+    .question-icon {
+      width: 120px;
+      height: 120px;
+      color: #3b82f6;
+      opacity: 0.5;
+    }
+
+    /* Streaming icons row */
+    .streaming-row {
+      display: flex;
+      gap: 0.5em;
+      margin-top: 0.5em;
+    }
+
+    .streaming-badge {
+      background: rgba(39, 39, 42, 0.8);
+      padding: 0.4em 0.8em;
+      border-radius: 8px;
+      font-size: 0.65em;
+      color: #d4d4d8;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <!-- Slide 1: Title -->
+      <section data-background="#09090b">
+        <h1 class="logo-text">Takip</h1>
+        <p class="subtitle">Die intelligente Media-Tracking App</p>
+
+        <div class="poster-showcase" style="margin-top: 2em;">
+          <div class="poster">
+            <img src="https://image.tmdb.org/t/p/w300/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg" alt="Pulp Fiction">
+          </div>
+          <div class="poster">
+            <img src="https://image.tmdb.org/t/p/w300/qJ2tW6WMUDux911r6m7haRef0WH.jpg" alt="The Dark Knight">
+          </div>
+          <div class="poster">
+            <img src="https://image.tmdb.org/t/p/w300/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg" alt="Interstellar">
+          </div>
+          <div class="poster">
+            <img src="https://image.tmdb.org/t/p/w300/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg" alt="Inception">
+          </div>
+          <div class="poster">
+            <img src="https://image.tmdb.org/t/p/w300/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg" alt="Shawshank">
+          </div>
+        </div>
+
+        <p style="font-size: 0.5em; color: #52525b; margin-top: 2em;">
+          Omer | Januar 2026
+        </p>
+      </section>
+
+      <!-- Slide 2: Agenda -->
+      <section data-background="#09090b">
+        <h2>Gliederung</h2>
+        <div style="max-width: 500px; margin: 0 auto;">
+          <ol style="font-size: 0.8em; line-height: 2;">
+            <li>Motivation & Problemstellung</li>
+            <li>Lösung: Takip Kernfunktionen</li>
+            <li>Feature Highlights</li>
+            <li>Technische Architektur</li>
+            <li>Tech Stack & Datenbank</li>
+            <li>Live Demo</li>
+            <li>Zusammenfassung & Ausblick</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Slide 3: Motivation -->
+      <section data-background="#09090b">
+        <h2>Motivation & Problemstellung</h2>
+        <div class="grid-2">
+          <div>
+            <h3 style="margin-bottom: 0.75em;">Das Problem</h3>
+            <ul class="feature-list" style="font-size: 1em;">
+              <li><i data-lucide="tv"></i> <span><span class="text-yellow font-medium">Streaming-Überfluss:</span> Netflix, Prime, Disney+, Apple TV+...</span></li>
+              <li><i data-lucide="help-circle"></i> <span>"Was habe ich schon gesehen?"</span></li>
+              <li><i data-lucide="search"></i> <span>"Wo kann ich das streamen?"</span></li>
+              <li><i data-lucide="layout-grid"></i> <span>Keine zentrale Übersicht</span></li>
+              <li><i data-lucide="shuffle"></i> <span>Empfehlungen nur plattformbasiert</span></li>
+            </ul>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="circle-help" class="question-icon"></i>
+          </div>
+        </div>
+        <div class="info-box" style="max-width: 600px; margin: 1.5em auto 0;">
+          <span class="icon-text"><i data-lucide="lightbulb"></i> <span class="text-blue font-medium">Die Frage:</span></span>
+          <span style="margin-left: 0.5em;">Wie behalte ich den Überblick über mein Entertainment?</span>
+        </div>
+      </section>
+
+      <!-- Slide 4: Core Functions -->
+      <section data-background="#09090b">
+        <h2>Lösung: Takip Kernfunktionen</h2>
+        <div class="grid-4" style="margin-top: 1em;">
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="check-square"></i>
+              <h3>Tracking</h3>
+            </div>
+            <ul class="feature-list">
+              <li><i data-lucide="check"></i> Gesehen markieren</li>
+              <li><i data-lucide="check"></i> Watchlist führen</li>
+              <li><i data-lucide="check"></i> Favoriten speichern</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="monitor-play"></i>
+              <h3>Streaming</h3>
+            </div>
+            <ul class="feature-list">
+              <li><i data-lucide="check"></i> Verfügbarkeit prüfen</li>
+              <li><i data-lucide="check"></i> 140+ Regionen</li>
+              <li><i data-lucide="check"></i> Direktlinks</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="compass"></i>
+              <h3>Entdecken</h3>
+            </div>
+            <ul class="feature-list">
+              <li><i data-lucide="check"></i> Trending Inhalte</li>
+              <li><i data-lucide="check"></i> Neu im Kino</li>
+              <li><i data-lucide="check"></i> Filter & Suche</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="star"></i>
+              <h3>Bewertungen</h3>
+            </div>
+            <ul class="feature-list">
+              <li><i data-lucide="check"></i> 1-5 Sterne Rating</li>
+              <li><i data-lucide="check"></i> Text-Reviews</li>
+              <li><i data-lucide="check"></i> Historie</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="poster-grid" style="margin-top: 1.5em;">
+          <div class="poster" style="width: 80px; height: 120px;">
+            <img src="https://image.tmdb.org/t/p/w200/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg" alt="Interstellar">
+          </div>
+          <div class="poster" style="width: 80px; height: 120px;">
+            <img src="https://image.tmdb.org/t/p/w200/8kNruSfhk5IoE4eZOc4UpvDn6tq.jpg" alt="Joker">
+          </div>
+          <div class="poster" style="width: 80px; height: 120px;">
+            <img src="https://image.tmdb.org/t/p/w200/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg" alt="Fight Club">
+          </div>
+          <div class="poster" style="width: 80px; height: 120px;">
+            <img src="https://image.tmdb.org/t/p/w200/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg" alt="The Matrix">
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 5: Hidden Gems -->
+      <section data-background="#09090b">
+        <h2>Feature: Hidden Gems & Discovery</h2>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="gem"></i>
+              <h3>Hidden Gems Algorithmus</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 1em;">
+              <li><i data-lucide="thumbs-up"></i> <span><span class="text-green">Kritisch gelobt:</span> Rating 7-9</span></li>
+              <li><i data-lucide="eye-off"></i> <span><span class="text-purple">Wenig bekannt:</span> 100-1000 Votes</span></li>
+              <li><i data-lucide="sparkles"></i> <span>Qualität abseits des Mainstreams</span></li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="sliders-horizontal"></i>
+              <h3>Erweiterte Suche</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 1em;">
+              <li><i data-lucide="filter"></i> Multi-Filter: Genre, Rating, Laufzeit</li>
+              <li><i data-lucide="globe"></i> Streaming nach Region</li>
+              <li><i data-lucide="arrow-up-down"></i> Sortierung nach Beliebtheit</li>
+            </ul>
+          </div>
+        </div>
+        <div class="info-box" style="max-width: 700px; margin: 1.25em auto 0;">
+          <span class="icon-text"><i data-lucide="search"></i> <span class="text-blue font-medium">Beispiel:</span></span>
+          <span style="margin-left: 0.5em;">Italienische Thriller aus den 70ern auf MUBI mit Rating ≥ 7.5</span>
+        </div>
+      </section>
+
+      <!-- Slide 6: Statistics -->
+      <section data-background="#09090b">
+        <h2>Feature: Persönliche Statistiken</h2>
+        <div class="grid-2">
+          <div>
+            <div class="card-header" style="margin-bottom: 1em;">
+              <i data-lucide="bar-chart-3" style="width: 24px; height: 24px;"></i>
+              <h3 style="font-size: 1.1em; color: #fafafa;">"Cinematic Fingerprint"</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 1em;">
+              <li><i data-lucide="clock"></i> Gesamtstunden geschaut</li>
+              <li><i data-lucide="pie-chart"></i> Genre-Verteilung</li>
+              <li><i data-lucide="calendar"></i> Filme nach Jahr</li>
+              <li><i data-lucide="history"></i> Dekaden-Affinität</li>
+              <li><i data-lucide="users"></i> Top Schauspieler & Regisseure</li>
+              <li><i data-lucide="star"></i> Rating-Verteilung</li>
+            </ul>
+          </div>
+          <div>
+            <div class="stat-card">
+              <div class="stat-number">247</div>
+              <div class="stat-label">Filme gesehen</div>
+              <div style="margin-top: 1em;">
+                <div class="stat-number" style="font-size: 1.8em;">412h</div>
+                <div class="stat-label">Gesamtzeit</div>
+              </div>
+              <div style="margin-top: 1em; font-size: 0.7em;">
+                <span class="text-green">Drama 34%</span> ·
+                <span class="text-yellow">Thriller 28%</span> ·
+                <span class="text-purple">Sci-Fi 18%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7: TV Tracking -->
+      <section data-background="#09090b">
+        <h2>Feature: TV-Serien Tracking</h2>
+        <div style="text-align: center; margin-bottom: 1em;">
+          <span class="icon-text" style="justify-content: center;">
+            <i data-lucide="tv-2" style="width: 28px; height: 28px;"></i>
+            <h3 style="font-size: 1.2em; color: #fafafa;">Episoden-Tracking</h3>
+          </span>
+        </div>
+        <div class="grid-2" style="max-width: 800px; margin: 0 auto;">
+          <div class="card">
+            <ul class="feature-list" style="font-size: 1em;">
+              <li><i data-lucide="check-circle"></i> Einzelne Episoden markieren</li>
+              <li><i data-lucide="layers"></i> Staffel-Übersicht</li>
+              <li><i data-lucide="activity"></i> Fortschrittsanzeige</li>
+            </ul>
+          </div>
+          <div class="card">
+            <ul class="feature-list" style="font-size: 1em;">
+              <li><i data-lucide="message-square"></i> Reviews pro Episode</li>
+              <li><i data-lucide="skip-forward"></i> Nächste Episode finden</li>
+              <li><i data-lucide="trending-up"></i> Serien-Statistiken</li>
+            </ul>
+          </div>
+        </div>
+        <div class="progress-container" style="max-width: 600px; margin: 1.5em auto 0;">
+          <div class="progress-row">
+            <i data-lucide="film" style="width: 18px; height: 18px; color: #71717a;"></i>
+            <span class="text-white font-medium">Breaking Bad</span>
+            <div class="progress-bar">
+              <div class="progress-fill"></div>
+            </div>
+            <span class="text-green font-medium">47/62</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 8: Architecture -->
+      <section data-background="#09090b">
+        <h2>Technische Architektur</h2>
+        <div class="architecture-box" style="max-width: 700px; margin: 0 auto;">
+<pre style="margin: 0; font-size: 1.1em; color: #d4d4d8;">
+┌─────────────────────────────────────────────────────┐
+│                    <span class="text-blue">Frontend</span>                         │
+│         Next.js 16 (App Router) + React 19          │
+│            Tailwind CSS + Framer Motion             │
+├─────────────────────────────────────────────────────┤
+│                 <span class="text-purple">Server Actions</span>                      │
+│           (Mutations, Auth, API Calls)              │
+├─────────────────────────────────────────────────────┤
+│   <span class="text-green">PostgreSQL (Neon)</span>    │    <span class="text-yellow">External APIs</span>         │
+│      Drizzle ORM        │   TMDB, Hardcover         │
+└─────────────────────────────────────────────────────┘
+</pre>
+        </div>
+        <div style="display: flex; justify-content: center; gap: 2em; margin-top: 1.5em; font-size: 0.65em;">
+          <span class="icon-text"><i data-lucide="clock" style="width: 14px; height: 14px;"></i> Trending: 1h</span>
+          <span class="icon-text"><i data-lucide="clock" style="width: 14px; height: 14px;"></i> Discovery: 4h</span>
+          <span class="icon-text"><i data-lucide="clock" style="width: 14px; height: 14px;"></i> Details: 24h</span>
+          <span class="icon-text"><i data-lucide="database" style="width: 14px; height: 14px;"></i> Metadaten gecached</span>
+        </div>
+      </section>
+
+      <!-- Slide 9: Tech Stack -->
+      <section data-background="#09090b">
+        <h2>Tech Stack</h2>
+        <table style="font-size: 0.75em;">
+          <thead>
+            <tr>
+              <th>Kategorie</th>
+              <th>Technologie</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="icon-text"><i data-lucide="zap" style="width: 14px; height: 14px;"></i> Runtime</span></td><td><span class="text-blue font-semibold">Bun</span></td></tr>
+            <tr><td><span class="icon-text"><i data-lucide="layout" style="width: 14px; height: 14px;"></i> Framework</span></td><td><span class="text-blue font-semibold">Next.js 16</span> + React 19</td></tr>
+            <tr><td><span class="icon-text"><i data-lucide="database" style="width: 14px; height: 14px;"></i> Datenbank</span></td><td>PostgreSQL (<span class="text-purple">Neon Serverless</span>)</td></tr>
+            <tr><td><span class="icon-text"><i data-lucide="layers" style="width: 14px; height: 14px;"></i> ORM</span></td><td><span class="text-blue font-semibold">Drizzle ORM</span></td></tr>
+            <tr><td><span class="icon-text"><i data-lucide="shield" style="width: 14px; height: 14px;"></i> Auth</span></td><td>NextAuth v5 (JWT)</td></tr>
+            <tr><td><span class="icon-text"><i data-lucide="palette" style="width: 14px; height: 14px;"></i> Styling</span></td><td>Tailwind CSS v4</td></tr>
+            <tr><td><span class="icon-text"><i data-lucide="sparkles" style="width: 14px; height: 14px;"></i> Animation</span></td><td><span class="text-purple">Framer Motion</span></td></tr>
+            <tr><td><span class="icon-text"><i data-lucide="plug" style="width: 14px; height: 14px;"></i> APIs</span></td><td>TMDB, Hardcover GraphQL</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Slide 10: Database Schema -->
+      <section data-background="#09090b">
+        <h2>Datenbank Schema</h2>
+        <div class="grid-2" style="max-width: 900px; margin: 0 auto;">
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="table"></i>
+              <h3>Kern-Tabellen</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 0.9em;">
+              <li><i data-lucide="chevron-right"></i> <code>users</code> - Benutzer + Präferenzen</li>
+              <li><i data-lucide="chevron-right"></i> <code>userMovies</code> - Film/Serien-Tracking</li>
+              <li><i data-lucide="chevron-right"></i> <code>userBooks</code> - Bücher-Tracking</li>
+              <li><i data-lucide="chevron-right"></i> <code>userEpisodes</code> - Episoden</li>
+              <li><i data-lucide="chevron-right"></i> <code>reviews</code> - Bewertungen</li>
+              <li><i data-lucide="chevron-right"></i> <code>userStats</code> - Statistiken (JSONB)</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="gauge"></i>
+              <h3>Performance</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 0.9em;">
+              <li><i data-lucide="check"></i> <span class="text-green">Indizes</span> auf häufige Queries</li>
+              <li><i data-lucide="check"></i> <span class="text-blue">JSONB</span> für flexible Analytics</li>
+              <li><i data-lucide="check"></i> <span class="text-purple">Batch-Ops</span> gegen N+1</li>
+              <li><i data-lucide="check"></i> Metadaten <span class="text-green">gecached</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 11: API Integrations -->
+      <section data-background="#09090b">
+        <h2>API Integrationen</h2>
+        <div class="grid-2" style="max-width: 800px; margin: 0 auto;">
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="film"></i>
+              <h3>TMDB</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 0.9em;">
+              <li><i data-lucide="check"></i> Filme & Serien Daten</li>
+              <li><i data-lucide="check"></i> Cast, Crew, Keywords</li>
+              <li><i data-lucide="check"></i> Streaming-Verfügbarkeit</li>
+              <li><i data-lucide="check"></i> Empfehlungen</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="book-open"></i>
+              <h3>Hardcover</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 0.9em;">
+              <li><i data-lucide="check"></i> Bücher via GraphQL</li>
+              <li><i data-lucide="check"></i> Autoren & Cover</li>
+              <li><i data-lucide="check"></i> Beschreibungen</li>
+            </ul>
+          </div>
+        </div>
+        <div class="info-box" style="max-width: 600px; margin: 1.25em auto 0;">
+          <span class="icon-text"><i data-lucide="database"></i> <span class="text-blue font-medium">Smart Caching:</span></span>
+          <span style="margin-left: 0.5em;">Metadaten einmal abrufen → in DB speichern → API-Calls reduziert</span>
+        </div>
+      </section>
+
+      <!-- Slide 12: Summary -->
+      <section data-background="#09090b">
+        <h2>Zusammenfassung & Ausblick</h2>
+        <div class="grid-2" style="max-width: 800px; margin: 0 auto;">
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="check-circle" style="color: #22c55e;"></i>
+              <h3 style="color: #22c55e;">Was Takip bietet</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 0.9em;">
+              <li><i data-lucide="check"></i> Zentrale Übersicht für alle Medien</li>
+              <li><i data-lucide="check"></i> Intelligente Entdeckung</li>
+              <li><i data-lucide="check"></i> Persönliche Statistiken</li>
+              <li><i data-lucide="check"></i> Multi-Region Streaming-Finder</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <i data-lucide="rocket" style="color: #8b5cf6;"></i>
+              <h3 style="color: #8b5cf6;">Ausblick</h3>
+            </div>
+            <ul class="feature-list" style="font-size: 0.9em;">
+              <li><i data-lucide="smartphone"></i> Mobile App</li>
+              <li><i data-lucide="users"></i> Social Features</li>
+              <li><i data-lucide="brain"></i> AI-basierte Empfehlungen</li>
+              <li><i data-lucide="music"></i> Spotify Integration</li>
+            </ul>
+          </div>
+        </div>
+        <div style="margin-top: 2em; text-align: center;">
+          <span class="icon-text" style="justify-content: center; font-size: 1.5em;">
+            <i data-lucide="message-circle" style="width: 32px; height: 32px;"></i>
+            <span class="text-blue font-semibold">Fragen?</span>
+          </span>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: true,
+      transition: 'slide',
+      backgroundTransition: 'fade',
+      width: 1920,
+      height: 1080,
+      margin: 0.04,
+      minScale: 0.2,
+      maxScale: 2.0
+    });
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>
