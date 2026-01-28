@@ -32,7 +32,9 @@ interface MediaDetailClientProps {
   user: { id: string; preferredRegion?: string | null } | null;
 }
 
-const isBook = (item: Movie | Book): item is Book => "author" in item;
+function isBook(item: Movie | Book): item is Book {
+  return "author" in item;
+}
 
 export function MediaDetailClient({
   item,
@@ -123,11 +125,9 @@ export function MediaDetailClient({
                   </span>
                 )}
                 <span className="px-2.5 sm:px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-medium uppercase tracking-wider">
-                  {mediaType === "tv"
-                    ? "TV Series"
-                    : mediaType === "book"
-                      ? "Book"
-                      : "Movie"}
+                  {mediaType === "tv" && "TV Series"}
+                  {mediaType === "book" && "Book"}
+                  {mediaType === "movie" && "Movie"}
                 </span>
                 {trailerKey && (
                   <button
@@ -198,6 +198,16 @@ export function MediaDetailClient({
                   </span>
                 ))}
               </div>
+
+              {!isBook(item) && item.mediaType === "movie" && (
+                <Link
+                  href={`/watch/movie/${id}`}
+                  className="inline-flex items-center gap-3 px-6 py-3 mt-4 rounded-full bg-accent text-accent-foreground font-semibold text-base hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
+                >
+                  <Play size={20} fill="currentColor" />
+                  Watch Now
+                </Link>
+              )}
             </div>
 
             {!isBook(item) && item.tagline && (
@@ -242,7 +252,7 @@ export function MediaDetailClient({
 
       {seasons && seasons.length > 0 && (
         <div className="container mx-auto px-4 sm:px-6 pt-8 sm:pt-12">
-          <SeasonList seasons={seasons} />
+          <SeasonList seasons={seasons} seriesId={id} />
         </div>
       )}
 
@@ -283,7 +293,10 @@ export function MediaDetailClient({
       )}
 
       {!isBook(item) && sessionUserId && item.liked && (
-        <SimilarRecommendations mediaId={id} />
+        <SimilarRecommendations
+          mediaId={id}
+          sourceCountries={(item as Movie).productionCountries}
+        />
       )}
 
       {!isBook(item) && recommendations.length > 0 && (

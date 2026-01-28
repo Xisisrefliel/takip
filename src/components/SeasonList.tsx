@@ -16,7 +16,9 @@ import {
   Star,
   X,
   Send,
+  Play,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
   toggleEpisodeWatchedAction,
@@ -33,16 +35,15 @@ import { useRouter } from "next/navigation";
 
 interface SeasonListProps {
   seasons: Season[];
+  seriesId: string;
 }
 
-export function SeasonList({ seasons }: SeasonListProps) {
+export function SeasonList({ seasons, seriesId }: SeasonListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Start with all seasons collapsed by default
   const [expandedSeasonId, setExpandedSeasonId] = useState<number | null>(null);
 
-  // Local state for episode interactions
   const [watchedEpisodes, setWatchedEpisodes] = useState<Set<number>>(
     new Set()
   );
@@ -68,44 +69,25 @@ export function SeasonList({ seasons }: SeasonListProps) {
   const [showReviewForm, setShowReviewForm] = useState<Set<number>>(new Set());
   const [session, setSession] = useState<{ user: { id: string } } | null>(null);
 
-  // Fetch session
   useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
-        setSession(
-          data?.user ? { user: { id: data.user.id || data.user.email } } : null
-        );
-      } catch {
-        setSession(null);
-      }
-    };
-    fetchSession();
+    fetch("/api/auth/session")
+      .then(res => res.json())
+      .then(data => setSession(data?.user ? { user: { id: data.user.id || data.user.email } } : null))
+      .catch(() => setSession(null));
   }, []);
 
-  // Fetch watched episodes on mount
   const hasFetched = useRef(false);
 
   useEffect(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
 
-    const fetchData = async () => {
-      const allEpisodeIds = seasons
-        .flatMap((season) => season.episodes || [])
-        .map((episode) => episode.id);
-
-      if (allEpisodeIds.length > 0) {
-        const watched = await getWatchedEpisodesAction(allEpisodeIds);
-        setWatchedEpisodes(watched);
-      }
-    };
-
-    fetchData();
+    const allEpisodeIds = seasons.flatMap(s => s.episodes || []).map(e => e.id);
+    if (allEpisodeIds.length > 0) {
+      getWatchedEpisodesAction(allEpisodeIds).then(setWatchedEpisodes);
+    }
   }, [seasons]);
 
-  // Lazy-load reviews for a single episode
   const loadEpisodeReviews = async (episodeId: number) => {
     setEpisodeReviews((prev) => {
       const next = new Map(prev);
@@ -164,12 +146,11 @@ export function SeasonList({ seasons }: SeasonListProps) {
       newSet.add(episodeId);
     }
 
-    setWatchedEpisodes(newSet); // Optimistic update
+    setWatchedEpisodes(newSet);
 
     startTransition(async () => {
       const result = await toggleEpisodeWatchedAction(episodeId, !isWatched);
       if (result?.error) {
-        // Revert on error
         const revertedSet = new Set(watchedEpisodes);
         if (!isWatched) {
           revertedSet.delete(episodeId);
@@ -183,12 +164,12 @@ export function SeasonList({ seasons }: SeasonListProps) {
     });
   };
 
-  const toggleAction = (
+  function toggleSetItem(
     e: React.MouseEvent,
     id: number,
     set: Set<number>,
     setState: React.Dispatch<React.SetStateAction<Set<number>>>
-  ) => {
+  ): void {
     e.stopPropagation();
     const newSet = new Set(set);
     if (newSet.has(id)) {
@@ -197,7 +178,7 @@ export function SeasonList({ seasons }: SeasonListProps) {
       newSet.add(id);
     }
     setState(newSet);
-  };
+  }
 
   const markSeasonAsWatched = async (e: React.MouseEvent, season: Season) => {
     e.stopPropagation();
@@ -206,10 +187,7 @@ export function SeasonList({ seasons }: SeasonListProps) {
 
     const episodeIds = season.episodes.map((ep) => ep.id);
 
-    // Capture previous state for potential revert
     const previousWatched = new Set(watchedEpisodes);
-
-    // Optimistic update
     const newSet = new Set(watchedEpisodes);
     episodeIds.forEach((id) => newSet.add(id));
     setWatchedEpisodes(newSet);
@@ -217,7 +195,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
     startTransition(async () => {
       const result = await markSeasonAsWatchedAction(episodeIds);
       if (result?.error) {
-        // Revert on error
         setWatchedEpisodes(previousWatched);
       } else {
         router.refresh();
@@ -249,7 +226,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
               initial={false}
               className="border border-border/50 rounded-2xl bg-surface/40 overflow-hidden backdrop-blur-sm transition-all duration-200 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5"
             >
-              {/* Header - Clickable area */}
               <div className="w-full px-4 sm:px-6 py-4 flex items-center justify-between gap-3 hover:bg-surface-hover/50 transition-colors group">
                 <button
                   onClick={(e) => toggleSeason(e, season.id)}
@@ -294,7 +270,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
                   </div>
                 </button>
 
-                {/* Action buttons - separate from toggle */}
                 <div className="flex items-center gap-2 shrink-0">
                   {season.episodes && season.episodes.length > 0 && (
                     <motion.button
@@ -322,7 +297,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
                 </div>
               </div>
 
-              {/* Content - Animated accordion */}
               <AnimatePresence initial={false}>
                 {isExpanded && (
                   <motion.div
@@ -370,17 +344,18 @@ export function SeasonList({ seasons }: SeasonListProps) {
                               }}
                               className="group relative rounded-xl bg-black/10 border border-white/5 hover:bg-black/20 hover:border-white/10 transition-all duration-200"
                             >
-                              {/* Main Episode Content */}
                               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4">
-                                {/* Episode Image */}
-                                <div className="relative shrink-0 w-full sm:w-40 lg:w-48 aspect-video rounded-lg overflow-hidden bg-surface/50">
+                                <Link
+                                  href={`/watch/tv/${seriesId}/${episode.seasonNumber}/${episode.episodeNumber}`}
+                                  className="relative shrink-0 w-full sm:w-40 lg:w-48 aspect-video rounded-lg overflow-hidden bg-surface/50 group/thumbnail"
+                                >
                                   {episode.stillPath ? (
                                     <Image
                                       src={episode.stillPath}
                                       alt={episode.name}
                                       fill
                                       sizes="(max-width: 640px) 100vw, 192px"
-                                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                      className="object-cover transition-transform duration-500 group-hover/thumbnail:scale-105"
                                     />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-white/5">
@@ -389,9 +364,13 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                       </span>
                                     </div>
                                   )}
-                                </div>
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumbnail:opacity-100 transition-opacity flex items-center justify-center">
+                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 transition-transform group-hover/thumbnail:scale-110">
+                                      <Play size={20} className="text-white ml-0.5" fill="currentColor" />
+                                    </div>
+                                  </div>
+                                </Link>
 
-                                {/* Info */}
                                 <div className="flex-1 min-w-0 py-1 flex flex-col justify-between gap-3">
                                   <div className="space-y-2">
                                     <div className="flex items-start justify-between gap-3">
@@ -451,7 +430,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                     )}
                                   </div>
 
-                                  {/* Actions */}
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <motion.button
                                       whileHover={{ scale: 1.05 }}
@@ -486,7 +464,7 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                       whileHover={{ scale: 1.1 }}
                                       whileTap={{ scale: 0.9 }}
                                       onClick={(e) =>
-                                        toggleAction(
+                                        toggleSetItem(
                                           e,
                                           episode.id,
                                           likedEpisodes,
@@ -513,7 +491,7 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                       whileHover={{ scale: 1.1 }}
                                       whileTap={{ scale: 0.9 }}
                                       onClick={(e) =>
-                                        toggleAction(
+                                        toggleSetItem(
                                           e,
                                           episode.id,
                                           watchlistEpisodes,
@@ -607,7 +585,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                 </div>
                               </div>
 
-                              {/* Inline Review Form */}
                               <AnimatePresence>
                                 {showReviewForm.has(episode.id) && session && (
                                   <EpisodeReviewForm
@@ -639,7 +616,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
                                 )}
                               </AnimatePresence>
 
-                              {/* Episode Reviews List */}
                               <AnimatePresence>
                                 {expandedEpisodeReviews.has(episode.id) && (
                                   <EpisodeReviewsList
@@ -680,7 +656,6 @@ export function SeasonList({ seasons }: SeasonListProps) {
   );
 }
 
-// Inline Episode Review Form Component
 interface EpisodeReviewFormProps {
   episodeId: number;
   existingReview: Review | null;
@@ -777,7 +752,6 @@ function EpisodeReviewForm({
           </button>
         </div>
 
-        {/* Star Rating */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Rating:</span>
           <div className="flex items-center gap-1">
@@ -810,7 +784,6 @@ function EpisodeReviewForm({
           </div>
         </div>
 
-        {/* Review Text */}
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -820,7 +793,6 @@ function EpisodeReviewForm({
           disabled={isPending}
         />
 
-        {/* Actions */}
         <div className="flex items-center gap-2">
           <motion.button
             type="submit"
@@ -857,7 +829,6 @@ function EpisodeReviewForm({
   );
 }
 
-// Episode Reviews List Component
 interface EpisodeReviewsListProps {
   episodeReviews?: {
     review: Review | null;

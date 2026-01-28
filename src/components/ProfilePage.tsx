@@ -29,10 +29,11 @@ interface ProfilePageProps {
 }
 
 const SKELETON_COUNT = 12;
+const GRID_CLASSES = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6";
 
 function SkeletonGrid() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+    <div className={GRID_CLASSES}>
       {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
         <div key={i} className="animate-pulse">
           <div className="aspect-2/3 bg-surface rounded-xl mb-2" />
@@ -120,21 +121,10 @@ export function ProfilePage({
   }, [contentType, activeTab, fetchTabData, loadedTabs]);
 
   const getTabContent = useCallback(() => {
-    if (contentType === "books") {
-      switch (activeTab) {
-        case "watched": return watchedBooks;
-        case "watchlist": return watchlistBooks;
-        case "favorites": return favoritesBooks;
-        default: return watchedBooks;
-      }
-    }
-
-    switch (activeTab) {
-      case "watched": return watchedMovies;
-      case "watchlist": return watchlistMovies;
-      case "favorites": return favoritesMovies;
-      default: return watchedMovies;
-    }
+    const moviesByTab = { watched: watchedMovies, watchlist: watchlistMovies, favorites: favoritesMovies };
+    const booksByTab = { watched: watchedBooks, watchlist: watchlistBooks, favorites: favoritesBooks };
+    const source = contentType === "books" ? booksByTab : moviesByTab;
+    return source[activeTab] || source.watched;
   }, [contentType, activeTab, watchedBooks, watchlistBooks, favoritesBooks, watchedMovies, watchlistMovies, favoritesMovies]);
 
   const tabContent = getTabContent();
@@ -243,6 +233,8 @@ export function ProfilePage({
             <div 
               className="flex p-0.5 sm:p-1.5 bg-surface shadow-sm rounded-full border border-border/50 relative w-fit justify-center"
               onMouseLeave={() => setHoveredTab(null)}
+              role="tablist"
+              aria-label="Library tabs"
             >
               <TabButton 
                 id="watched"
@@ -326,7 +318,7 @@ export function ProfilePage({
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+            <div className={GRID_CLASSES}>
               {visibleContent.map((item) => (
                 <div key={item.id}>
                   {contentType === "movies" ? (
@@ -342,7 +334,7 @@ export function ProfilePage({
               <div className="flex justify-center mt-8">
                 <button
                   onClick={() => setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, content.length))}
-                  className="px-4 py-2 text-sm font-semibold rounded-full border border-border/60 bg-background hover:bg-background/70 transition"
+                  className="px-4 py-2 text-sm font-semibold rounded-full border border-border/60 bg-background hover:bg-background/70 transition-all hover:-translate-y-0.5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   Load more ({Math.max(content.length - visibleCount, 0)} left)
                 </button>
@@ -389,33 +381,42 @@ function TabButton({
   setHoveredTab: (tab: Tab | null) => void;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
       onMouseEnter={() => setHoveredTab(id)}
+      role="tab"
+      aria-selected={active}
       className={cn(
         "relative px-3 sm:px-5 md:px-6 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 whitespace-nowrap",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.97, y: 0 }}
+      transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.6 }}
+      style={{ willChange: "transform" }}
     >
       {active && (
         <motion.div
+          layoutId="profile-tab-pill"
           className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+          transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.8 }}
+          style={{ willChange: "transform, opacity" }}
         />
       )}
-      {hoveredTab === id && !active && (
-        <motion.div
-          className="absolute inset-0 bg-surface-hover rounded-full z-0"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
-        />
-      )}
+      <AnimatePresence>
+        {hoveredTab === id && !active && (
+          <motion.div
+            className="absolute inset-0 bg-surface-hover rounded-full z-0"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            style={{ willChange: "transform, opacity" }}
+          />
+        )}
+      </AnimatePresence>
       <span className="relative z-10 mix-blend-normal">{label}</span>
-    </button>
+    </motion.button>
   );
 }
 
@@ -437,38 +438,46 @@ function ContentTypeButton({
   setHovered: (type: ContentType | null) => void;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
       onMouseEnter={() => setHovered(id)}
+      aria-pressed={active}
       className={cn(
         "relative flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 md:px-6 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none",
         active 
           ? "text-background" 
           : "text-foreground/60 hover:text-foreground"
       )}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.97, y: 0 }}
+      transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.6 }}
+      style={{ willChange: "transform" }}
     >
       {active && (
         <motion.div
+          layoutId="profile-content-type-pill"
           className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+          transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.8 }}
+          style={{ willChange: "transform, opacity" }}
         />
       )}
-      {hovered === id && !active && (
-        <motion.div
-          className="absolute inset-0 bg-surface-hover rounded-full z-0"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
-        />
-      )}
+      <AnimatePresence>
+        {hovered === id && !active && (
+          <motion.div
+            className="absolute inset-0 bg-surface-hover rounded-full z-0"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            style={{ willChange: "transform, opacity" }}
+          />
+        )}
+      </AnimatePresence>
       <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
         {icon}
         <span>{label}</span>
       </span>
-    </button>
+    </motion.button>
   );
 }
 
@@ -490,37 +499,45 @@ function MediaFilterButton({
   setHoveredFilter: (filter: MediaTypeFilter | null) => void;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
       onMouseEnter={() => setHoveredFilter(id)}
+      aria-pressed={active}
       className={cn(
         "relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-colors duration-300 outline-none",
         active 
           ? "text-background" 
           : "text-foreground/60 hover:text-foreground"
       )}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.97, y: 0 }}
+      transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.6 }}
+      style={{ willChange: "transform" }}
     >
       {active && (
         <motion.div
+          layoutId="profile-media-filter-pill"
           className="absolute inset-0 bg-foreground rounded-full shadow-sm z-10"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+          transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.8 }}
+          style={{ willChange: "transform, opacity" }}
         />
       )}
-      {hoveredFilter === id && !active && (
-        <motion.div
-          className="absolute inset-0 bg-surface-hover rounded-full z-0"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
-        />
-      )}
+      <AnimatePresence>
+        {hoveredFilter === id && !active && (
+          <motion.div
+            className="absolute inset-0 bg-surface-hover rounded-full z-0"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            style={{ willChange: "transform, opacity" }}
+          />
+        )}
+      </AnimatePresence>
       <span className="relative z-10 flex items-center gap-2 mix-blend-normal">
         {icon}
         <span>{label}</span>
       </span>
-    </button>
+    </motion.button>
   );
 }

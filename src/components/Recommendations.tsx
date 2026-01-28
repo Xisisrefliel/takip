@@ -10,12 +10,14 @@ interface SimilarRecommendationsProps {
   mediaId: string;
   title?: string;
   className?: string;
+  sourceCountries?: { iso: string; name: string }[];
 }
 
 export function SimilarRecommendations({
   mediaId,
   title = "You Might Also Like",
   className,
+  sourceCountries,
 }: SimilarRecommendationsProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +29,7 @@ export function SimilarRecommendations({
       setError(null);
 
       try {
-        const result = await getSimilarMoviesAction(mediaId);
+        const result = await getSimilarMoviesAction(mediaId, sourceCountries);
 
         if (result.error) {
           setError(result.error);
@@ -43,7 +45,7 @@ export function SimilarRecommendations({
     }
 
     loadSimilar();
-  }, [mediaId]);
+  }, [mediaId, sourceCountries]);
 
   if (isLoading) {
     return (
