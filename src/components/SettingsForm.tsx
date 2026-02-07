@@ -366,20 +366,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
       {/* Identity Section */}
       <section className="space-y-4">
         <h3 className="text-sm font-medium text-foreground">Profile</h3>
-        <div
-          className="space-y-4"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            textAlign: "left",
-            verticalAlign: "middle",
-            borderColor: "transparent",
-            borderImage: "none",
-            borderStyle: "none",
-          }}
-        >
+        <div className="space-y-4 w-full">
           <div className="grid gap-1.5">
             <label className="text-xs font-medium text-foreground/60 ml-1">
               Display Name
@@ -429,7 +416,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
               ▼
             </div>
           </div>
-          <p className="text-[11px] text-foreground/40 ml-1">
+          <p className="text-xs text-foreground/40 ml-1">
             Used for streaming availability.
           </p>
         </div>
@@ -498,7 +485,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
                 <p className="text-sm font-semibold text-foreground">
                   {importFileName || "Choose a CSV to import"}
                 </p>
-                <p className="text-[11px] text-foreground/60">
+                <p className="text-xs text-foreground/60">
                   Click or drop a file. We only use title + year to find matches.
                 </p>
               </div>
@@ -535,7 +522,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <div className="grid gap-2 text-[11px] sm:grid-cols-3">
+            <div className="grid gap-2 text-xs sm:grid-cols-3">
               <div className="rounded-lg border border-border/50 px-3 py-2 text-foreground/80">
                 Imported {importProgress.success}
               </div>
@@ -582,7 +569,7 @@ export function SettingsForm({ initialName, initialEmail, initialRegion }: Setti
         )}
 
         {importStatusMessage && (
-          <p className="text-[11px] text-foreground/60">{importStatusMessage}</p>
+          <p className="text-xs text-foreground/60">{importStatusMessage}</p>
         )}
       </section>
 

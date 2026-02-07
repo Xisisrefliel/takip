@@ -49,7 +49,7 @@ export function HomePage({
   return (
     <div className="space-y-8 sm:space-y-12 pb-20">
       {/* Hero Section - Card Style */}
-      <section className="relative w-full rounded-[24px] sm:rounded-[32px] md:rounded-[48px] overflow-hidden aspect-4/5 sm:aspect-video md:h-[75vh] shadow-2xl shadow-black/20 group">
+      <section className="relative w-full rounded-[24px] sm:rounded-[32px] md:rounded-[48px] overflow-hidden aspect-3/4 sm:aspect-video md:h-[75vh] shadow-2xl shadow-black/20 group">
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
@@ -123,7 +123,7 @@ export function HomePage({
             {nowPlaying.map((movie) => (
               <div
                 key={movie.id}
-                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+                className="min-w-[130px] w-[130px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
               >
                 <MovieCard movie={movie} />
               </div>
@@ -136,7 +136,7 @@ export function HomePage({
       <section>
         <Carousel title="Trending Movies">
           {orderedTrending.map((movie) => (
-            <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
+            <div key={movie.id} className="min-w-[130px] w-[130px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
               <MovieCard movie={movie} />
             </div>
           ))}
@@ -147,7 +147,7 @@ export function HomePage({
       <section>
         <Carousel title="Popular Series">
           {popularSeries.map((movie) => (
-            <div key={movie.id} className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
+            <div key={movie.id} className="min-w-[130px] w-[130px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start">
               <MovieCard movie={movie} aspectRatio="portrait" />
             </div>
           ))}
@@ -161,7 +161,7 @@ export function HomePage({
             {topRated.map((movie) => (
               <div
                 key={movie.id}
-                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+                className="min-w-[130px] w-[130px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
               >
                 <MovieCard movie={movie} />
               </div>
@@ -177,7 +177,7 @@ export function HomePage({
             {hiddenGems.map((movie) => (
               <div
                 key={movie.id}
-                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+                className="min-w-[130px] w-[130px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
               >
                 <MovieCard movie={movie} />
               </div>
@@ -193,7 +193,7 @@ export function HomePage({
             {upcoming.map((movie) => (
               <div
                 key={movie.id}
-                className="min-w-[120px] w-[120px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
+                className="min-w-[130px] w-[130px] sm:min-w-[140px] sm:w-[140px] md:min-w-[160px] md:w-[160px] lg:min-w-[180px] lg:w-[180px] snap-start"
               >
                 <MovieCard movie={movie} />
               </div>

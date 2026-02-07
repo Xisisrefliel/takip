@@ -1,9 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Navbar } from "@/components/Navbar";
 import { SessionProvider } from "next-auth/react";
 import { LastVisitedProvider } from "@/context/LastVisitedContext";
 import { MediaProvider } from "@/context/MediaContext";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "Takip",
@@ -18,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className="antialiased bg-background text-foreground overflow-x-hidden"
+        className="antialiased bg-background text-foreground overflow-x-hidden pb-[env(safe-area-inset-bottom)]"
       >
         <SessionProvider>
           <MediaProvider>

@@ -66,7 +66,7 @@ export function MediaDetailClient({
   const trailerKey = !isBook(item) ? item.trailerKey : null;
 
   return (
-    <main className="min-h-screen bg-background text-foreground relative pb-20">
+    <div className="min-h-screen bg-background text-foreground relative pb-20">
       <TrailerModal
         trailerKey={trailerKey || ""}
         isOpen={showTrailer}
@@ -81,7 +81,7 @@ export function MediaDetailClient({
       />
       <BackButton />
 
-      <div className="fixed inset-0 h-[70vh] w-full -z-10 overflow-hidden" style={{ contain: 'strict' }}>
+      <div className="fixed inset-0 h-[50vh] sm:h-[60vh] md:h-[70vh] w-full -z-10 overflow-hidden" style={{ contain: 'strict' }}>
         <Image
           src={backdrop || "/placeholder.jpg"}
           alt=""
@@ -96,7 +96,7 @@ export function MediaDetailClient({
 
       <div className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-24 md:pt-32 pb-12">
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-12 items-start">
-          <div className="w-full max-w-60 mx-auto md:mx-0 md:w-[280px] lg:w-[350px] shrink-0 perspective-1000 space-y-4">
+          <div className="w-full max-w-52 sm:max-w-60 mx-auto md:mx-0 md:w-[280px] lg:w-[350px] shrink-0 perspective-1000 space-y-4">
             <DetailPoster
               item={item}
               initialWatched={item.watched}
@@ -312,6 +312,6 @@ export function MediaDetailClient({
           </Carousel>
         </div>
       )}
-    </main>
+    </div>
   );
 }

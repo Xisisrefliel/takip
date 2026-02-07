@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, memo, type ComponentType } from "react";
+import { useState, useTransition, useCallback, useEffect, memo, type ComponentType } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Eye, ClockPlus, ClockCheck, Heart, Check } from "lucide-react";
@@ -8,6 +8,7 @@ import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
 import { toggleWatchedAction, toggleWatchlistAction, toggleLikedAction } from "@/app/actions";
 import { useRouter } from "next/navigation";
+import { useLongPress } from "@/hooks/useLongPress";
 
 interface MovieCardProps {
   movie: Movie;
@@ -83,13 +84,31 @@ function MovieCardInner({
     });
   }, [movie.id, mediaType, router, liked, onLikedChange]);
 
+  const { isLongPressed, dismiss: dismissLongPress, handlers: longPressHandlers } = useLongPress(300);
+  const showActions = isHovered || isLongPressed;
+
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
+  // Dismiss long press when tapping outside
+  useEffect(() => {
+    if (!isLongPressed) return;
+    const handleTouch = (e: TouchEvent) => {
+      const target = e.target as Node;
+      const card = document.getElementById(`movie-card-${movie.id}`);
+      if (card && !card.contains(target)) {
+        dismissLongPress();
+      }
+    };
+    document.addEventListener("touchstart", handleTouch);
+    return () => document.removeEventListener("touchstart", handleTouch);
+  }, [isLongPressed, dismissLongPress, movie.id]);
+
   return (
-    <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)}>
+    <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)} {...longPressHandlers}>
       <div
-        className={cn("group flex flex-col gap-3")}
+        id={`movie-card-${movie.id}`}
+        className={cn("group flex flex-col gap-3", isLongPressed && "scale-[0.97] transition-transform duration-150")}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -119,18 +138,21 @@ function MovieCardInner({
 
             {/* Overlay Actions - Minimal */}
             <div
-              className={`absolute inset-0 flex items-end justify-center gap-2 pb-3 z-20 transition-opacity duration-150 ease-out ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute inset-0 flex items-end justify-center gap-2 pb-3 z-20 transition-opacity duration-150 ease-out ${showActions ? 'opacity-100' : 'opacity-0'}`}
             >
+              {isLongPressed && (
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              )}
               <ActionButton
                 active={watched}
-                onClick={handleWatched}
+                onClick={(e) => { handleWatched(e); dismissLongPress(); }}
                 icon={watched ? Check : Eye}
                 label="Watched"
                 disabled={isPending}
               />
               <ActionButton
                 active={liked}
-                onClick={handleLiked}
+                onClick={(e) => { handleLiked(e); dismissLongPress(); }}
                 icon={Heart}
                 label="Like"
                 fill={liked}
@@ -139,7 +161,7 @@ function MovieCardInner({
               />
               <ActionButton
                 active={watchlist}
-                onClick={handleWatchlist}
+                onClick={(e) => { handleWatchlist(e); dismissLongPress(); }}
                 icon={watchlist ? ClockCheck : ClockPlus}
                 label="Watchlist"
                 disabled={isPending}
@@ -147,7 +169,7 @@ function MovieCardInner({
             </div>
 
             {/* Status Badges (Top Right) */}
-            {!isHovered && (
+            {!showActions && (
               <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none z-20">
                 {watched && (
                   <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
@@ -222,7 +244,7 @@ const ActionButton = memo(function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-150 backdrop-blur-sm btn-press",
+        "w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 backdrop-blur-sm btn-press",
         active
           ? "bg-white/95 text-black shadow-md"
           : "bg-black/50 text-white/90 hover:bg-black/60 hover:text-white",

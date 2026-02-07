@@ -209,7 +209,7 @@ export function Navbar() {
                         setIsSearching(false);
                         setSearchQuery("");
                       }}
-                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0"
+                      className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full hover:bg-surface-hover text-foreground/60 hover:text-foreground transition-colors shrink-0"
                     >
                       <X size={16} />
                     </button>
@@ -233,7 +233,7 @@ export function Navbar() {
                 <div className="relative mr-0.5 sm:mr-1 shrink-0">
                   <motion.div
                     ref={dropdownButtonRef}
-                    className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/12 dark:bg-white/8 text-foreground cursor-pointer border border-transparent hover:border-white/10"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white/12 dark:bg-white/8 text-foreground cursor-pointer border border-transparent hover:border-white/10"
                     onClick={() => setIsDropdownOpen((prev) => !prev)}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -310,7 +310,7 @@ export function Navbar() {
                     onClick={handleToggleTheme}
                     aria-label="Toggle theme"
                     className={cn(
-                      "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
+                      "w-10 h-10 rounded-full flex items-center justify-center",
                       "border border-black/8 dark:border-white/10 bg-black/5 dark:bg-white/6",
                       "hover:bg-black/8 dark:hover:bg-white/10 transition-colors",
                       "text-foreground/80 hover:text-foreground"
@@ -322,7 +322,7 @@ export function Navbar() {
                   </motion.button>
                   <button
                     onClick={() => setIsSearching(true)}
-                    className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-foreground/70 hover:text-foreground bg-black/5 hover:bg-black/8 dark:bg-white/5 dark:hover:bg-white/10 transition-colors shrink-0 border border-black/8 dark:border-white/8"
+                    className="w-10 h-10 flex items-center justify-center rounded-full text-foreground/70 hover:text-foreground bg-black/5 hover:bg-black/8 dark:bg-white/5 dark:hover:bg-white/10 transition-colors shrink-0 border border-black/8 dark:border-white/8"
                   >
                     <Search size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </button>

@@ -152,7 +152,7 @@ export function ProfilePage({
   const isTabLoading = isLoading || !loadedTabs.has(`${contentType}-${activeTab}`);
 
   return (
-    <div className="min-h-screen pb-20 pt-8 sm:pt-12">
+    <div className="min-h-screen pb-20 pt-4 sm:pt-8 md:pt-12">
       <div className="mx-auto px-4 sm:px-6 md:px-8">
         
         <div className="flex flex-col items-center mb-8 sm:mb-12">
@@ -504,7 +504,7 @@ function MediaFilterButton({
       onMouseEnter={() => setHoveredFilter(id)}
       aria-pressed={active}
       className={cn(
-        "relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-colors duration-300 outline-none",
+        "relative flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-medium transition-colors duration-300 outline-none",
         active 
           ? "text-background" 
           : "text-foreground/60 hover:text-foreground"

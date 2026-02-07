@@ -39,7 +39,7 @@ export function Carousel({
   const renderButton = (direction: "left" | "right") => (
     <button
       onClick={() => scroll(direction)}
-      className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-surface-hover text-foreground/70 hover:text-foreground transition-colors shadow-sm"
+      className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-surface-hover text-foreground/70 hover:text-foreground transition-colors shadow-sm"
       aria-label={`Scroll ${direction}`}
     >
       {direction === "left" ? (
@@ -67,7 +67,7 @@ export function Carousel({
             {headerAction && <div className="ml-2">{headerAction}</div>}
           </div>
           {!hideControls && (
-            <div className="flex gap-1.5 sm:gap-2">
+            <div className="hidden sm:flex gap-1.5 sm:gap-2">
               {renderButton("left")}
               {renderButton("right")}
             </div>

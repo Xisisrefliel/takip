@@ -50,7 +50,7 @@ export default async function StatsPage() {
 
   return (
     <div className="min-h-screen bg-background pb-32 pt-20 sm:pt-24">
-      <div className="mx-auto w-full px-6 sm:px-8 md:px-12 lg:max-w-7xl">
+      <div className="mx-auto w-full px-4 sm:px-6 md:px-8 lg:px-12 lg:max-w-7xl">
         <Hero stats={stats} runtimeHours={runtimeHours} />
 
         {!hasData ? (
@@ -188,7 +188,7 @@ function Hero({
 }) {
   const watched = stats.totals?.watchedCount ?? 0;
   return (
-    <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl px-8 py-12 sm:px-12 sm:py-16">
+    <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-2xl px-5 py-8 sm:px-8 sm:py-12 md:px-12 md:py-16">
       <div className="flex flex-col gap-10">
         <div className="max-w-2xl space-y-6">
           <p className="text-xs uppercase tracking-[0.35em] text-foreground/50">
@@ -223,7 +223,7 @@ function MiniStat({
       <p className="text-xs uppercase tracking-widest text-foreground/50 mb-3">
         {title}
       </p>
-      <p className="text-4xl font-semibold text-foreground mb-2">{value}</p>
+      <p className="text-3xl sm:text-4xl font-semibold text-foreground mb-2">{value}</p>
       <p className="text-xs text-foreground/50">{hint}</p>
     </div>
   );
@@ -262,11 +262,11 @@ function PulseCard({
     <div className="space-y-4">
       <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 px-5 py-5">
         <p className="text-xs text-foreground/50 mb-2">Entries pulled</p>
-        <p className="text-3xl font-semibold text-foreground">{recentCount}</p>
+        <p className="text-2xl sm:text-3xl font-semibold text-foreground">{recentCount}</p>
       </div>
       <div className="rounded-xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-black/40 px-5 py-5">
         <p className="text-xs text-foreground/50 mb-2">Past 7 items</p>
-        <p className="text-3xl font-semibold text-foreground">{lastSeven}</p>
+        <p className="text-2xl sm:text-3xl font-semibold text-foreground">{lastSeven}</p>
       </div>
     </div>
   );

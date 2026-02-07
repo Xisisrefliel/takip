@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, type ComponentType } from "react";
+import { useState, useEffect, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Plus, Heart, Check, BookOpen } from "lucide-react";
 import { Book } from "@/types";
 import { cn } from "@/lib/utils";
+import { useLongPress } from "@/hooks/useLongPress";
 
 interface BookCardProps {
   book: Book;
@@ -15,15 +16,31 @@ interface BookCardProps {
 
 export function BookCard({ book, className }: BookCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [read, setRead] = useState(false); // Default to false since not in Book type
+  const [read, setRead] = useState(false);
   const [watchlist, setWatchlist] = useState(false);
   const [liked, setLiked] = useState(false);
+  const { isLongPressed, dismiss: dismissLongPress, handlers: longPressHandlers } = useLongPress(300);
+  const showActions = isHovered || isLongPressed;
+
+  useEffect(() => {
+    if (!isLongPressed) return;
+    const handleTouch = (e: TouchEvent) => {
+      const target = e.target as Node;
+      const card = document.getElementById(`book-card-${book.id}`);
+      if (card && !card.contains(target)) {
+        dismissLongPress();
+      }
+    };
+    document.addEventListener("touchstart", handleTouch);
+    return () => document.removeEventListener("touchstart", handleTouch);
+  }, [isLongPressed, dismissLongPress, book.id]);
 
   return (
     <div className={cn("block w-full", className)}>
-      <Link href={`/book/${book.id}`} className="block outline-none">
-      <div 
-        className={cn("group flex flex-col gap-3 w-full")}
+      <Link href={`/book/${book.id}`} className="block outline-none" {...longPressHandlers}>
+      <div
+        id={`book-card-${book.id}`}
+        className={cn("group flex flex-col gap-3 w-full", isLongPressed && "scale-[0.97] transition-transform duration-150")}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -51,14 +68,18 @@ export function BookCard({ book, className }: BookCardProps) {
           {/* Overlay Actions - Minimal */}
           <div className={cn(
               "absolute inset-0 flex items-end justify-center gap-2 pb-3 transition-opacity duration-300",
-              isHovered ? "opacity-100" : "opacity-0"
+              showActions ? "opacity-100" : "opacity-0"
           )}>
+              {isLongPressed && (
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              )}
               <ActionButton
                 active={read}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setRead(!read);
+                  dismissLongPress();
                 }}
                 icon={read ? Check : BookOpen}
                 label="Read"
@@ -69,6 +90,7 @@ export function BookCard({ book, className }: BookCardProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   setLiked(!liked);
+                  dismissLongPress();
                 }}
                 icon={Heart}
                 label="Like"
@@ -81,6 +103,7 @@ export function BookCard({ book, className }: BookCardProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   setWatchlist(!watchlist);
+                  dismissLongPress();
                 }}
                 icon={Plus}
                 label="Wishlist"
@@ -88,7 +111,7 @@ export function BookCard({ book, className }: BookCardProps) {
           </div>
 
           {/* Status Badges (Top Right) */}
-          {!isHovered && (
+          {!showActions && (
              <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none">
                 {read && (
                     <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
@@ -151,7 +174,7 @@ function ActionButton({
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       onClick={onClick}
       className={cn(
-        "w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-150",
+        "w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-150",
         active
           ? "bg-white/95 text-black shadow-md"
           : "bg-black/50 text-white/90 hover:bg-black/60 hover:text-white",

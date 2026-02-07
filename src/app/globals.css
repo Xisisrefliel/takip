@@ -166,6 +166,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch optimization - prevent 300ms delay */
+button, a, [role="button"] {
+  touch-action: manipulation;
 }
 
 /* Typography hierarchy - Apple style */
