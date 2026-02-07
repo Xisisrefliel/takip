@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, type ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Plus, Heart, Check, BookOpen } from "lucide-react";
 import { Book } from "@/types";
 import { cn } from "@/lib/utils";
-import { useLongPress } from "@/hooks/useLongPress";
 
 interface BookCardProps {
   book: Book;
@@ -19,28 +18,13 @@ export function BookCard({ book, className }: BookCardProps) {
   const [read, setRead] = useState(false);
   const [watchlist, setWatchlist] = useState(false);
   const [liked, setLiked] = useState(false);
-  const { isLongPressed, dismiss: dismissLongPress, handlers: longPressHandlers } = useLongPress(300);
-  const showActions = isHovered || isLongPressed;
-
-  useEffect(() => {
-    if (!isLongPressed) return;
-    const handleTouch = (e: TouchEvent) => {
-      const target = e.target as Node;
-      const card = document.getElementById(`book-card-${book.id}`);
-      if (card && !card.contains(target)) {
-        dismissLongPress();
-      }
-    };
-    document.addEventListener("touchstart", handleTouch);
-    return () => document.removeEventListener("touchstart", handleTouch);
-  }, [isLongPressed, dismissLongPress, book.id]);
 
   return (
     <div className={cn("block w-full", className)}>
-      <Link href={`/book/${book.id}`} className="block outline-none" {...longPressHandlers}>
+      <Link href={`/book/${book.id}`} className="block outline-none">
       <div
         id={`book-card-${book.id}`}
-        className={cn("group flex flex-col gap-3 w-full", isLongPressed && "scale-[0.97] transition-transform duration-150")}
+        className="group flex flex-col gap-3 w-full"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -65,21 +49,17 @@ export function BookCard({ book, className }: BookCardProps) {
           {/* Spine Effect */}
           <div className="absolute inset-y-0 left-0 w-1.5 md:w-2 bg-linear-to-r from-black/40 to-transparent opacity-60 pointer-events-none" />
 
-          {/* Overlay Actions - Minimal */}
+          {/* Desktop Overlay Actions (hover) */}
           <div className={cn(
-              "absolute inset-0 flex items-end justify-center gap-2 pb-3 transition-opacity duration-300",
-              showActions ? "opacity-100" : "opacity-0"
+              "absolute inset-0 items-end justify-center gap-2 pb-3 transition-opacity duration-300 hidden md:flex",
+              isHovered ? "opacity-100" : "opacity-0"
           )}>
-              {isLongPressed && (
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-              )}
               <ActionButton
                 active={read}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setRead(!read);
-                  dismissLongPress();
                 }}
                 icon={read ? Check : BookOpen}
                 label="Read"
@@ -90,7 +70,6 @@ export function BookCard({ book, className }: BookCardProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   setLiked(!liked);
-                  dismissLongPress();
                 }}
                 icon={Heart}
                 label="Like"
@@ -103,16 +82,54 @@ export function BookCard({ book, className }: BookCardProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   setWatchlist(!watchlist);
-                  dismissLongPress();
                 }}
                 icon={Plus}
                 label="Wishlist"
               />
           </div>
 
-          {/* Status Badges (Top Right) */}
-          {!showActions && (
-             <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none">
+          {/* Mobile Action Strip (always visible) */}
+          <div className="absolute bottom-0 inset-x-0 flex items-center justify-center gap-1.5 py-1.5 z-20 bg-gradient-to-t from-black/70 via-black/40 to-transparent md:hidden">
+              <ActionButton
+                size="sm"
+                active={read}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setRead(!read);
+                }}
+                icon={read ? Check : BookOpen}
+                label="Read"
+              />
+              <ActionButton
+                size="sm"
+                active={liked}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setLiked(!liked);
+                }}
+                icon={Heart}
+                label="Like"
+                fill={liked}
+                className={liked ? "text-red-500 bg-white" : ""}
+              />
+              <ActionButton
+                size="sm"
+                active={watchlist}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setWatchlist(!watchlist);
+                }}
+                icon={Plus}
+                label="Wishlist"
+              />
+          </div>
+
+          {/* Status Badges (Top Right) - Desktop only */}
+          {!isHovered && (
+             <div className="absolute top-3 right-3 hidden md:flex flex-col gap-2 pointer-events-none">
                 {read && (
                     <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
                 )}
@@ -156,6 +173,7 @@ function ActionButton({
   label,
   className,
   fill,
+  size = "default",
 }: {
   active?: boolean;
   onClick: (e: React.MouseEvent) => void;
@@ -163,7 +181,26 @@ function ActionButton({
   label: string;
   className?: string;
   fill?: boolean;
+  size?: "default" | "sm";
 }) {
+  const btnClass = cn(
+    "rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-150",
+    size === "sm" ? "w-7 h-7" : "w-9 h-9 sm:w-8 sm:h-8",
+    active
+      ? "bg-white/95 text-black shadow-md"
+      : "bg-black/50 text-white/90 hover:bg-black/60 hover:text-white",
+    className
+  );
+  const iconSize = size === "sm" ? 12 : 15;
+
+  if (size === "sm") {
+    return (
+      <button onClick={onClick} className={btnClass} title={label}>
+        <Icon size={iconSize} fill={fill ? "currentColor" : "none"} />
+      </button>
+    );
+  }
+
   return (
     <motion.button
       initial={{ scale: 0.8, opacity: 0 }}
@@ -173,16 +210,10 @@ function ActionButton({
       style={{ willChange: "transform, opacity" }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       onClick={onClick}
-      className={cn(
-        "w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-150",
-        active
-          ? "bg-white/95 text-black shadow-md"
-          : "bg-black/50 text-white/90 hover:bg-black/60 hover:text-white",
-        className
-      )}
+      className={btnClass}
       title={label}
     >
-      <Icon size={15} fill={fill ? "currentColor" : "none"} />
+      <Icon size={iconSize} fill={fill ? "currentColor" : "none"} />
     </motion.button>
   );
 }

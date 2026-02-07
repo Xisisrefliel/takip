@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect, memo, type ComponentType } from "react";
+import { useState, useTransition, useCallback, memo, type ComponentType } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Eye, ClockPlus, ClockCheck, Heart, Check } from "lucide-react";
@@ -8,7 +8,6 @@ import { Movie } from "@/types";
 import { cn } from "@/lib/utils";
 import { toggleWatchedAction, toggleWatchlistAction, toggleLikedAction } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useLongPress } from "@/hooks/useLongPress";
 
 interface MovieCardProps {
   movie: Movie;
@@ -84,31 +83,14 @@ function MovieCardInner({
     });
   }, [movie.id, mediaType, router, liked, onLikedChange]);
 
-  const { isLongPressed, dismiss: dismissLongPress, handlers: longPressHandlers } = useLongPress(300);
-  const showActions = isHovered || isLongPressed;
-
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
-  // Dismiss long press when tapping outside
-  useEffect(() => {
-    if (!isLongPressed) return;
-    const handleTouch = (e: TouchEvent) => {
-      const target = e.target as Node;
-      const card = document.getElementById(`movie-card-${movie.id}`);
-      if (card && !card.contains(target)) {
-        dismissLongPress();
-      }
-    };
-    document.addEventListener("touchstart", handleTouch);
-    return () => document.removeEventListener("touchstart", handleTouch);
-  }, [isLongPressed, dismissLongPress, movie.id]);
-
   return (
-    <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)} {...longPressHandlers}>
+    <Link href={`/${movie.mediaType}/${movie.id}`} className={cn("block", className)}>
       <div
         id={`movie-card-${movie.id}`}
-        className={cn("group flex flex-col gap-3", isLongPressed && "scale-[0.97] transition-transform duration-150")}
+        className="group flex flex-col gap-3"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -136,23 +118,23 @@ function MovieCardInner({
               loading="lazy"
             />
 
-            {/* Overlay Actions - Minimal */}
+            {/* Desktop Overlay Actions (hover) */}
             <div
-              className={`absolute inset-0 flex items-end justify-center gap-2 pb-3 z-20 transition-opacity duration-150 ease-out ${showActions ? 'opacity-100' : 'opacity-0'}`}
-            >
-              {isLongPressed && (
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              className={cn(
+                "absolute inset-0 items-end justify-center gap-2 pb-3 z-20 transition-opacity duration-150 ease-out hidden md:flex",
+                isHovered ? "opacity-100" : "opacity-0"
               )}
+            >
               <ActionButton
                 active={watched}
-                onClick={(e) => { handleWatched(e); dismissLongPress(); }}
+                onClick={handleWatched}
                 icon={watched ? Check : Eye}
                 label="Watched"
                 disabled={isPending}
               />
               <ActionButton
                 active={liked}
-                onClick={(e) => { handleLiked(e); dismissLongPress(); }}
+                onClick={handleLiked}
                 icon={Heart}
                 label="Like"
                 fill={liked}
@@ -161,16 +143,46 @@ function MovieCardInner({
               />
               <ActionButton
                 active={watchlist}
-                onClick={(e) => { handleWatchlist(e); dismissLongPress(); }}
+                onClick={handleWatchlist}
                 icon={watchlist ? ClockCheck : ClockPlus}
                 label="Watchlist"
                 disabled={isPending}
               />
             </div>
 
-            {/* Status Badges (Top Right) */}
-            {!showActions && (
-              <div className="absolute top-3 right-3 flex flex-col gap-2 pointer-events-none z-20">
+            {/* Mobile Action Strip (always visible) */}
+            <div className="absolute bottom-0 inset-x-0 flex items-center justify-center gap-1.5 py-1.5 z-20 bg-gradient-to-t from-black/70 via-black/40 to-transparent md:hidden">
+              <ActionButton
+                size="sm"
+                active={watched}
+                onClick={handleWatched}
+                icon={watched ? Check : Eye}
+                label="Watched"
+                disabled={isPending}
+              />
+              <ActionButton
+                size="sm"
+                active={liked}
+                onClick={handleLiked}
+                icon={Heart}
+                label="Like"
+                fill={liked}
+                className={liked ? "text-red-500 bg-white" : ""}
+                disabled={isPending}
+              />
+              <ActionButton
+                size="sm"
+                active={watchlist}
+                onClick={handleWatchlist}
+                icon={watchlist ? ClockCheck : ClockPlus}
+                label="Watchlist"
+                disabled={isPending}
+              />
+            </div>
+
+            {/* Status Badges (Top Right) - Desktop only */}
+            {!isHovered && (
+              <div className="absolute top-3 right-3 hidden md:flex flex-col gap-2 pointer-events-none z-20">
                 {watched && (
                   <div className="w-2 h-2 bg-accent rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] shadow-accent/50" />
                 )}
@@ -229,7 +241,8 @@ const ActionButton = memo(function ActionButton({
   label,
   className,
   fill,
-  disabled = false
+  disabled = false,
+  size = "default"
 }: {
   active?: boolean;
   onClick: (e: React.MouseEvent) => void;
@@ -238,13 +251,15 @@ const ActionButton = memo(function ActionButton({
   className?: string;
   fill?: boolean;
   disabled?: boolean;
+  size?: "default" | "sm";
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 backdrop-blur-sm btn-press",
+        "rounded-full flex items-center justify-center transition-all duration-150 backdrop-blur-sm btn-press",
+        size === "sm" ? "w-7 h-7" : "w-9 h-9 sm:w-8 sm:h-8",
         active
           ? "bg-white/95 text-black shadow-md"
           : "bg-black/50 text-white/90 hover:bg-black/60 hover:text-white",
@@ -254,7 +269,7 @@ const ActionButton = memo(function ActionButton({
       title={label}
     >
       <Icon
-        size={15}
+        size={size === "sm" ? 12 : 15}
         {...(fill ? { fill: "currentColor" } : {})}
       />
     </button>

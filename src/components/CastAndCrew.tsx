@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+
 import { Movie, CastMember, CrewMember, CountryRelease } from "@/types";
 
 interface CastAndCrewProps {
@@ -56,14 +57,11 @@ function Chip({
   image?: string | null;
   character?: string;
 }) {
-  const [isHovered, setIsHovered] = useState(false);
-
   const baseStyles = `
-    inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium
+    inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
     transition-all duration-200 ease-out
     border border-white/10 hover:border-accent/50
     hover:scale-[1.02] active:scale-[0.98]
-    relative group
   `;
 
   const variantStyles = {
@@ -73,55 +71,32 @@ function Chip({
 
   const className = `${baseStyles} ${variantStyles[variant]}`;
 
-  const Tooltip = (image || character) ? (
-    <div
-      className={`
-        absolute bottom-full left-1/2 -translate-x-1/2 mb-3
-        rounded-lg overflow-hidden shadow-2xl
-        border border-white/20 bg-surface z-50 pointer-events-none
-        transition-all duration-200 ease-out origin-bottom
-        ${isHovered ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-90 translate-y-2"}
-      `}
-    >
-      {image && (
-        <div className="relative w-24 h-32">
-          <Image
-            src={`https://image.tmdb.org/t/p/w185${image}`}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="96px"
-          />
-        </div>
-      )}
-      {character && (
-        <div className="px-2 py-1.5 text-center bg-surface border-t border-white/10">
-          <p className="text-xs text-muted-foreground truncate max-w-24">{character}</p>
-        </div>
-      )}
-      <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-surface border-r border-b border-white/20 rotate-45" />
-    </div>
-  ) : null;
-
   const content = (
     <>
-      {Tooltip}
-      {children}
+      {image && (
+        <Image
+          src={`https://image.tmdb.org/t/p/w185${image}`}
+          alt=""
+          width={20}
+          height={20}
+          className="w-5 h-5 rounded-full object-cover shrink-0 -ml-0.5 mr-1.5"
+          sizes="20px"
+        />
+      )}
+      <span className={character ? "flex flex-col items-start leading-tight" : undefined}>
+        <span>{children}</span>
+        {character && (
+          <span className="text-[11px] text-muted-foreground font-normal truncate max-w-[140px]">
+            as {character}
+          </span>
+        )}
+      </span>
     </>
   );
 
-  const handleMouseEnter = () => setIsHovered(true);
-  const handleMouseLeave = () => setIsHovered(false);
-
-  const props = {
-    className,
-    onMouseEnter: handleMouseEnter,
-    onMouseLeave: handleMouseLeave
-  };
-
   if (href) {
     return (
-      <Link href={href} {...props}>
+      <Link href={href} className={className}>
         {content}
       </Link>
     );
@@ -129,13 +104,13 @@ function Chip({
 
   if (onClick) {
     return (
-      <button onClick={onClick} {...props}>
+      <button onClick={onClick} className={className}>
         {content}
       </button>
     );
   }
 
-  return <span {...props}>{content}</span>;
+  return <span className={className}>{content}</span>;
 }
 
 function LabeledRow({
