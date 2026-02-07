@@ -183,8 +183,8 @@ async function fetchUserMovieMetadata(
 
   if (mediaType === "movie") {
     const enhancedData = await getEnhancedMovieData(mediaId).catch(() => ({
-      keywords: [],
-      collection: undefined,
+      keywords: [] as string[],
+      collection: undefined as { id: number; name: string } | undefined,
     }));
     keywordsJson = toJson(enhancedData.keywords);
     if (enhancedData.collection) {

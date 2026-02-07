@@ -138,8 +138,8 @@ export default async function MediaDetailPage({ params }: PageProps) {
       getUserReviewAction(id, mediaType as "movie" | "tv"),
     ]).catch(() => [{ reviews: [] }, { review: null }]);
 
-    initialReviews = reviewsResult.reviews;
-    initialUserReview = userReviewResult.review;
+    initialReviews = reviewsResult.reviews ?? [];
+    initialUserReview = userReviewResult.review ?? null;
   }
 
   if (session?.user?.id && mediaType !== "book") {
@@ -149,7 +149,7 @@ export default async function MediaDetailPage({ params }: PageProps) {
     const [userPrefs, watchedIds] = await Promise.all([
       getUserLikedGenres(userId),
       getUserWatchedIds(userId),
-    ]).catch(() => [[], new Set<string>()]);
+    ]).catch(() => [[] as string[], new Set<string>()] as const);
 
     if (movieItem.recommendations) {
       movieItem.recommendations = personalizeRecommendations(
