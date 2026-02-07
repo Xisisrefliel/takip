@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Play, Plus } from "lucide-react";
 import { Movie } from "@/types";
 import Image from "next/image";
+import Link from "next/link";
 
 interface HomePageProps {
   trendingMovies: Movie[];
@@ -66,8 +67,15 @@ export function HomePage({
           <div className="absolute inset-0 bg-linear-to-r from-black/60 via-transparent to-transparent" />
         </div>
 
+        {/* Clickable overlay */}
+        <Link
+          href={`/${heroMovie.mediaType}/${heroMovie.id}`}
+          aria-label={`View details for ${heroMovie.title}`}
+          className="absolute inset-0 z-10"
+        />
+
         {/* Content */}
-        <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-8 md:p-12 lg:p-16">
+        <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-8 md:p-12 lg:p-16 z-20 pointer-events-none">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -97,7 +105,7 @@ export function HomePage({
               {heroDescription}
             </p>
 
-            <div className="flex items-center gap-3 sm:gap-4 pt-2 sm:pt-4">
+            <div className="flex items-center gap-3 sm:gap-4 pt-2 sm:pt-4 pointer-events-auto">
               <a
                 href={trailerUrl}
                 target="_blank"

@@ -104,15 +104,17 @@ export function MediaDetailClient({
               initialLiked={item.liked}
             />
             {!isBook(item) && (
-              <WatchProviders
-                providers={providers}
-                preferredRegion={user?.preferredRegion}
-                isAuthenticated={Boolean(user?.id)}
-                title={item.title}
-                year={item.year}
-                mediaType={mediaType as 'movie' | 'tv'}
-                tmdbId={id}
-              />
+              <div className="hidden md:block">
+                <WatchProviders
+                  providers={providers}
+                  preferredRegion={user?.preferredRegion}
+                  isAuthenticated={Boolean(user?.id)}
+                  title={item.title}
+                  year={item.year}
+                  mediaType={mediaType as 'movie' | 'tv'}
+                  tmdbId={id}
+                />
+              </div>
             )}
           </div>
 
@@ -209,6 +211,20 @@ export function MediaDetailClient({
                 </Link>
               )}
             </div>
+
+            {!isBook(item) && (
+              <div className="md:hidden">
+                <WatchProviders
+                  providers={providers}
+                  preferredRegion={user?.preferredRegion}
+                  isAuthenticated={Boolean(user?.id)}
+                  title={item.title}
+                  year={item.year}
+                  mediaType={mediaType as 'movie' | 'tv'}
+                  tmdbId={id}
+                />
+              </div>
+            )}
 
             {!isBook(item) && item.tagline && (
               <p className="text-lg sm:text-xl text-muted-foreground font-light italic flex items-center gap-3 sm:gap-4">

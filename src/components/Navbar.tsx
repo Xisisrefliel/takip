@@ -432,7 +432,7 @@ function NavPill({
       onMouseEnter={() => setHoveredLink(href)}
       prefetch={prefetch}
       className={cn(
-        "relative px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
+        "relative px-3 sm:px-4 py-1.5 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors duration-300 outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
         active ? "text-background" : "text-foreground/60 hover:text-foreground"
       )}
     >

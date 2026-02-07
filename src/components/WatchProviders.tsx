@@ -203,14 +203,14 @@ export function WatchProviders({
                 });
 
                 const imageContent = (
-                  <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
+                  <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
                     {provider.logo_path && (
                       <Image
                         src={provider.logo_path}
                         alt={provider.provider_name}
                         fill
                         className="object-cover"
-                        sizes="(max-width: 640px) 40px, 48px"
+                        sizes="(max-width: 640px) 44px, 48px"
                       />
                     )}
                   </div>
@@ -263,14 +263,14 @@ export function WatchProviders({
                 });
 
                 const imageContent = (
-                  <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
+                  <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
                     {provider.logo_path && (
                       <Image
                         src={provider.logo_path}
                         alt={provider.provider_name}
                         fill
                         className="object-cover"
-                        sizes="(max-width: 640px) 40px, 48px"
+                        sizes="(max-width: 640px) 44px, 48px"
                       />
                     )}
                   </div>
@@ -323,14 +323,14 @@ export function WatchProviders({
                 });
 
                 const imageContent = (
-                  <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
+                  <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-white/10 ${providerUrl ? 'transition-transform group-hover:scale-110 group-hover:shadow-lg' : ''}`}>
                     {provider.logo_path && (
                       <Image
                         src={provider.logo_path}
                         alt={provider.provider_name}
                         fill
                         className="object-cover"
-                        sizes="(max-width: 640px) 40px, 48px"
+                        sizes="(max-width: 640px) 44px, 48px"
                       />
                     )}
                   </div>
